@@ -1774,7 +1774,7 @@ function refreshDynamic(){
 }
 
 // Apply on load
-document.addEventListener('DOMContentLoaded', function(){ applyLang(); });
+document.addEventListener('DOMContentLoaded', function(){ applyLang(); loadSharedData(); });
 
 
 // Admin password (obfuscated — not stored as plain text)
@@ -1915,6 +1915,46 @@ function operatorLoginModal(){
   });
 }
 
+// ---- app_data (shared results) helpers ----
+async function dbSaveData(key, value){
+  if(!sb) return;
+  try{ const { error } = await sb.from('app_data').upsert({ key, value, updated_at:new Date().toISOString() }); if(error) console.error('save '+key, error); }
+  catch(e){ console.error('save '+key, e); }
+}
+async function dbDeleteData(key){
+  if(!sb) return;
+  try{ await sb.from('app_data').delete().eq('key', key); }catch(e){ console.error('del '+key, e); }
+}
+async function dbLoadAllData(){
+  if(!sb) return {};
+  try{ const { data, error } = await sb.from('app_data').select('key,value'); if(error){ console.error('load app_data', error); return {}; }
+    const out={}; (data||[]).forEach(function(r){ out[r.key]=r.value; }); return out; }
+  catch(e){ console.error('load app_data', e); return {}; }
+}
+// Save operator-managed datasets (called after each upload; needs operator login)
+async function saveResults(){
+  await dbSaveData('score_data', SCORE_DATA);
+  await dbSaveData('rider_map', RIDER_MAP);
+  await dbSaveData('matchup_vendor_map', MATCHUP_VENDOR_MAP);
+  await dbSaveData('matchup_data', MATCHUP_DATA);
+}
+async function saveMatchup(){ await dbSaveData('matchup_data', MATCHUP_DATA); await dbSaveData('matchup_vendor_map', MATCHUP_VENDOR_MAP); }
+async function saveCurp(){ await dbSaveData('curp_map', REAL_CURP_MAP); }
+async function saveVendorList(){ await dbSaveData('vendor_list', VENDOR_LIST); }
+// Load shared data on startup so public/rider queries work on any device
+async function loadSharedData(){
+  const d = await dbLoadAllData();
+  if(d.score_data) SCORE_DATA = d.score_data;
+  if(d.rider_map) RIDER_MAP = d.rider_map;
+  if(d.matchup_vendor_map) MATCHUP_VENDOR_MAP = d.matchup_vendor_map;
+  if(d.matchup_data) MATCHUP_DATA = d.matchup_data;
+  if(d.vendor_list && Object.keys(d.vendor_list).length) VENDOR_LIST = d.vendor_list;
+  if(d.curp_map){ Object.keys(REAL_CURP_MAP).forEach(function(k){delete REAL_CURP_MAP[k];}); Object.assign(REAL_CURP_MAP, d.curp_map); }
+  try{ if(typeof initScorePage==='function') initScorePage(); }catch(e){}
+  try{ if(typeof renderTop10==='function') renderTop10(); }catch(e){}
+  try{ if(typeof initMatchupPage==='function') initMatchupPage(); }catch(e){}
+}
+
 function switchReg(t){
   ['rt-new','rt-list','rt-bulk'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none'});
   const el=document.getElementById('rt-'+t);if(el)el.style.display='block';
@@ -2010,6 +2050,7 @@ function handleVendorUpload(file){
       if(count===0)throw new Error(L('未找到 vendor_code 列，请确认文件格式','No se encontró la columna vendor_code; verifica el formato del archivo'));
       if(statusEl)statusEl.textContent=L('✓ 已加载 '+count+' 家供应商（报名时将校验 Vendor Code）','✓ '+count+' proveedores cargados (se validará el Vendor Code al inscribir)');
       if(statusEl)statusEl.style.color='var(--win)';
+      saveVendorList();
     }catch(err){
       if(statusEl){statusEl.textContent=L('❌ 上传失败：','❌ Error al subir: ')+err.message;statusEl.style.color='var(--lose)';}
       console.error('Vendor upload error:',err);
@@ -2465,6 +2506,7 @@ function publishMatchups(){
     pairs:GENERATED_PAIRS.map(p=>({a:{team:p.a.team,vendor:p.a.vendor},b:{team:p.b.team,vendor:p.b.vendor}}))
   };
   initMatchupPage();
+  saveMatchup();
   alert(L(`✅ 第${matchId}场配对结果已发布！骑手可在「配对结果」页面查看。`,`✅ ¡Emparejamientos del ${matchLabel(matchId)} publicados! Los riders pueden verlos en «Emparejamientos».`));
 }
 
@@ -2823,6 +2865,7 @@ function handleScoreUpload(file){
       });
 
       initScorePage();
+      saveResults();
       var teamCount=Object.keys(teamMap).length;
       var scoredTeams=Object.values(teamMap).filter(function(t){return t.my_score>0;}).length;
       var vendorCount=Object.keys(VENDOR_RIDER_MAP).length;
@@ -2914,6 +2957,7 @@ function handleRegUpload(file){
           });
         });
         initScorePage();
+        saveResults();
         if(errEl)errEl.textContent=L('✅ 报名数据已加载并重新计算：','✅ Datos de inscripción cargados y recalculados: ')+teamCount+L('支队伍，',' equipos, ')+riderCount+L('名骑手',' riders');
       }
     }catch(err){
@@ -3073,6 +3117,7 @@ function handleMatchupUpload(file){
 
       // Update the 配对结果 page
       initMatchupPage();
+      saveMatchup();
 
       // If score data already loaded, re-run everything with correct vendor codes
       if(SCORE_DATA&&Object.keys(SCORE_DATA).length>0){
@@ -3085,6 +3130,7 @@ function handleMatchupUpload(file){
           });
         });
         initScorePage();
+        saveResults();
         showAlert('matchupUploadErr',L('✅ 配对数据已加载，积分已重新计算','✅ Datos de duelos cargados, puntos recalculados'),'ok');
       }
     }catch(err){
@@ -3189,6 +3235,7 @@ async function clearEverything(){
   if(!(await requireOperator())) return;
   if(!confirm(L('⚠️ 这将清空：①所有报名记录 ②比赛结果 ③骑手积分查询数据。不可恢复，确认？','⚠️ Esto borrará: ① todas las inscripciones ② resultados ③ datos de consulta de puntos. Irreversible, ¿confirmar?'))) return;
   try{ await dbDeleteAllRegs(); }catch(err){ console.error(err); }
+  try{ for(const k of ['score_data','rider_map','matchup_vendor_map','matchup_data','curp_map','vendor_list']) await dbDeleteData(k); }catch(e){ console.error(e); }
   TEAMS=[];
   SCORE_DATA=null;RIDER_MAP={};VENDOR_RIDER_MAP={};MATCHUP_VENDOR_MAP={};
   MATCHUP_DATA=null;REG_RIDER_MAP={};RIDER_SCORE_MAP={};
@@ -3209,6 +3256,7 @@ async function clearEverything(){
 async function clearAllScoreData(){
   if(!(await requireOperator())) return;
   if(!confirm(L('清空已上传的配对/积分/报名骑手数据？','¿Borrar los datos cargados de duelos/puntos/inscripción?'))) return;
+  try{ for(const k of ['score_data','rider_map','matchup_vendor_map','matchup_data']) await dbDeleteData(k); }catch(e){ console.error(e); }
   SCORE_DATA=null;RIDER_MAP={};VENDOR_RIDER_MAP={};MATCHUP_VENDOR_MAP={};MATCHUP_DATA=null;REG_RIDER_MAP={};
   if(typeof GENERATED_PAIRS!=='undefined')GENERATED_PAIRS=[];
   ['matchupLoadedBadge','scoreFileBadge','regLoadedBadge'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});
@@ -3308,6 +3356,7 @@ function handleCurpDataUpload(file){
 
       // Merge into REAL_CURP_MAP
       Object.assign(REAL_CURP_MAP,newMap);
+      saveCurp();
 
       var msg=L('✅ 已加载 ','✅ Se cargaron ')+loaded+L(' 名骑手的积分数据',' riders con datos de puntos')+(skipped>0?L('（'+skipped+'行无效跳过）',' ('+skipped+' filas inválidas omitidas)'):'');
       if(msgEl){msgEl.textContent=msg;msgEl.className='alert a-ok show';msgEl.style.display='flex';}
