@@ -1379,7 +1379,9 @@ select.fi option{background:#18181E}
   <!-- 运营入口 -->
   <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
     <button class="btn btn-s btn-sm" onclick="openCurpAdminPanel()" style="font-size:10px;color:var(--muted2);border-color:var(--border)"><span class="lc-zh">⚙️ 运营入口</span><span class="lc-es">⚙️ Operaciones</span></button>
+    <button class="btn btn-s btn-sm" onclick="openRedemptionAdmin()" style="font-size:10px;color:var(--muted2);border-color:var(--border);margin-left:8px"><span class="lc-zh">🧾 兑换申请</span><span class="lc-es">🧾 Solicitudes de canje</span></button>
   </div>
+  <div id="redemptionAdminPanel" style="display:none;background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px"></div>
   <!-- 运营上传面板 -->
   <div id="curpAdminPanel" style="display:none;background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
@@ -1429,8 +1431,14 @@ select.fi option{background:#18181E}
   </div>
 
   <div class="card">
+    <div class="card-t"><span class="lc-zh">💱 申请积分兑换</span><span class="lc-es">💱 Solicitar canje de puntos</span></div>
+    <div style="font-size:12px;color:var(--muted2);margin-bottom:14px;line-height:1.7"><span class="lc-zh">输入 CURP 后6位即可申请兑换。兑换金额由平台核算后<strong style="color:var(--text)">打入你所属供应商的账户</strong>，请于下周向你的供应商领取。</span><span class="lc-es">Ingresa los últimos 6 de tu CURP para solicitar el canje. El monto, tras el cálculo de la plataforma, se <strong style="color:var(--text)">deposita en la cuenta de tu proveedor</strong>; recógelo con él la próxima semana.</span></div>
+    <button class="btn btn-p" onclick="openRedeemModal((document.getElementById('curpIn')||{}).value)"><span class="lc-zh">💱 申请兑换</span><span class="lc-es">💱 Solicitar canje</span></button>
+  </div>
+
+  <div class="card">
     <div class="card-t"><span class="lc-zh">💱 积分兑换档位</span><span class="lc-es">💱 Niveles de canje de puntos</span></div>
-    <div style="font-size:12px;color:var(--muted2);margin-bottom:16px"><span class="lc-zh">根据活动结束时的<strong style="color:var(--text)">累计总积分</strong>确定兑换档位，积分越高，兑换率越高</span><span class="lc-es">El nivel de canje se define por tus <strong style="color:var(--text)">puntos acumulados totales</strong> al cierre del evento; a más puntos, mayor tasa de canje</span></div>
+    <div style="font-size:12px;color:var(--muted2);margin-bottom:16px"><span class="lc-zh">兑换档位按你<strong style="color:var(--text)">本次兑换的分数</strong>确定：一次兑换越多，档位越高、兑换率越高；分批少量兑换会落入较低档位，更不划算。</span><span class="lc-es">El nivel de canje se define por <strong style="color:var(--text)">la cantidad de puntos que canjeas en una sola vez</strong>: cuanto más canjees de una vez, mayor el nivel y la tasa; canjear poco y en partes cae a un nivel más bajo y conviene menos.</span></div>
     <div class="rdm-grid">
       <div class="rdm r1"><div class="rdm-range"><span class="lc-zh">0 – 4,000 分</span><span class="lc-es">0 – 4,000 pts</span></div><div class="rdm-rate"><span class="lc-zh">1分 = 0.5比索</span><span class="lc-es">1 pt = 0.5 pesos</span></div><div class="rdm-sub"><span class="lc-zh">入门档</span><span class="lc-es">Nivel inicial</span></div></div>
       <div class="rdm r2"><div class="rdm-range"><span class="lc-zh">4,001 – 6,000 分</span><span class="lc-es">4,001 – 6,000 pts</span></div><div class="rdm-rate"><span class="lc-zh">1分 = 0.6比索</span><span class="lc-es">1 pt = 0.6 pesos</span></div><div class="rdm-sub"><span class="lc-zh">进阶档</span><span class="lc-es">Nivel intermedio</span></div></div>
@@ -1960,6 +1968,32 @@ async function loadSharedData(){
   try{ if(typeof initMatchupPage==='function') initMatchupPage(); }catch(e){}
 }
 
+// ---- redemption (积分兑换申请) helpers ----
+async function dbRequestRedemption(curp6, riderId, points, rate, estCash){
+  if(!sb) return {ok:false,reason:'no_backend'};
+  const { data, error } = await sb.rpc('request_redemption',{p_curp6:curp6,p_rider_id:riderId||null,p_points:points,p_rate:rate,p_est_cash:estCash});
+  if(error){ console.error('request_redemption',error); return {ok:false,reason:'error',msg:error.message}; }
+  return data||{ok:false,reason:'unknown'};
+}
+async function dbGetMyRedemptions(curp6){
+  if(!sb) return [];
+  const { data, error } = await sb.rpc('get_my_redemptions',{p_curp6:curp6});
+  if(error){ console.error('get_my_redemptions',error); return []; }
+  return data||[];
+}
+async function dbGetAllRedemptions(){
+  if(!sb) return [];
+  const { data, error } = await sb.from('redemptions').select('*').order('created_at',{ascending:false});
+  if(error){ console.error('all redemptions',error); return []; }
+  return data||[];
+}
+async function dbUpdateRedemption(id, status){
+  if(!sb) throw new Error('no backend');
+  const { error } = await sb.from('redemptions').update({status:status, processed_at:new Date().toISOString()}).eq('id',id);
+  if(error) throw error;
+}
+
+
 function switchReg(t){
   ['rt-new','rt-list','rt-bulk'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none'});
   const el=document.getElementById('rt-'+t);if(el)el.style.display='block';
@@ -2199,6 +2233,154 @@ function queryCurp(){
       </div>` : '<div class="note n-win" style="margin-top:0">'+L('🏆 恭喜！你已达到最高档位，兑换率为 <strong>1分 = 1比索</strong>，继续保持！','🏆 ¡Felicidades! Alcanzaste el nivel máximo, tu tasa es <strong>1 pt = 1 peso</strong>. ¡Sigue así!')+'</div>'}
     </div>`;
   panel.classList.add('show');
+}
+
+
+// ══════════════════════════════════
+// REDEMPTION (积分兑换申请)
+// ══════════════════════════════════
+function openRedeemModal(prefill){
+  var ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow:auto';
+  ov.innerHTML='<div style="background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:460px;width:100%;font-family:inherit">'
+    +'<div style="font-weight:700;font-size:18px;margin-bottom:4px;color:var(--text)">'+L('💱 申请积分兑换','💱 Solicitar canje de puntos')+'</div>'
+    +'<div style="font-size:12px;color:var(--muted2);margin-bottom:16px;line-height:1.6">'+L('输入你的 CURP 后6位查询并申请兑换','Ingresa los últimos 6 de tu CURP para consultar y solicitar el canje')+'</div>'
+    +'<input id="_rdCurp" maxlength="6" placeholder="'+L('CURP 后6位','Últimos 6 del CURP')+'" style="width:100%;box-sizing:border-box;padding:11px 13px;margin-bottom:10px;border-radius:9px;border:1px solid var(--border);background:var(--s2);color:var(--text);font-size:15px;letter-spacing:3px;text-transform:uppercase;font-family:monospace">'
+    +'<button id="_rdLookup" style="width:100%;padding:10px;border-radius:9px;border:none;background:var(--didi);color:#fff;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:14px">'+L('查询','Consultar')+'</button>'
+    +'<div id="_rdBody"></div>'
+    +'<div style="display:flex;justify-content:flex-end;margin-top:16px"><button id="_rdClose" style="padding:9px 16px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);font-weight:700;cursor:pointer;font-family:inherit">'+L('关闭','Cerrar')+'</button></div>'
+    +'</div>';
+  document.body.appendChild(ov);
+  var curpIn=ov.querySelector('#_rdCurp'), lookup=ov.querySelector('#_rdLookup'), body=ov.querySelector('#_rdBody');
+  ov.querySelector('#_rdClose').onclick=function(){ov.remove();};
+  ov.addEventListener('click',function(e){if(e.target===ov)ov.remove();});
+  if(prefill){ curpIn.value=prefill; }
+  curpIn.focus();
+  async function doLookup(){
+    var curp6=curpIn.value.trim().toUpperCase();
+    if(curp6.length<4){ body.innerHTML='<div style="color:#FF3F5A;font-size:12px">'+L('请输入 CURP 后6位（至少4位）','Ingresa los últimos 6 del CURP (mín. 4)')+'</div>'; return; }
+    var data=REAL_CURP_MAP[curp6];
+    if(!data){ body.innerHTML='<div style="color:#FF3F5A;font-size:12px">'+L('未找到该 CURP，请确认输入或联系运营团队','CURP no encontrado; verifica o contacta a operaciones')+'</div>'; return; }
+    body.innerHTML='<div style="font-size:12px;color:var(--muted)">'+L('加载中…','Cargando…')+'</div>';
+    var my=await dbGetMyRedemptions(curp6);
+    var completed=my.filter(function(r){return r.status==='completed';}).reduce(function(s,r){return s+(r.points||0);},0);
+    var pending=my.filter(function(r){return r.status==='pending';}).reduce(function(s,r){return s+(r.points||0);},0);
+    var total=data.cumulative_pts||0;
+    var available=Math.max(0,total-completed-pending);
+    renderRedeemForm(body, curp6, data, total, completed, pending, available, pending>0);
+  }
+  lookup.onclick=doLookup;
+  curpIn.addEventListener('keydown',function(e){ if(e.key==='Enter') doLookup(); });
+}
+
+function renderRedeemForm(body, curp6, data, total, completed, pending, available, hasPending){
+  var html='<div class="bdown" style="margin-bottom:14px">'
+    +'<div class="br"><span class="bl">'+L('当前累计总积分','Puntos acumulados totales')+'</span><span class="bv">'+total.toLocaleString()+'</span></div>'
+    +'<div class="br"><span class="bl">'+L('已兑换（已完成）','Canjeado (completado)')+'</span><span class="bv">'+completed.toLocaleString()+'</span></div>'
+    +'<div class="br"><span class="bl" style="color:#FFB800">'+L('待核算（处理中）','En proceso')+'</span><span class="bv" style="color:#FFB800">'+pending.toLocaleString()+'</span></div>'
+    +'<div class="br tot"><span class="bl">'+L('可兑换余额','Saldo canjeable')+'</span><span class="bv">'+available.toLocaleString()+'</span></div>'
+    +'</div>';
+  if(hasPending){
+    body.innerHTML=html+'<div class="note n-lose" style="margin-top:0">'+L('⏳ 你有一笔兑换申请正在核算中，请等该笔处理完成后再申请新的兑换。','⏳ Tienes una solicitud de canje en proceso. Espera a que se complete antes de solicitar otra.')+'</div>';
+    return;
+  }
+  if(available<=0){
+    body.innerHTML=html+'<div class="note" style="margin-top:0">'+L('暂无可兑换积分。','No tienes puntos canjeables por ahora.')+'</div>';
+    return;
+  }
+  html+='<label style="font-size:12px;color:var(--muted2);display:block;margin-bottom:6px">'+L('输入要兑换的积分（最多 ','Puntos a canjear (máx. ')+available.toLocaleString()+'）</label>'
+    +'<input id="_rdAmt" type="number" min="1" max="'+available+'" placeholder="'+L('例：4000','ej. 4000')+'" style="width:100%;box-sizing:border-box;padding:11px 13px;margin-bottom:12px;border-radius:9px;border:1px solid var(--border);background:var(--s2);color:var(--text);font-size:15px;font-family:inherit">'
+    +'<div id="_rdCalc" style="margin-bottom:12px"></div>'
+    +'<div class="note" style="margin-top:0;font-size:11px;line-height:1.7">'+L('⚠️ 兑换率按<strong>本次兑换的分数</strong>所在档位计算：一次兑换越多，档位越高、兑换率越高；分批少量兑换会落入低档，更不划算。','⚠️ La tasa se calcula según el <strong>nivel de los puntos que canjeas esta vez</strong>: a más puntos por vez, mayor nivel y tasa; canjear poco y en partes cae a un nivel más bajo.')+'</div>'
+    +'<div class="note" style="margin-top:8px;font-size:11px;line-height:1.7;background:rgba(240,192,64,.08);border-color:rgba(240,192,64,.25);color:var(--gold)">'+L('💰 兑换金额由平台核算后打入你所属<strong>供应商账户</strong>，请于下周向你的供应商领取。提交后不会立即显示成功，需等待平台线下核算确认。','💰 El monto será depositado en la cuenta de tu <strong>proveedor</strong> tras el cálculo de la plataforma; recógelo con tu proveedor la próxima semana. La solicitud no se aprueba al instante: requiere verificación de la plataforma.')+'</div>'
+    +'<button id="_rdSubmit" style="width:100%;padding:12px;border-radius:9px;border:none;background:var(--didi);color:#fff;font-weight:700;cursor:pointer;font-family:inherit;margin-top:14px;font-size:14px">'+L('提交兑换申请','Enviar solicitud de canje')+'</button>';
+  body.innerHTML=html;
+  var amt=body.querySelector('#_rdAmt'), calc=body.querySelector('#_rdCalc'), submit=body.querySelector('#_rdSubmit');
+  function recompute(){
+    var v=parseInt(amt.value)||0;
+    if(v>available){ v=available; amt.value=available; }
+    if(v<=0){ calc.innerHTML=''; return; }
+    var tier=getTier(v); var cash=Math.floor(v*tier.rate);
+    var idx=TIERS.findIndex(function(t){return t===tier;}); var nt=TIERS[idx+1];
+    var h='<div class="sc-row"><div class="sc-box p"><div class="sc-lbl">'+L('本次兑换档位','Nivel de esta vez')+'</div><div class="sc-val" style="font-size:22px">×'+tier.rate+'</div><div style="font-size:10px;color:var(--muted);margin-top:4px">'+tierLabel(tier)+'</div></div>'
+      +'<div class="sc-box t"><div class="sc-lbl">'+L('预计可兑换','Canje estimado')+'</div><div class="sc-val" style="font-size:22px">'+cash.toLocaleString()+'</div><div style="font-size:10px;color:var(--muted);margin-top:4px">'+L('比索','Pesos')+' = '+v.toLocaleString()+' × '+tier.rate+'</div></div></div>';
+    if(nt){ var need=nt.min-v; if(need>0){ h+='<div style="font-size:11px;color:var(--didi);margin-top:8px">'+L('💡 再多兑换 '+need.toLocaleString()+' 分即可进入「'+tierLabel(nt)+'」（×'+nt.rate+'），更划算','💡 Canjea '+need.toLocaleString()+' pts más para entrar a «'+tierLabel(nt)+'» (×'+nt.rate+') y obtener más')+'</div>'; } }
+    calc.innerHTML=h;
+  }
+  amt.addEventListener('input',recompute);
+  submit.onclick=async function(){
+    var v=parseInt(amt.value)||0;
+    if(v<=0||v>available){ alert(L('请输入有效的兑换分数','Ingresa una cantidad válida')); return; }
+    var tier=getTier(v); var cash=Math.floor(v*tier.rate);
+    if(!confirm(L('确认提交兑换 '+v.toLocaleString()+' 分的申请吗？预计 '+cash.toLocaleString()+' 比索。','¿Confirmar la solicitud de canje de '+v.toLocaleString()+' puntos? Aprox. '+cash.toLocaleString()+' pesos.'))) return;
+    submit.disabled=true; submit.textContent=L('提交中…','Enviando…');
+    var res=await dbRequestRedemption(curp6, data.rider_id, v, tier.rate, cash);
+    submit.disabled=false; submit.textContent=L('提交兑换申请','Enviar solicitud de canje');
+    if(res.ok){
+      body.innerHTML='<div class="note n-win" style="margin-top:0;line-height:1.85">'+L('✅ <strong>申请已提交，等待平台核算</strong><br>本次申请兑换 <strong>'+v.toLocaleString()+' 分</strong>，预计 <strong>'+cash.toLocaleString()+' 比索</strong>。<br>核算完成后，金额将打入你所属<strong>供应商账户</strong>，请于下周向你的供应商领取。<br><span style="color:var(--muted2);font-size:11px">注：本平台仅记录申请，最终兑换金额以平台线下核算为准。</span>','✅ <strong>Solicitud enviada, en verificación</strong><br>Solicitaste canjear <strong>'+v.toLocaleString()+' pts</strong>, aprox. <strong>'+cash.toLocaleString()+' pesos</strong>.<br>Tras la verificación, el monto se depositará en la cuenta de tu <strong>proveedor</strong>; recógelo con él la próxima semana.<br><span style="color:var(--muted2);font-size:11px">Nota: la plataforma solo registra la solicitud; el monto final se confirma en la verificación.</span>')+'</div>';
+    } else if(res.reason==='pending_exists'){
+      body.innerHTML='<div class="note n-lose" style="margin-top:0">'+L('⏳ 你已有一笔兑换申请正在核算中，无法重复提交。','⏳ Ya tienes una solicitud de canje en proceso; no puedes enviar otra.')+'</div>';
+    } else {
+      body.innerHTML='<div class="note n-lose" style="margin-top:0">'+L('提交失败，请稍后重试。','Error al enviar, intenta más tarde.')+(res.msg?' ('+res.msg+')':'')+'</div>';
+    }
+  };
+}
+
+// ---- operator: redemption management ----
+async function openRedemptionAdmin(){
+  var panel=document.getElementById('redemptionAdminPanel');
+  if(!panel) return;
+  if(panel.style.display!=='none'){ panel.style.display='none'; return; }
+  if(!(await requireOperator())) return;
+  panel.style.display='block';
+  panel.innerHTML='<div style="font-size:12px;color:var(--muted)">'+L('加载中…','Cargando…')+'</div>';
+  renderRedemptionAdmin();
+}
+async function renderRedemptionAdmin(){
+  var panel=document.getElementById('redemptionAdminPanel');
+  if(!panel) return;
+  var rows=await dbGetAllRedemptions();
+  var head=document.createElement('div');
+  head.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px';
+  head.innerHTML='<div style="font-weight:700;color:var(--didi);font-size:14px">'+L('🧾 兑换申请管理','🧾 Gestión de solicitudes de canje')+'</div>';
+  var btns=document.createElement('div');
+  var dl=document.createElement('button'); dl.className='btn btn-s btn-sm'; dl.style.cssText='font-size:11px;margin-right:6px'; dl.textContent=L('⬇️ 下载','⬇️ Descargar'); dl.onclick=downloadRedemptions;
+  var cl=document.createElement('button'); cl.style.cssText='background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px'; cl.textContent='✕'; cl.onclick=function(){panel.style.display='none';};
+  btns.appendChild(dl); btns.appendChild(cl); head.appendChild(btns);
+  panel.innerHTML=''; panel.appendChild(head);
+  if(!rows.length){ var e=document.createElement('div'); e.style.cssText='font-size:12px;color:var(--muted2)'; e.textContent=L('暂无兑换申请','Sin solicitudes de canje'); panel.appendChild(e); return; }
+  var pend=rows.filter(function(r){return r.status==='pending';}).length;
+  var sum=document.createElement('div'); sum.style.cssText='font-size:11px;color:var(--muted2);margin-bottom:10px';
+  sum.textContent=L('共 '+rows.length+' 笔 · 待处理 '+pend+' 笔','Total '+rows.length+' · pendientes '+pend); panel.appendChild(sum);
+  rows.forEach(function(r){
+    var st = r.status==='completed'?L('✅ 已完成','✅ Completado'):r.status==='rejected'?L('❌ 已驳回','❌ Rechazado'):L('⏳ 待处理','⏳ Pendiente');
+    var card=document.createElement('div'); card.style.cssText='border:1px solid var(--border);border-radius:9px;padding:12px;margin-bottom:8px;font-size:12px';
+    card.innerHTML='<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-family:monospace;letter-spacing:1px">CURP …'+r.curp6+(r.rider_id?' · '+r.rider_id:'')+'</span><span>'+st+'</span></div>'
+      +'<div style="color:var(--muted2)">'+L('兑换 ','Canje ')+r.points.toLocaleString()+L(' 分 · ×',' pts · ×')+r.rate+L(' · 预计 ',' · aprox. ')+r.est_cash.toLocaleString()+L(' 比索',' pesos')+' · '+String(r.created_at||'').slice(0,16).replace('T',' ')+'</div>';
+    var act=document.createElement('div'); act.style.marginTop='8px';
+    if(r.status==='pending'){
+      var bc=document.createElement('button'); bc.className='btn btn-p btn-sm'; bc.style.cssText='font-size:10px;margin-right:6px'; bc.textContent=L('标记已完成','Completar'); bc.onclick=function(){setRedemption(r.id,'completed');};
+      var br=document.createElement('button'); br.className='btn btn-d btn-sm'; br.style.fontSize='10px'; br.textContent=L('驳回','Rechazar'); br.onclick=function(){setRedemption(r.id,'rejected');};
+      act.appendChild(bc); act.appendChild(br);
+    } else {
+      var bo=document.createElement('button'); bo.className='btn btn-s btn-sm'; bo.style.fontSize='10px'; bo.textContent=L('改回待处理','Reabrir'); bo.onclick=function(){setRedemption(r.id,'pending');};
+      act.appendChild(bo);
+    }
+    card.appendChild(act); panel.appendChild(card);
+  });
+}
+async function setRedemption(id,status){
+  try{ await dbUpdateRedemption(id,status); }catch(e){ alert(L('操作失败：','Error: ')+(e.message||e)); return; }
+  renderRedemptionAdmin();
+}
+function downloadRedemptions(){
+  dbGetAllRedemptions().then(function(rows){
+    if(!rows.length){ alert(L('暂无数据','Sin datos')); return; }
+    var aoa=[['CURP_last6','rider_id','points','rate','est_cash','status','created_at','processed_at']];
+    rows.forEach(function(r){ aoa.push([r.curp6,r.rider_id||'',r.points,r.rate,r.est_cash,r.status,r.created_at||'',r.processed_at||'']); });
+    var ws=XLSX.utils.aoa_to_sheet(aoa); var wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'redemptions');
+    XLSX.writeFile(wb, L('兑换申请_','Canjes_')+new Date().toISOString().slice(0,10)+'.xlsx');
+  });
 }
 
 // ══════════════════════════════════
