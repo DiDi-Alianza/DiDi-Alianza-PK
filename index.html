@@ -1064,7 +1064,7 @@ select.fi option{background:#18181E}
     <div class="card">
       <div class="card-t"><span class="lc-zh">🏢 供应商信息</span><span class="lc-es">🏢 Información del proveedor</span></div>
       <div class="frow">
-        <div class="fg"><label>Vendor Code *</label><input class="fi" id="vcode" type="text" data-i18n-placeholder="reg_vcode_ph" placeholder="例：V001234"></div>
+        <div class="fg"><label>Vendor Code *</label><input class="fi" id="vcode" type="text" data-i18n-placeholder="reg_vcode_ph" placeholder="例：V001234"><div style="font-size:11px;color:var(--muted2);margin-top:5px;line-height:1.5"><span class="lc-zh">⚠️ 请填写运营提供给你的<b>准确</b> Vendor Code，填错将无法报名成功</span><span class="lc-es">⚠️ Escribe el Vendor Code <b>exacto</b> que te dio operaciones; si es incorrecto, la inscripción fallará</span></div></div>
         <div class="fg"><label><span class="lc-zh">队伍名称</span><span class="lc-es">Nombre del equipo</span> * <span style="color:var(--muted);font-size:10px;font-weight:400"><span class="lc-zh">（唯一，不可与其他Vendor重复）</span><span class="lc-es">(único, no puede repetirse con otro Vendor)</span></span></label><input class="fi" id="tname" type="text" data-i18n-placeholder="reg_tname_ph" placeholder="为队伍取个独特名字，例：阿根廷雄鹰"></div>
       </div>
       <div class="alert a-err" id="regErr"></div>
@@ -1966,15 +1966,12 @@ function switchRegList(){
 }
 
 function showAlert(id,msg,type='err'){
+  // Registration errors should appear at the BOTTOM, beside the submit button (so vendors see them)
+  if(id==='regErr'){ id='regOk'; type='err'; }
   const el=document.getElementById(id);if(!el)return;
   el.className=`alert a-${type} show`;el.textContent=msg;
-  // Mirror reg errors to the bottom div near the submit button
-  if(id==='regErr'&&type==='err'){
-    var bot=document.getElementById('regErrBottom');
-    if(bot){bot.style.display='block';bot.className='alert a-err show';bot.textContent=msg;
-      bot.scrollIntoView({behavior:'smooth',block:'nearest'});}
-  }
-  setTimeout(()=>el.classList.remove('show'),5000);
+  if(id==='regOk'){ try{ el.scrollIntoView({behavior:'smooth',block:'nearest'}); }catch(e){} }
+  setTimeout(()=>el.classList.remove('show'),6000);
 }
 
 async function submitReg(){
@@ -2218,13 +2215,13 @@ function renderMatchupGrid(){
   const grid=document.getElementById('matchupsGrid');
   const noRes=document.getElementById('matchupNoResult');
   // Require vendor code unless admin authenticated
-  if(!vfl&&!matchupAdminAuthed){
-    grid.innerHTML='<div class="empty-st"><div class="empty-icon">🔍</div><p style="font-size:14px;font-weight:600;margin-bottom:8px">'+L('请输入你的 Vendor Code','Ingresa tu Vendor Code')+'</p><p style="font-size:12px;color:var(--muted2);line-height:1.8">'+L('在上方输入框中填写你的 Vendor Code<br>即可查看与你相关的对阵安排','Escribe tu Vendor Code arriba<br>para ver tus emparejamientos')+'</p></div>';
+  if(!vfl&&!tfl&&!matchupAdminAuthed){
+    grid.innerHTML='<div class="empty-st"><div class="empty-icon">🔍</div><p style="font-size:14px;font-weight:600;margin-bottom:8px">'+L('请输入你的 Vendor Code','Ingresa tu Vendor Code')+'</p><p style="font-size:12px;color:var(--muted2);line-height:1.8">'+L('在上方填写 Vendor Code 查看与你相关的全部对阵；<br>或只填队伍名称查看该队伍的对阵情况','Escribe tu Vendor Code para ver todos tus duelos relacionados;<br>o solo el nombre del equipo para ver el duelo de ese equipo')+'</p></div>';
     if(noRes)noRes.style.display='none';
     return;
   }
   const filtered=MATCHUP_DATA.pairs.filter(p=>{
-    if(!vfl&&matchupAdminAuthed)return true;
+    if(!vfl&&!tfl&&matchupAdminAuthed)return true;
     if(vfl&&!tfl)return(p.a.vendor||'').toLowerCase().includes(vfl)||(p.b.vendor||'').toLowerCase().includes(vfl);
     if(!vfl&&tfl)return(p.a.team||'').toLowerCase().includes(tfl)||(p.b.team||'').toLowerCase().includes(tfl);
     return((p.a.vendor||'').toLowerCase().includes(vfl)&&(p.a.team||'').toLowerCase().includes(tfl))||
@@ -3895,6 +3892,7 @@ function initScorePage(){
   // Show/hide results area
   const scoreContent=document.getElementById('scoreContent');
   if(scoreContent)scoreContent.style.display=has?'block':'none';
+  var _dsbInit=document.getElementById('dataStatusBar'); if(_dsbInit&&!OPERATOR){_dsbInit.style.display='none';}
   if(!has)return;
   // Build teams list (used for status updates and optional dropdown)
   const teams=Object.entries(SCORE_DATA).map(([k,d])=>({key:k,name:d.name,score:d.my_score,result:d.result}));
@@ -3929,14 +3927,18 @@ function initScorePage(){
       statusBadge.textContent='⚠️ '+cnt+L('支队伍均积分为0 — 请上传 ② 骑手积分文件，或点「🔄 重算积分」重试',' equipos con 0 puntos — sube el archivo ② de puntos de riders o haz clic en «🔄 Recalcular puntos»');
     }
   }
-  // Update the top status bar (always visible on page)
+  // Update the top status bar — OPERATOR ONLY (sensitive operational stats; vendors must not see)
   var dsb=document.getElementById('dataStatusBar');
   if(dsb){
-    var vcCount=Object.keys(VENDOR_RIDER_MAP||{}).length;
-    var mCount=MATCHUP_DATA&&MATCHUP_DATA.pairs?MATCHUP_DATA.pairs.length:0;
-    dsb.style.color=scoredCnt>0?'var(--win)':'#FFB800';
-    dsb.textContent=(mCount?L('✓ 配对 ','✓ Duelos ')+mCount+L('场 · ',' · '):'')+(vcCount?L('✓ 积分 ','✓ Puntos ')+vcCount+L('家供应商 · ',' vendors · '):'')+
-      (scoredCnt>0?'✅ '+scoredCnt+'/'+cnt+L('支队伍有积分',' equipos con puntos'):'⚠️ '+cnt+L('支队伍均无积分 — 请确认已上传 ② 骑手积分文件',' equipos sin puntos — verifica que subiste el archivo ② de puntos de riders'));
+    if(!OPERATOR){ dsb.style.display='none'; dsb.textContent=''; }
+    else {
+      dsb.style.display='';
+      var vcCount=Object.keys(VENDOR_RIDER_MAP||{}).length;
+      var mCount=MATCHUP_DATA&&MATCHUP_DATA.pairs?MATCHUP_DATA.pairs.length:0;
+      dsb.style.color=scoredCnt>0?'var(--win)':'#FFB800';
+      dsb.textContent=(mCount?L('✓ 配对 ','✓ Duelos ')+mCount+L('场 · ',' · '):'')+(vcCount?L('✓ 积分 ','✓ Puntos ')+vcCount+L('家供应商 · ',' vendors · '):'')+
+        (scoredCnt>0?'✅ '+scoredCnt+'/'+cnt+L('支队伍有积分',' equipos con puntos'):'⚠️ '+cnt+L('支队伍均无积分 — 请确认已上传 ② 骑手积分文件',' equipos sin puntos — verifica que subiste el archivo ② de puntos de riders'));
+    }
   }
   renderTop10();
 }
