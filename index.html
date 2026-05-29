@@ -493,7 +493,8 @@ select.fi option{background:#18181E}
       <button class="ntab" data-i18n="nav4" onclick="go(4)">🎯 配对结果</button>
       <button class="ntab" data-i18n="nav5" onclick="go(5)">🏆 比赛结果</button>
       <button class="ntab" data-i18n="nav6" onclick="go(6)">🏍️ 积分查询</button>
-      <button class="ntab" data-i18n="nav7" onclick="goAdmin(7)">⚙️ 配对系统</button>
+      <button class="ntab" data-i18n="nav7" onclick="go(7)">🧩 兼职报名</button>
+      <button class="ntab" data-i18n="nav8" onclick="goAdmin(8)">⚙️ 配对系统</button>
     </div>
     <!-- Language toggle -->
     <button id="langToggle" onclick="toggleLang()" style="background:var(--s2);border:1px solid var(--border);border-radius:20px;padding:5px 14px;cursor:pointer;font-size:12px;font-weight:700;color:var(--text);font-family:inherit;margin-left:12px;white-space:nowrap" title="Cambiar idioma / 切换语言">🇪🇸 ES</button>
@@ -1471,7 +1472,82 @@ select.fi option{background:#18181E}
   </div>
 </div>
 
-<!-- ═══ PAGE 7: 配对系统（管理员专用） ═══ -->
+<!-- ═══ PAGE 7: 兼职(PT)骑手报名 ═══ -->
+<div class="page" id="pPT">
+  <div class="slbl"><span class="lc-zh">仅限受邀供应商</span><span class="lc-es">Solo proveedores invitados</span></div>
+  <div class="stitle"><span class="lc-zh">🧩 兼职骑手计划 · 报名</span><span class="lc-es">🧩 Programa de Repartidores de Medio Tiempo · Registro</span></div>
+  <div class="ssub"><span class="lc-zh">DiDi Alianza 兼职(PT)骑手计划 · 2026 世界杯特别版 · 6月1日–7月6日 · 仅限受邀方</span><span class="lc-es">Programa de Repartidores de Medio Tiempo (PT) de DiDi Alianza · Edición Especial Mundial 2026 · 1 jun–6 jul · Solo por invitación</span></div>
+
+  <!-- ====== 兼职骑手报名（批量上传）====== -->
+  <div class="card">
+    <div class="card-t"><span class="lc-zh">📝 兼职骑手报名（批量上传）</span><span class="lc-es">📝 Registro PT (carga masiva)</span></div>
+    <div style="font-size:12px;color:var(--muted2);margin-bottom:16px;line-height:1.8">
+      <span class="lc-zh">所有兼职报名统一通过 Excel 上传：先下载模板，填好骑手后上传。报名随时开放——请在<strong style="color:var(--text)">每个上线日之前</strong>提交当日要上线的骑手名单，当天新增也可随时补传。<strong style="color:var(--text)">最终结算以上传的名单为准。</strong></span><span class="lc-es">Todo el registro PT se hace por Excel: descarga la plantilla, llena a los repartidores y súbela. El registro está siempre abierto: envía la lista de repartidores <strong style="color:var(--text)">antes de cada día de operación</strong> (puedes agregar más el mismo día). <strong style="color:var(--text)">La liquidación final se basa en la lista subida.</strong></span>
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap">
+      <button class="btn btn-s" onclick="downloadPTTemplate()"><span class="lc-zh">📥 下载兼职模板</span><span class="lc-es">📥 Descargar plantilla PT</span></button>
+      <div style="font-size:11px;color:var(--muted);display:flex;align-items:center"><span class="lc-zh">← 先下载模板，在 Excel 中填好后上传</span><span class="lc-es">← Descarga la plantilla, llénala en Excel y súbela</span></div>
+    </div>
+    <div style="background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:16px;font-size:11px;color:var(--muted2);line-height:1.9">
+      <div style="font-weight:700;color:var(--text);margin-bottom:6px"><span class="lc-zh">📝 模板格式说明（每行一名骑手）：</span><span class="lc-es">📝 Formato (una fila por repartidor):</span></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px;margin-top:8px">
+        <div style="background:var(--s3);border-radius:5px;padding:6px 10px"><span style="color:var(--didi)">vendor_code</span><br><span class="lc-zh">供应商代码（受邀）</span><span class="lc-es">Código de proveedor</span></div>
+        <div style="background:var(--s3);border-radius:5px;padding:6px 10px"><span style="color:var(--didi)">rider_id</span><br><span class="lc-zh">骑手 Rider ID</span><span class="lc-es">Rider ID del repartidor</span></div>
+        <div style="background:var(--s3);border-radius:5px;padding:6px 10px"><span style="color:var(--didi)">online_dates</span><br><span class="lc-zh">预计上线日期（如 6/6,6/7,6/14 逗号分隔）</span><span class="lc-es">Fechas estimadas (ej. 6/6,6/7,6/14 separadas por coma)</span></div>
+        <div style="background:var(--s3);border-radius:5px;padding:6px 10px"><span style="color:var(--didi)">online_zone</span><br><span class="lc-zh">预计上线区域（请填 <strong style="color:var(--text)">OP Zone</strong>）</span><span class="lc-es">Zona estimada (escribe el <strong style="color:var(--text)">OP Zone</strong>)</span></div>
+      </div>
+    </div>
+    <div class="upload-zone" id="ptBulkZone" style="padding:32px"
+      ondragover="event.preventDefault();this.classList.add('drag')"
+      ondragleave="this.classList.remove('drag')"
+      ondragend="this.classList.remove('drag')"
+      ondrop="event.preventDefault();this.classList.remove('drag');handlePTBulk(event.dataTransfer.files[0])">
+      <input type="file" accept=".xlsx,.xls" onchange="handlePTBulk(this.files[0]);this.value=''">
+      <div class="uz-icon" style="font-size:32px">📊</div>
+      <div class="uz-title" style="font-size:15px"><span class="lc-zh">拖拽或点击上传填好的模板</span><span class="lc-es">Arrastra o haz clic para subir la plantilla llena</span></div>
+      <div class="uz-sub"><span class="lc-zh">.xlsx / .xls 格式</span><span class="lc-es">Formato .xlsx / .xls</span></div>
+    </div>
+    <div class="alert" id="ptBulkResult" style="margin-top:12px"></div>
+    <div style="border-top:1px solid var(--border);margin-top:16px;padding-top:14px">
+      <div style="font-size:12px;color:var(--muted2);margin-bottom:8px"><span class="lc-zh">📝 填错了？输入你的 Vendor Code 查看或删除自己已上传的明细，然后重新上传。</span><span class="lc-es">📝 ¿Te equivocaste? Ingresa tu Vendor Code para ver o eliminar tu propio detalle y volver a subir.</span></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input class="fi" id="ptMineVendor" type="text" placeholder="Vendor Code" style="flex:1;min-width:160px">
+        <button class="btn btn-s btn-sm" onclick="ptViewMine()"><span class="lc-zh">🔍 查看我的明细</span><span class="lc-es">🔍 Ver mi detalle</span></button>
+        <button class="btn btn-d btn-sm" onclick="ptDeleteMine()"><span class="lc-zh">🗑️ 删除我的全部明细</span><span class="lc-es">🗑️ Eliminar todo mi detalle</span></button>
+      </div>
+      <div id="ptMinePanel" style="margin-top:12px"></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:10px">
+      <button class="btn btn-s btn-sm" onclick="openPTRiderAdmin()" style="font-size:10px;color:var(--muted2);border-color:var(--border)"><span class="lc-zh">🗂️ 运营：查看骑手明细</span><span class="lc-es">🗂️ Operaciones: ver detalle de repartidores</span></button>
+    </div>
+    <div id="ptRiderAdminPanel" style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:14px"></div>
+  </div>
+
+  <!-- ====== 重要：不可参加正式骑手激励 ====== -->
+  <div class="card" style="border:1px solid #F2C4C0;background:rgba(192,39,45,.06)">
+    <div class="card-t" style="color:var(--lose)"><span class="lc-zh">⚠️ 重要：兼职(PT)骑手不参加正式骑手激励</span><span class="lc-es">⚠️ Importante: los repartidores PT NO participan en los incentivos de repartidores regulares</span></div>
+    <div style="font-size:13px;line-height:1.8"><span class="lc-zh">兼职(PT)模式骑手<strong>不能参加正式骑手的任何激励</strong>，包括但不限于：<strong>Vendor 奖金池</strong> 与 <strong>骑手积分（PK 赛积分、积分兑换）</strong>。PT 骑手仅按本计划的兼职计价结算；同一账号不可同时拥有 FT 与 PT 身份。</span><span class="lc-es">Los repartidores en modo PT <strong>no pueden participar en ningún incentivo de los repartidores regulares</strong>, incluidos entre otros: el <strong>fondo de bonos del Vendor</strong> y los <strong>puntos de rider (puntos PK y canje de puntos)</strong>. Los PT se liquidan solo bajo el esquema de medio tiempo; una misma cuenta no puede tener estatus FT y PT al mismo tiempo.</span></div>
+  </div>
+
+  <!-- ====== 计划运营日期 ====== -->
+  <div class="card">
+    <div class="card-t"><span class="lc-zh">📅 计划运营日期（共20天）</span><span class="lc-es">📅 Fechas de operación del programa (20 días)</span></div>
+    <div style="font-size:12px;color:var(--muted2);margin-bottom:14px;line-height:1.7"><span class="lc-zh">在以下 20 个日期上线做单<strong style="color:var(--text)">均计入兼职计价</strong>，不区分时段。最终计价以平台系统数据为准。</span><span class="lc-es">Conectarse y entregar en cualquiera de estas 20 fechas <strong style="color:var(--text)">cuenta para la liquidación PT</strong>, sin distinción de horario. El cálculo final se basa en los datos del sistema.</span></div>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:360px">
+        <thead><tr style="border-bottom:2px solid var(--border);text-align:left;color:var(--didi);font-size:11px;letter-spacing:1px">
+          <th style="padding:8px 10px"><span class="lc-zh">日期</span><span class="lc-es">Fecha</span></th>
+          <th style="padding:8px 10px"><span class="lc-zh">星期</span><span class="lc-es">Día</span></th>
+          <th style="padding:8px 10px"><span class="lc-zh">类型</span><span class="lc-es">Tipo</span></th>
+        </tr></thead>
+        <tbody><tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700"><span class="lc-zh">6月6日</span><span class="lc-es">6 jun</span></td><td style="padding:9px 10px;color:var(--muted2)"><span class="lc-zh">周六</span><span class="lc-es">Sáb</span></td><td style="padding:9px 10px"><span style="display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:#2A5C8A22;color:#2A5C8A"><span class="lc-zh">周末档</span><span class="lc-es">Fin de semana</span></span></td></tr><tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700"><span class="lc-zh">6月7日</span><span class="lc-es">7 jun</span></td><td style="padding:9px 10px;color:var(--muted2)"><span class="lc-zh">周日</span><span class="lc-es">Dom</span></td><td style="padding:9px 10px"><span style="display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:#2A5C8A22;color:#2A5C8A"><span class="lc-zh">周末档</span><span class="lc-es">Fin de semana</span></span></td></tr><tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700"><span class="lc-zh">6月11日</span><span class="lc-es">11 jun</span></td><td style="padding:9px 10px;color:var(--muted2)"><span class="lc-zh">周四</span><span class="lc-es">Jue</span></td><td style="padding:9px 10px"><span style="display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:#1F7A4D22;color:#1F7A4D"><span class="lc-zh">比赛日档</span><span class="lc-es">Día de partido</span></span>　<span style="color:var(--muted2);font-size:11px">⚽ MEX vs RSA</span></td></tr><tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700"><span class="lc-zh">6月13日</span><span class="lc-es">13 jun</span></td><td style="padding:9px 10px;color:var(--muted2)"><span class="lc-zh">周六</span><span class="lc-es">Sáb</span></td><td style="padding:9px 10px"><span style="display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:#2A5C8A22;color:#2A5C8A"><span class="lc-zh">周末档</span><span class="lc-es">Fin de semana</span></span></td></tr><tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700"><span class="lc-zh">6月14日</span><span class="lc-es">14 jun</span></td><td style="padding:9px 10px;color:var(--muted2)"><span class="lc-zh">周日</span><span class="lc-es">Dom</span></td><td style="padding:9px 10px"><span style="display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:#F2541B22;color:#F2541B"><span class="lc-zh">周末+比赛日</span><span class="lc-es">Fin de sem. + partido</span></span></td></tr><tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700"><span class="lc-zh">6月15日</span><span class="lc-es">15 jun</span></td><td style="padding:9px 10px;color:var(--muted2)"><span class="lc-zh">周一</span><span class="lc-es">Lun</span></td><td style="padding:9px 10px"><span style="display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:#1F7A4D22;color:#1F7A4D"><span class="lc-zh">比赛日档</span><span class="lc-es">Día de partido</span></span></td></tr><tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700"><span class="lc-zh">6月16日</span><span class="lc-es">16 jun</span></td><td style="padding:9px 10px;color:var(--muted2)"><span class="lc-zh">周二</span><span class="lc-es">Mar</span></td><td style="padding:9px 10px"><span style="display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:#1F7A4D22;color:#1F7A4D"><span class="lc-zh">比赛日档</span><span class="lc-es">Día de partido</span></span></td></tr><tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700"><span class="lc-zh">6月17日</span><span class="lc-es">17 jun</span></td><td style="padding:9px 10px;color:var(--muted2)"><span class="lc-zh">周三</span><span class="lc-es">Mié</span></td><td style="padding:9px 10px"><span style="display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:#1F7A4D22;color:#1F7A4D"><span class="lc-zh">比赛日档</span><span class="lc-es">Día de partido</span></span></td></tr><tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700"><span class="lc-zh">6月18日</span><span class="lc-es">18 jun</span></td><td style="padding:9px 10px;color:var(--muted2)"><span class="lc-zh">周四</span><span class="lc-es">Jue</span></td><td style="padding:9px 10px"><span style="display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:#1F7A4D22;color:#1F7A4D"><span class="lc-zh">比赛日档</span><span class="lc-es">Día de partido</span></span>　<span style="color:var(--muted2);font-size:11px">⚽ MEX vs KOR</span></td></tr><tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700"><span class="lc-zh">6月20日</span><span class="lc-es">20 jun</span></td><td style="padding:9px 10px;color:var(--muted2)"><span class="lc-zh">周六</span><span class="lc-es">Sáb</span></td><td style="padding:9px 10px"><span style="display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:#F2541B22;color:#F2541B"><span class="lc-zh">周末+比赛日</span><span class="lc-es">Fin de sem. + partido</span></span></td></tr><tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700"><span class="lc-zh">6月21日</span><span class="lc-es">21 jun</span></td><td style="padding:9px 10px;color:var(--muted2)"><span class="lc-zh">周日</span><span class="lc-es">Dom</span></td><td style="padding:9px 10px"><span style="display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:#2A5C8A22;color:#2A5C8A"><span class="lc-zh">周末档</span><span class="lc-es">Fin de semana</span></span></td></tr><tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700"><span class="lc-zh">6月22日</span><span class="lc-es">22 jun</span></td><td style="padding:9px 10px;color:var(--muted2)"><span class="lc-zh">周一</span><span class="lc-es">Lun</span></td><td style="padding:9px 10px"><span style="display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:#1F7A4D22;color:#1F7A4D"><span class="lc-zh">比赛日档</span><span class="lc-es">Día de partido</span></span></td></tr><tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700"><span class="lc-zh">6月24日</span><span class="lc-es">24 jun</span></td><td style="padding:9px 10px;color:var(--muted2)"><span class="lc-zh">周三</span><span class="lc-es">Mié</span></td><td style="padding:9px 10px"><span style="display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:#1F7A4D22;color:#1F7A4D"><span class="lc-zh">比赛日档</span><span class="lc-es">Día de partido</span></span>　<span style="color:var(--muted2);font-size:11px">⚽ MEX vs CZE</span></td></tr><tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700"><span class="lc-zh">6月27日</span><span class="lc-es">27 jun</span></td><td style="padding:9px 10px;color:var(--muted2)"><span class="lc-zh">周六</span><span class="lc-es">Sáb</span></td><td style="padding:9px 10px"><span style="display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:#2A5C8A22;color:#2A5C8A"><span class="lc-zh">周末档</span><span class="lc-es">Fin de semana</span></span></td></tr><tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700"><span class="lc-zh">6月28日</span><span class="lc-es">28 jun</span></td><td style="padding:9px 10px;color:var(--muted2)"><span class="lc-zh">周日</span><span class="lc-es">Dom</span></td><td style="padding:9px 10px"><span style="display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:#2A5C8A22;color:#2A5C8A"><span class="lc-zh">周末档</span><span class="lc-es">Fin de semana</span></span></td></tr><tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700"><span class="lc-zh">6月29日</span><span class="lc-es">29 jun</span></td><td style="padding:9px 10px;color:var(--muted2)"><span class="lc-zh">周一</span><span class="lc-es">Lun</span></td><td style="padding:9px 10px"><span style="display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:#1F7A4D22;color:#1F7A4D"><span class="lc-zh">比赛日档</span><span class="lc-es">Día de partido</span></span></td></tr><tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700"><span class="lc-zh">6月30日</span><span class="lc-es">30 jun</span></td><td style="padding:9px 10px;color:var(--muted2)"><span class="lc-zh">周二</span><span class="lc-es">Mar</span></td><td style="padding:9px 10px"><span style="display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:#1F7A4D22;color:#1F7A4D"><span class="lc-zh">比赛日档</span><span class="lc-es">Día de partido</span></span></td></tr><tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700"><span class="lc-zh">7月4日</span><span class="lc-es">4 jul</span></td><td style="padding:9px 10px;color:var(--muted2)"><span class="lc-zh">周六</span><span class="lc-es">Sáb</span></td><td style="padding:9px 10px"><span style="display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:#2A5C8A22;color:#2A5C8A"><span class="lc-zh">周末档</span><span class="lc-es">Fin de semana</span></span></td></tr><tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700"><span class="lc-zh">7月5日</span><span class="lc-es">5 jul</span></td><td style="padding:9px 10px;color:var(--muted2)"><span class="lc-zh">周日</span><span class="lc-es">Dom</span></td><td style="padding:9px 10px"><span style="display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:#F2541B22;color:#F2541B"><span class="lc-zh">周末+比赛日</span><span class="lc-es">Fin de sem. + partido</span></span></td></tr><tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700"><span class="lc-zh">7月6日</span><span class="lc-es">6 jul</span></td><td style="padding:9px 10px;color:var(--muted2)"><span class="lc-zh">周一</span><span class="lc-es">Lun</span></td><td style="padding:9px 10px"><span style="display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:#1F7A4D22;color:#1F7A4D"><span class="lc-zh">比赛日档</span><span class="lc-es">Día de partido</span></span></td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══ PAGE 8: 配对系统（管理员专用） ═══ -->
 <div class="page" id="p7">
   <div class="slbl"><span class="lc-zh">管理员专用</span><span class="lc-es">Solo administradores</span></div>
   <div class="stitle"><span class="lc-zh">⚙️ 智能配对系统</span><span class="lc-es">⚙️ Sistema de emparejamiento inteligente</span></div>
@@ -1616,6 +1692,200 @@ function tierLabel(t){return L(t.label,t.label_es);}
 // ══════════════════════════════════
 // PAGE NAV
 // ══════════════════════════════════
+
+// ══════════════════════════════════
+// PART-TIME (PT) REGISTRATION
+// ══════════════════════════════════
+async function dbInsertPT(row){
+  if(!sb) throw new Error('no backend');
+  const { error } = await sb.from('pt_registrations').insert([row]);
+  if(error) throw error;
+}
+async function dbGetAllPT(){
+  if(!sb) return [];
+  const { data, error } = await sb.from('pt_registrations').select('*').order('created_at',{ascending:false});
+  if(error){ console.error('pt list',error); return []; }
+  return data||[];
+}
+function _ptSay(msg,type){ var el=document.getElementById('ptResult'); if(!el)return; el.className='alert a-'+(type||'err')+' show'; el.textContent=msg; try{el.scrollIntoView({behavior:'smooth',block:'nearest'});}catch(e){} }
+async function submitPT(){
+  var vc=(document.getElementById('ptVendor').value||'').trim();
+  var contact=(document.getElementById('ptContact').value||'').trim();
+  var info=(document.getElementById('ptInfo').value||'').trim();
+  var hc=parseInt(document.getElementById('ptHeadcount').value)||0;
+  var zones=(document.getElementById('ptZones').value||'').trim();
+  var note=(document.getElementById('ptNote').value||'').trim();
+  if(!vc){ _ptSay(L('请填写 Vendor Code','Ingresa el Vendor Code')); return; }
+  if(!contact){ _ptSay(L('请填写联系人','Ingresa la persona de contacto')); return; }
+  if(!info){ _ptSay(L('请填写联系方式','Ingresa el contacto')); return; }
+  if(hc<=0){ _ptSay(L('请填写预计兼职骑手人数','Ingresa el número estimado de repartidores PT')); return; }
+  try{
+    await dbInsertPT({vendor_code:vc, contact_name:contact, contact_info:info, est_headcount:hc, zones:zones, note:note});
+  }catch(err){ console.error(err); _ptSay(L('提交失败，请稍后重试：','Error al enviar, intenta de nuevo: ')+(err.message||err)); return; }
+  _ptSay(L('✅ 兼职报名已提交！平台将在48小时内审核并通过你的 RM 反馈结果。','✅ ¡Registro de medio tiempo enviado! La plataforma revisará en 48 h y tu RM te dará respuesta.'),'ok');
+  ['ptVendor','ptContact','ptInfo','ptHeadcount','ptZones','ptNote'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});
+}
+async function openPTAdmin(){
+  var panel=document.getElementById('ptAdminPanel');
+  if(!panel) return;
+  if(panel.style.display!=='none'){ panel.style.display='none'; return; }
+  if(!(await requireOperator())) return;
+  panel.style.display='block';
+  panel.innerHTML='<div style="font-size:12px;color:var(--muted)">'+L('加载中…','Cargando…')+'</div>';
+  var rows=await dbGetAllPT();
+  panel.innerHTML='';
+  var head=document.createElement('div'); head.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:10px';
+  head.innerHTML='<div style="font-weight:700;color:var(--didi);font-size:13px">'+L('🗂️ 兼职报名记录（共 '+rows.length+' 条）','🗂️ Registros PT (total '+rows.length+')')+'</div>';
+  var dl=document.createElement('button'); dl.className='btn btn-s btn-sm'; dl.style.fontSize='11px'; dl.textContent=L('⬇️ 下载','⬇️ Descargar'); dl.onclick=downloadPT;
+  head.appendChild(dl); panel.appendChild(head);
+  if(!rows.length){ var e=document.createElement('div'); e.style.cssText='font-size:12px;color:var(--muted2)'; e.textContent=L('暂无兼职报名','Sin registros PT'); panel.appendChild(e); return; }
+  rows.forEach(function(r){
+    var c=document.createElement('div'); c.style.cssText='border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-bottom:8px;font-size:12px';
+    c.innerHTML='<div style="display:flex;justify-content:space-between"><span style="font-weight:700">'+r.vendor_code+'</span><span style="color:var(--muted2)">'+String(r.created_at||'').slice(0,16).replace('T',' ')+'</span></div>'
+      +'<div style="color:var(--muted2);margin-top:3px">'+L('联系人：','Contacto: ')+(r.contact_name||'-')+' · '+(r.contact_info||'-')+'</div>'
+      +'<div style="color:var(--muted2);margin-top:2px">'+L('预计人数：','N.º estimado: ')+(r.est_headcount||0)+(r.zones?(' · '+L('区域：','Zonas: ')+r.zones):'')+(r.note?(' · '+r.note):'')+'</div>';
+    panel.appendChild(c);
+  });
+}
+function downloadPT(){
+  dbGetAllPT().then(function(rows){
+    if(!rows.length){ alert(L('暂无数据','Sin datos')); return; }
+    var aoa=[['vendor_code','contact_name','contact_info','est_headcount','zones','note','created_at']];
+    rows.forEach(function(r){ aoa.push([r.vendor_code,r.contact_name||'',r.contact_info||'',r.est_headcount||0,r.zones||'',r.note||'',r.created_at||'']); });
+    var ws=XLSX.utils.aoa_to_sheet(aoa); var wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'pt_registrations');
+    XLSX.writeFile(wb, L('兼职报名_','PT_')+new Date().toISOString().slice(0,10)+'.xlsx');
+  });
+}
+
+
+// ---- PT bulk (rider-level) ----
+async function dbInsertPTRiders(rows){
+  if(!sb) throw new Error('no backend');
+  const { error } = await sb.from('pt_riders').insert(rows);
+  if(error) throw error;
+}
+async function dbGetAllPTRiders(){
+  if(!sb) return [];
+  const { data, error } = await sb.from('pt_riders').select('*').order('created_at',{ascending:false});
+  if(error){ console.error('pt_riders list',error); return []; }
+  return data||[];
+}
+function downloadPTTemplate(){
+  var aoa=[['vendor_code','rider_id','online_dates','online_zone'],
+           ['V001234','R12345','6/6,6/7,6/14','Centro']];
+  var ws=XLSX.utils.aoa_to_sheet(aoa); var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'pt_riders');
+  XLSX.writeFile(wb, L('兼职骑手模板','Plantilla_PT_riders')+'.xlsx');
+}
+function _ptbSay(msg,type){ var el=document.getElementById('ptBulkResult'); if(!el)return; el.className='alert a-'+(type||'err')+' show'; el.textContent=msg; try{el.scrollIntoView({behavior:'smooth',block:'nearest'});}catch(e){} }
+function handlePTBulk(file){
+  if(!file)return;
+  var reader=new FileReader();
+  reader.onload=async function(e){
+    try{
+      var wb=XLSX.read(e.target.result,{type:'array'});
+      var ws=wb.Sheets[wb.SheetNames[0]];
+      var rows=XLSX.utils.sheet_to_json(ws,{raw:true,defval:''});
+      var dataRows=rows.filter(function(r){return r.vendor_code&&r.rider_id;});
+      if(!dataRows.length){ _ptbSay(L('未找到有效数据行，请检查列名（vendor_code, rider_id）','No se encontraron filas válidas; revisa los encabezados (vendor_code, rider_id)')); return; }
+      var toInsert=[]; var seen={}; var skipped=0; var errors=[];
+      dataRows.forEach(function(row,idx){
+        var vc=String(row.vendor_code||'').trim();
+        var rid=String(row.rider_id||'').trim();
+        var dates=String(row.online_dates||'').trim();
+        var zone=String(row.online_zone||'').trim();
+        if(!vc||!rid){ errors.push(L('第','Fila ')+(idx+2)+L(' 行：vendor_code 或 rider_id 为空',': vendor_code o rider_id vacío')); return; }
+        if(Object.keys(VENDOR_LIST).length>0 && !VENDOR_LIST[vc.toUpperCase()]){ errors.push(L('第','Fila ')+(idx+2)+L(' 行：Vendor Code「'+vc+'」不在系统名单中',': el Vendor Code «'+vc+'» no está en la lista')); return; }
+        var key=vc+'|'+rid;
+        if(seen[key]){ skipped++; return; }
+        seen[key]=true;
+        toInsert.push({vendor_code:vc, rider_id:rid, online_dates:dates, online_zone:zone});
+      });
+      if(!toInsert.length){
+        _ptbSay(L('没有可上传的有效行。常见原因：Vendor Code 不在系统名单中，或缺少 rider_id。','No hay filas válidas. Causas comunes: Vendor Code fuera de la lista, o falta rider_id.')+(errors.length?(' '+errors.slice(0,4).join('；')+(errors.length>4?'…':'')):''));
+        return;
+      }
+      try{ await dbInsertPTRiders(toInsert); }
+      catch(err){ console.error(err); _ptbSay(L('上传失败，请稍后重试：','Error al subir, intenta de nuevo: ')+(err.message||err)); return; }
+      var msg=L('✅ 上传成功！本次共上传 '+toInsert.length+' 名骑手。','✅ ¡Carga exitosa! Se subieron '+toInsert.length+' repartidores.')+(skipped?L('（'+skipped+' 名重复已跳过）',' ('+skipped+' duplicados omitidos)'):'');
+      if(errors.length) msg+=L('；'+errors.length+' 行被跳过（如 Vendor Code 不在名单/缺字段）','; '+errors.length+' filas omitidas (Vendor Code fuera de lista/campos faltantes)');
+      _ptbSay(msg,'ok');
+    }catch(err){ _ptbSay(L('解析失败：','Error al procesar: ')+(err.message||err)); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+async function openPTRiderAdmin(){
+  var panel=document.getElementById('ptRiderAdminPanel');
+  if(!panel) return;
+  if(panel.style.display!=='none'){ panel.style.display='none'; return; }
+  if(!(await requireOperator())) return;
+  panel.style.display='block';
+  panel.innerHTML='<div style="font-size:12px;color:var(--muted)">'+L('加载中…','Cargando…')+'</div>';
+  var rows=await dbGetAllPTRiders();
+  panel.innerHTML='';
+  var head=document.createElement('div'); head.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:10px';
+  head.innerHTML='<div style="font-weight:700;color:var(--didi);font-size:13px">'+L('🗂️ 兼职骑手明细（共 '+rows.length+' 名）','🗂️ Detalle de repartidores PT (total '+rows.length+')')+'</div>';
+  var dl=document.createElement('button'); dl.className='btn btn-s btn-sm'; dl.style.fontSize='11px'; dl.textContent=L('⬇️ 下载','⬇️ Descargar'); dl.onclick=downloadPTRiders;
+  head.appendChild(dl); panel.appendChild(head);
+  if(!rows.length){ var e=document.createElement('div'); e.style.cssText='font-size:12px;color:var(--muted2)'; e.textContent=L('暂无骑手明细','Sin detalle de repartidores'); panel.appendChild(e); return; }
+  // per-vendor summary
+  var byV={}; rows.forEach(function(r){ byV[r.vendor_code]=(byV[r.vendor_code]||0)+1; });
+  var sum=document.createElement('div'); sum.style.cssText='font-size:12px;color:var(--muted2);margin-bottom:12px;line-height:1.8';
+  sum.innerHTML='<div style="font-weight:700;color:var(--text);margin-bottom:4px">'+L('按供应商汇总：','Resumen por proveedor:')+'</div>'+
+    Object.keys(byV).map(function(v){return '<span style="display:inline-block;background:var(--s3);border-radius:5px;padding:3px 9px;margin:2px 4px 2px 0">'+v+' · '+byV[v]+L(' 人',' pers.')+'</span>';}).join('');
+  panel.appendChild(sum);
+  rows.forEach(function(r){
+    var c=document.createElement('div'); c.style.cssText='border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-bottom:8px;font-size:12px';
+    c.innerHTML='<div style="display:flex;justify-content:space-between"><span style="font-weight:700">'+r.vendor_code+' · '+r.rider_id+'</span><span style="color:var(--muted2)">'+String(r.created_at||'').slice(0,16).replace('T',' ')+'</span></div>'
+      +'<div style="color:var(--muted2);margin-top:3px">'+L('上线日期：','Fechas: ')+(r.online_dates||'-')+(r.online_zone?(' · '+L('区域：','Zona: ')+r.online_zone):'')+'</div>';
+    panel.appendChild(c);
+  });
+}
+function downloadPTRiders(){
+  dbGetAllPTRiders().then(function(rows){
+    if(!rows.length){ alert(L('暂无数据','Sin datos')); return; }
+    var aoa=[['vendor_code','rider_id','online_dates','online_zone','created_at']];
+    rows.forEach(function(r){ aoa.push([r.vendor_code,r.rider_id,r.online_dates||'',r.online_zone||'',r.created_at||'']); });
+    var ws=XLSX.utils.aoa_to_sheet(aoa); var wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'pt_riders');
+    XLSX.writeFile(wb, L('兼职骑手明细_','PT_riders_')+new Date().toISOString().slice(0,10)+'.xlsx');
+  });
+}
+
+
+// ---- PT vendor self-service (view/delete own riders by Vendor Code) ----
+async function dbGetMyPTRiders(vc){
+  if(!sb) return [];
+  const { data, error } = await sb.rpc('get_pt_riders_by_vendor',{p_vendor_code:vc});
+  if(error){ console.error('get_pt_riders_by_vendor',error); return []; }
+  return data||[];
+}
+async function dbDeleteMyPTRiders(vc){
+  if(!sb) throw new Error('no backend');
+  const { data, error } = await sb.rpc('delete_pt_riders_by_vendor',{p_vendor_code:vc});
+  if(error) throw error; return data||0;
+}
+async function ptViewMine(){
+  var vc=(document.getElementById('ptMineVendor').value||'').trim();
+  var panel=document.getElementById('ptMinePanel');
+  if(!vc){ panel.innerHTML='<div style="color:#FF3F5A;font-size:12px">'+L('请输入你的 Vendor Code','Ingresa tu Vendor Code')+'</div>'; return; }
+  if(Object.keys(VENDOR_LIST).length>0 && !VENDOR_LIST[vc.toUpperCase()]){ panel.innerHTML='<div style="color:#FF3F5A;font-size:12px">'+L('Vendor Code「'+vc+'」不在系统名单中，请确认填写','El Vendor Code «'+vc+'» no está en la lista; verifica')+'</div>'; return; }
+  panel.innerHTML='<div style="font-size:12px;color:var(--muted)">'+L('加载中…','Cargando…')+'</div>';
+  var rows=await dbGetMyPTRiders(vc);
+  if(!rows.length){ panel.innerHTML='<div style="font-size:12px;color:var(--muted2)">'+L('未找到 Vendor Code「'+vc+'」的明细','Sin registros para el Vendor Code «'+vc+'»')+'</div>'; return; }
+  panel.innerHTML='<div style="font-size:12px;color:var(--muted2);margin-bottom:8px">'+L('你已上传 '+rows.length+' 名骑手：','Has subido '+rows.length+' repartidores:')+'</div>'+
+    rows.map(function(r){return '<div style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:6px;font-size:12px"><b>'+r.rider_id+'</b> · '+(r.online_dates||'-')+(r.online_zone?(' · '+r.online_zone):'')+'</div>';}).join('');
+}
+async function ptDeleteMine(){
+  var vc=(document.getElementById('ptMineVendor').value||'').trim();
+  var panel=document.getElementById('ptMinePanel');
+  if(!vc){ panel.innerHTML='<div style="color:#FF3F5A;font-size:12px">'+L('请输入你的 Vendor Code','Ingresa tu Vendor Code')+'</div>'; return; }
+  if(Object.keys(VENDOR_LIST).length>0 && !VENDOR_LIST[vc.toUpperCase()]){ panel.innerHTML='<div style="color:#FF3F5A;font-size:12px">'+L('Vendor Code「'+vc+'」不在系统名单中，请确认填写','El Vendor Code «'+vc+'» no está en la lista; verifica')+'</div>'; return; }
+  if(!confirm(L('确认删除 Vendor Code「'+vc+'」名下已上传的全部骑手明细吗？此操作不可恢复，删除后请重新上传。','¿Eliminar TODO el detalle de repartidores subido del Vendor Code «'+vc+'»? Es irreversible; vuelve a subir después.'))) return;
+  var nn;
+  try{ nn=await dbDeleteMyPTRiders(vc); }catch(e){ panel.innerHTML='<div style="color:#FF3F5A;font-size:12px">'+L('删除失败：','Error: ')+(e.message||e)+'</div>'; return; }
+  panel.innerHTML='<div class="alert a-ok show" style="font-size:12px">'+L('✅ 已删除 '+nn+' 名骑手明细，你现在可以重新上传。','✅ Se eliminaron '+nn+' repartidores. Ahora puedes volver a subir.')+'</div>';
+}
+
 function go(idx){
   document.querySelectorAll('.page').forEach((p,i)=>p.classList.toggle('active',i===idx));
   document.querySelectorAll('.ntab').forEach((t,i)=>t.classList.toggle('active',i===idx));
@@ -1693,7 +1963,7 @@ const I18N = {
   zh: {
     nav0:'🏠 活动首页', nav1:'📖 活动规则', nav2:'📝 报名参赛',
     nav3:'📅 赛程表', nav4:'🎯 配对结果', nav5:'🏆 比赛结果',
-    nav6:'🏍️ 积分查询', nav7:'⚙️ 配对系统',
+    nav6:'🏍️ 积分查询', nav7:'🧩 兼职报名', nav8:'⚙️ 配对系统',
     logo_sub:'PK 赛平台',
     reg_slbl:'供应商报名', reg_title:'📝 报名参赛',
     mu_slbl:'比赛前一天公布', mu_title:'🎯 配对结果',
@@ -1716,7 +1986,7 @@ const I18N = {
   es: {
     nav0:'🏠 Inicio', nav1:'📖 Reglas', nav2:'📝 Inscripción',
     nav3:'📅 Calendario', nav4:'🎯 Emparejamientos', nav5:'🏆 Resultados',
-    nav6:'🏍️ Mis Puntos', nav7:'⚙️ Sistema Admin',
+    nav6:'🏍️ Mis Puntos', nav7:'🧩 Medio tiempo', nav8:'⚙️ Sistema Admin',
     logo_sub:'Plataforma PK',
     reg_slbl:'Registro de Proveedor', reg_title:'📝 Inscripción al Torneo',
     mu_slbl:'Publicado el día anterior', mu_title:'🎯 Emparejamientos',
