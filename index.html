@@ -127,7 +127,7 @@ select.fi option{background:#18181E}
 .wk-val{font-family:'Bebas Neue',sans-serif;font-size:30px;color:var(--didi);letter-spacing:1px}
 .wk-date{font-size:10px;color:var(--muted);margin-top:3px}
 .persp-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px}
-.persp{border-radius:14px;padding:24px;border:1px solid var(--border)}
+.persp{border-radius:14px;padding:24px;border:1px solid var(--border);display:flex;flex-direction:column}
 .persp.vendor{background:linear-gradient(140deg,#0E1828,#1A2E48)}
 .persp.rider{background:linear-gradient(140deg,#0A1E14,#112E1E)}
 .persp-top{display:flex;align-items:center;gap:12px;margin-bottom:12px}
@@ -138,7 +138,7 @@ select.fi option{background:#18181E}
 .persp.vendor .persp-name{color:var(--gold)}.persp.rider .persp-name{color:var(--win)}
 .persp-sub{font-size:10px;color:var(--muted);margin-top:2px}
 .persp-desc{font-size:12px;color:rgba(255,255,255,.55);line-height:1.8;margin-bottom:14px}
-.persp-box{border-radius:9px;padding:13px 16px}
+.persp-box{border-radius:9px;padding:13px 16px;margin-top:auto}
 .persp.vendor .persp-box{background:rgba(240,192,64,.1);border:1px solid rgba(240,192,64,.18)}
 .persp.rider .persp-box{background:rgba(0,212,122,.08);border:1px solid rgba(0,212,122,.18)}
 .persp-box-lbl{font-size:9px;color:rgba(255,255,255,.4);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:5px}
@@ -1046,7 +1046,7 @@ select.fi option{background:#18181E}
   <div class="stitle" data-i18n="reg_title">📝 报名参赛</div>
   <div class="ssub"><span class="lc-zh">每场比赛报名截止时间为比赛前两天 · 同一队伍可报名多场 · 报名后可编辑骑手ID</span><span class="lc-es">El cierre de inscripción es 2 días antes de cada partido · un mismo equipo puede inscribirse en varios · puedes editar los Rider ID tras inscribirte</span></div>
 
-  <div id="vendorUploadBar" style="background:var(--s2);border:1px solid rgba(255,107,0,.3);border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+  <div id="vendorUploadBar" style="background:var(--s2);border:1px solid rgba(255,107,0,.3);border-radius:10px;padding:12px 16px;margin-bottom:14px;display:none;align-items:center;gap:12px;flex-wrap:wrap">
     <span style="font-size:11px;color:var(--didi);font-weight:700;letter-spacing:1px;flex-shrink:0"><span class="lc-zh">📋 供应商名单</span><span class="lc-es">📋 Lista de proveedores</span></span>
     <span style="font-size:12px;color:var(--muted2);flex:1;min-width:160px" id="vendorListStatus"><span class="lc-zh">未加载（报名时不校验 Vendor Code）</span><span class="lc-es">No cargada (no se valida el Vendor Code al inscribir)</span></span>
     <label id="vendorUploadLabel" style="cursor:pointer;background:var(--s3);border:1.5px solid var(--border2);border-radius:8px;padding:7px 16px;font-size:12px;color:var(--muted2);display:inline-flex;align-items:center;gap:7px;transition:all .2s;flex-shrink:0" onmouseover="this.style.borderColor='var(--didi)';this.style.color='var(--didi)'" onmouseout="this.style.borderColor='';this.style.color=''">
@@ -1861,7 +1861,12 @@ async function refreshOperator(){
   adminAuthed = OPERATOR; matchupAdminAuthed = OPERATOR; adminPageAuthed = OPERATOR;
   window._scoreAdminAuthed = OPERATOR; window._curpAdminAuthed = OPERATOR;
   updateOperatorBadge();
+  updateVendorBar();
   return OPERATOR;
+}
+function updateVendorBar(){
+  var b=document.getElementById('vendorUploadBar');
+  if(b) b.style.display = OPERATOR ? 'flex' : 'none';
 }
 function updateOperatorBadge(){
   var b = document.getElementById('opStatus');
@@ -2025,6 +2030,7 @@ function clearReg(){
 function handleVendorUpload(file){
   if(!file)return;
   var statusEl=document.getElementById('vendorListStatus');
+  if(!OPERATOR){ if(statusEl){ statusEl.innerHTML=L('⚠️ 仅运营人员可上传供应商名单','⚠️ Solo el equipo de operaciones puede subir la lista de proveedores'); statusEl.style.color='var(--lose)'; } return; }
   var reader=new FileReader();
   reader.onload=function(e){
     try{
