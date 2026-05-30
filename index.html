@@ -1517,8 +1517,12 @@ select.fi option{background:#18181E}
       </div>
       <div id="ptMinePanel" style="margin-top:12px"></div>
     </div>
-    <div style="display:flex;justify-content:flex-end;margin-top:10px">
-      <button class="btn btn-s btn-sm" onclick="openPTRiderAdmin()" style="font-size:10px;color:var(--muted2);border-color:var(--border)"><span class="lc-zh">🗂️ 运营：查看骑手明细</span><span class="lc-es">🗂️ Operaciones: ver detalle de repartidores</span></button>
+    <div id="ptOpLogin" style="display:flex;justify-content:flex-end;margin-top:10px">
+      <button class="btn btn-s btn-sm" onclick="ptOperatorLogin()" style="font-size:10px;color:var(--muted2);border-color:var(--border)"><span class="lc-zh">⚙️ 运营登录</span><span class="lc-es">⚙️ Acceso de operaciones</span></button>
+    </div>
+    <div id="ptOpBar" style="display:none;justify-content:flex-end;gap:8px;margin-top:10px">
+      <button class="btn btn-s btn-sm" onclick="openPTRiderAdmin()" style="font-size:10px;color:var(--muted2);border-color:var(--border)"><span class="lc-zh">🗂️ 查看骑手明细</span><span class="lc-es">🗂️ Ver detalle de repartidores</span></button>
+      <button class="btn btn-s btn-sm" onclick="operatorLogout()" style="font-size:10px;color:var(--muted2);border-color:var(--border)"><span class="lc-zh">退出登录</span><span class="lc-es">Cerrar sesión</span></button>
     </div>
     <div id="ptRiderAdminPanel" style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:14px"></div>
   </div>
@@ -1741,7 +1745,7 @@ async function openPTAdmin(){
   if(!rows.length){ var e=document.createElement('div'); e.style.cssText='font-size:12px;color:var(--muted2)'; e.textContent=L('暂无兼职报名','Sin registros PT'); panel.appendChild(e); return; }
   rows.forEach(function(r){
     var c=document.createElement('div'); c.style.cssText='border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-bottom:8px;font-size:12px';
-    c.innerHTML='<div style="display:flex;justify-content:space-between"><span style="font-weight:700">'+r.vendor_code+'</span><span style="color:var(--muted2)">'+String(r.created_at||'').slice(0,16).replace('T',' ')+'</span></div>'
+    c.innerHTML='<div style="display:flex;justify-content:space-between"><span style="font-weight:700">'+r.vendor_code+'</span><span style="color:var(--muted2)">'+mxTime(r.created_at)+' CDMX'+'</span></div>'
       +'<div style="color:var(--muted2);margin-top:3px">'+L('联系人：','Contacto: ')+(r.contact_name||'-')+' · '+(r.contact_info||'-')+'</div>'
       +'<div style="color:var(--muted2);margin-top:2px">'+L('预计人数：','N.º estimado: ')+(r.est_headcount||0)+(r.zones?(' · '+L('区域：','Zonas: ')+r.zones):'')+(r.note?(' · '+r.note):'')+'</div>';
     panel.appendChild(c);
@@ -1750,10 +1754,10 @@ async function openPTAdmin(){
 function downloadPT(){
   dbGetAllPT().then(function(rows){
     if(!rows.length){ alert(L('暂无数据','Sin datos')); return; }
-    var aoa=[['vendor_code','contact_name','contact_info','est_headcount','zones','note','created_at']];
-    rows.forEach(function(r){ aoa.push([r.vendor_code,r.contact_name||'',r.contact_info||'',r.est_headcount||0,r.zones||'',r.note||'',r.created_at||'']); });
+    var aoa=[['vendor_code','contact_name','contact_info','est_headcount','zones','note','created_at_CDMX']];
+    rows.forEach(function(r){ aoa.push([r.vendor_code,r.contact_name||'',r.contact_info||'',r.est_headcount||0,r.zones||'',r.note||'',mxTime(r.created_at)]); });
     var ws=XLSX.utils.aoa_to_sheet(aoa); var wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'pt_registrations');
-    XLSX.writeFile(wb, L('兼职报名_','PT_')+new Date().toISOString().slice(0,10)+'.xlsx');
+    XLSX.writeFile(wb, L('兼职报名_','PT_')+mxDateStamp()+'.xlsx');
   });
 }
 
@@ -1836,7 +1840,7 @@ async function openPTRiderAdmin(){
   panel.appendChild(sum);
   rows.forEach(function(r){
     var c=document.createElement('div'); c.style.cssText='border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-bottom:8px;font-size:12px';
-    c.innerHTML='<div style="display:flex;justify-content:space-between"><span style="font-weight:700">'+r.vendor_code+' · '+r.rider_id+'</span><span style="color:var(--muted2)">'+String(r.created_at||'').slice(0,16).replace('T',' ')+'</span></div>'
+    c.innerHTML='<div style="display:flex;justify-content:space-between"><span style="font-weight:700">'+r.vendor_code+' · '+r.rider_id+'</span><span style="color:var(--muted2)">'+mxTime(r.created_at)+' CDMX'+'</span></div>'
       +'<div style="color:var(--muted2);margin-top:3px">'+L('上线日期：','Fechas: ')+(r.online_dates||'-')+(r.online_zone?(' · '+L('区域：','Zona: ')+r.online_zone):'')+'</div>';
     panel.appendChild(c);
   });
@@ -1844,10 +1848,10 @@ async function openPTRiderAdmin(){
 function downloadPTRiders(){
   dbGetAllPTRiders().then(function(rows){
     if(!rows.length){ alert(L('暂无数据','Sin datos')); return; }
-    var aoa=[['vendor_code','rider_id','online_dates','online_zone','created_at']];
-    rows.forEach(function(r){ aoa.push([r.vendor_code,r.rider_id,r.online_dates||'',r.online_zone||'',r.created_at||'']); });
+    var aoa=[['vendor_code','rider_id','online_dates','online_zone','created_at_CDMX']];
+    rows.forEach(function(r){ aoa.push([r.vendor_code,r.rider_id,r.online_dates||'',r.online_zone||'',mxTime(r.created_at)]); });
     var ws=XLSX.utils.aoa_to_sheet(aoa); var wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'pt_riders');
-    XLSX.writeFile(wb, L('兼职骑手明细_','PT_riders_')+new Date().toISOString().slice(0,10)+'.xlsx');
+    XLSX.writeFile(wb, L('兼职骑手明细_','PT_riders_')+mxDateStamp()+'.xlsx');
   });
 }
 
@@ -1864,6 +1868,7 @@ async function dbDeleteMyPTRiders(vc){
   const { data, error } = await sb.rpc('delete_pt_riders_by_vendor',{p_vendor_code:vc});
   if(error) throw error; return data||0;
 }
+async function ptOperatorLogin(){ await requireOperator(); }
 async function ptViewMine(){
   var vc=(document.getElementById('ptMineVendor').value||'').trim();
   var panel=document.getElementById('ptMinePanel');
@@ -1886,6 +1891,25 @@ async function ptDeleteMine(){
   panel.innerHTML='<div class="alert a-ok show" style="font-size:12px">'+L('✅ 已删除 '+nn+' 名骑手明细，你现在可以重新上传。','✅ Se eliminaron '+nn+' repartidores. Ahora puedes volver a subir.')+'</div>';
 }
 
+// Mexico City has NO daylight saving since 2023 -> fixed UTC-6 (deterministic, no reliance on browser tz database)
+var MX_OFFSET_MS = 6*3600*1000;
+function _p2(n){ return (n<10?'0':'')+n; }
+function mxTime(ts){
+  if(!ts) return '';
+  try{
+    // Supabase returns e.g. "2026-05-30 18:19:48.2686+00"; normalize so JS can parse it as UTC
+    var str=String(ts).trim().replace(' ','T').replace(/([+-]\d\d)$/, '$1:00');
+    var d=new Date(str);
+    if(isNaN(d.getTime())){ d=new Date(String(ts).replace(' ','T')); }
+    if(isNaN(d.getTime())) return String(ts).slice(0,16).replace('T',' ');
+    var m=new Date(d.getTime()-MX_OFFSET_MS);
+    return m.getUTCFullYear()+'-'+_p2(m.getUTCMonth()+1)+'-'+_p2(m.getUTCDate())+' '+_p2(m.getUTCHours())+':'+_p2(m.getUTCMinutes());
+  }catch(e){ return String(ts).slice(0,16).replace('T',' '); }
+}
+function mxDateStamp(){
+  var m=new Date(Date.now()-MX_OFFSET_MS);
+  return m.getUTCFullYear()+'-'+_p2(m.getUTCMonth()+1)+'-'+_p2(m.getUTCDate());
+}
 function go(idx){
   document.querySelectorAll('.page').forEach((p,i)=>p.classList.toggle('active',i===idx));
   document.querySelectorAll('.ntab').forEach((t,i)=>t.classList.toggle('active',i===idx));
@@ -1954,7 +1978,7 @@ function getSlotVals(prefix){return[0,1,2,3,4].map(i=>{const e=document.getEleme
 // ══════════════════════════════════════════════════════════
 // BILINGUAL SYSTEM (中文 / Español)
 // ══════════════════════════════════════════════════════════
-let LANG = localStorage.getItem('didi_lang') || 'zh';
+let LANG = localStorage.getItem('didi_lang') || 'es';
 
 // Helper for inline dynamic strings: L('中文','Español')
 function L(zh, es){ return LANG === 'es' ? es : zh; }
@@ -2049,6 +2073,14 @@ function refreshDynamic(){
   try{
     var vp=document.getElementById('vendorResultPanel'); if(vp&&vp.innerHTML.trim()&&typeof queryVendorResults==='function') queryVendorResults();
   }catch(e){}
+  // clear newer dynamic panels so old-language text does not linger after switching
+  try{
+    var _pbr=document.getElementById('ptBulkResult'); if(_pbr){ _pbr.className='alert'; _pbr.textContent=''; }
+    var _pmp=document.getElementById('ptMinePanel'); if(_pmp) _pmp.innerHTML='';
+    var _pap=document.getElementById('ptRiderAdminPanel'); if(_pap && _pap.style.display!=='none'){ _pap.style.display='none'; _pap.innerHTML=''; }
+    var _rap=document.getElementById('redemptionAdminPanel'); if(_rap && _rap.style.display!=='none'){ _rap.style.display='none'; _rap.innerHTML=''; }
+    var _pr=document.getElementById('ptResult'); if(_pr){ _pr.className='alert'; _pr.textContent=''; }
+  }catch(e){}
 }
 
 // Apply on load
@@ -2140,6 +2172,9 @@ async function refreshOperator(){
   window._scoreAdminAuthed = OPERATOR; window._curpAdminAuthed = OPERATOR;
   updateOperatorBadge();
   updateVendorBar();
+  var _pol=document.getElementById('ptOpLogin'); if(_pol) _pol.style.display = OPERATOR ? 'none' : 'flex';
+  var _pob=document.getElementById('ptOpBar'); if(_pob) _pob.style.display = OPERATOR ? 'flex' : 'none';
+  if(!OPERATOR){ var _pap=document.getElementById('ptRiderAdminPanel'); if(_pap){ _pap.style.display='none'; _pap.innerHTML=''; } }
   return OPERATOR;
 }
 function updateVendorBar(){
@@ -2626,7 +2661,7 @@ async function renderRedemptionAdmin(){
     var st = r.status==='completed'?L('✅ 已完成','✅ Completado'):r.status==='rejected'?L('❌ 已驳回','❌ Rechazado'):L('⏳ 待处理','⏳ Pendiente');
     var card=document.createElement('div'); card.style.cssText='border:1px solid var(--border);border-radius:9px;padding:12px;margin-bottom:8px;font-size:12px';
     card.innerHTML='<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-family:monospace;letter-spacing:1px">CURP …'+r.curp6+(r.rider_id?' · '+r.rider_id:'')+'</span><span>'+st+'</span></div>'
-      +'<div style="color:var(--muted2)">'+L('兑换 ','Canje ')+r.points.toLocaleString()+L(' 分 · ×',' pts · ×')+r.rate+L(' · 预计 ',' · aprox. ')+r.est_cash.toLocaleString()+L(' 比索',' pesos')+' · '+String(r.created_at||'').slice(0,16).replace('T',' ')+'</div>';
+      +'<div style="color:var(--muted2)">'+L('兑换 ','Canje ')+r.points.toLocaleString()+L(' 分 · ×',' pts · ×')+r.rate+L(' · 预计 ',' · aprox. ')+r.est_cash.toLocaleString()+L(' 比索',' pesos')+' · '+mxTime(r.created_at)+' CDMX'+'</div>';
     var act=document.createElement('div'); act.style.marginTop='8px';
     if(r.status==='pending'){
       var bc=document.createElement('button'); bc.className='btn btn-p btn-sm'; bc.style.cssText='font-size:10px;margin-right:6px'; bc.textContent=L('标记已完成','Completar'); bc.onclick=function(){setRedemption(r.id,'completed');};
@@ -2646,10 +2681,10 @@ async function setRedemption(id,status){
 function downloadRedemptions(){
   dbGetAllRedemptions().then(function(rows){
     if(!rows.length){ alert(L('暂无数据','Sin datos')); return; }
-    var aoa=[['CURP_last6','rider_id','points','rate','est_cash','status','created_at','processed_at']];
-    rows.forEach(function(r){ aoa.push([r.curp6,r.rider_id||'',r.points,r.rate,r.est_cash,r.status,r.created_at||'',r.processed_at||'']); });
+    var aoa=[['CURP_last6','rider_id','points','rate','est_cash','status','created_at_CDMX','processed_at_CDMX']];
+    rows.forEach(function(r){ aoa.push([r.curp6,r.rider_id||'',r.points,r.rate,r.est_cash,r.status,mxTime(r.created_at),mxTime(r.processed_at)]); });
     var ws=XLSX.utils.aoa_to_sheet(aoa); var wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'redemptions');
-    XLSX.writeFile(wb, L('兑换申请_','Canjes_')+new Date().toISOString().slice(0,10)+'.xlsx');
+    XLSX.writeFile(wb, L('兑换申请_','Canjes_')+mxDateStamp()+'.xlsx');
   });
 }
 
