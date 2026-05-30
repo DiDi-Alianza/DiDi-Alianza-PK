@@ -282,6 +282,7 @@ select.fi option{background:#18181E}
 .tp-wk{background:var(--blue-pale);color:var(--blue);border:1px solid rgba(61,158,255,.25)}
 .tp-md{background:var(--gold-pale);color:var(--gold);border:1px solid rgba(240,192,64,.25)}
 .tp-both{background:rgba(255,107,0,.1);color:var(--didi);border:1px solid rgba(255,107,0,.28)}
+.tp-pre{background:rgba(139,92,246,.12);color:#A78BFA;border:1px solid rgba(139,92,246,.30)}
 
 /* ── PAGE 4: MATCHUPS ── */
 .matchup-notice{background:linear-gradient(135deg,var(--s2),var(--s1));border:1px solid var(--border);border-radius:14px;padding:48px;text-align:center}
@@ -1113,7 +1114,7 @@ select.fi option{background:#18181E}
 
     <div class="card">
       <div class="card-t"><span class="lc-zh">📅 选择报名场次</span><span class="lc-es">📅 Elige los partidos</span></div>
-      <div class="deadline-note"><span class="lc-zh">⏰ <strong>报名截止时间：</strong>每场比赛的<strong>前两天</strong>截止报名。请提前确认赛程表后再提交，截止后不受理新报名。</span><span class="lc-es">⏰ <strong>Cierre de inscripción:</strong> cada partido cierra <strong>2 días antes</strong>. Revisa el calendario antes de enviar; tras el cierre no se aceptan nuevas inscripciones.</span></div>
+      <div class="deadline-note"><span class="lc-zh">⏰ <strong>报名截止时间：</strong>正式赛每场<strong>前两天</strong>截止报名；🔥 <strong>热身赛（Pre-World Cup）随时可报名、无截止</strong>。请提前确认赛程表后再提交。</span><span class="lc-es">⏰ <strong>Cierre de inscripción:</strong> cada partido oficial cierra <strong>2 días antes</strong>; 🔥 <strong>los partidos de calentamiento (Pre-Mundial) no tienen fecha límite</strong>. Revisa el calendario antes de enviar.</span></div>
       <div class="fg">
         <label><span class="lc-zh">报名场次</span><span class="lc-es">Partidos</span> * <span style="color:var(--muted);font-size:10px;font-weight:400"><span class="lc-zh">（可多选，同一队伍报名多场）</span><span class="lc-es">(opción múltiple, un equipo puede inscribirse en varios)</span></span></label>
         <div id="matchCheckboxes" style="background:var(--s2);border:1px solid var(--border);border-radius:9px;padding:12px 14px;max-height:240px;overflow-y:auto;display:grid;grid-template-columns:1fr 1fr;gap:6px">
@@ -1188,6 +1189,7 @@ select.fi option{background:#18181E}
   <div class="slbl">FIFA World Cup 2026</div>
   <div class="stitle"><span class="lc-zh">📅 完整赛程表</span><span class="lc-es">📅 Calendario completo</span></div>
   <div class="ssub"><span class="lc-zh">共20场 · 周末PK 8场 · 比赛日PK 9场 · 周末+比赛日 3场 · 每场报名截止为比赛前两天</span><span class="lc-es">20 partidos en total · PK fin de semana 8 · PK día de partido 9 · fin de semana+día de partido 3 · cada inscripción cierra 2 días antes</span></div>
+  <div class="card" style="border:1px solid rgba(139,92,246,.30)"><div class="card-t"><span class="lc-zh">🔥 赛前热身赛 · Pre-World Cup（5月31日–6月5日）</span><span class="lc-es">🔥 Calentamiento · Pre-Mundial (31 may–5 jun)</span></div><div style="font-size:12px;color:var(--muted2);margin-bottom:12px"><span class="lc-zh">正式赛前热身，让大家提前熟悉玩法，<strong style="color:var(--text)">随时可报名参与</strong>。</span><span class="lc-es">Calentamiento antes del torneo oficial para familiarizarse con el juego; <strong style="color:var(--text)">inscripción abierta en cualquier momento</strong>.</span></div><table class="sched-tbl"><thead><tr><th><span class="lc-zh">场次</span><span class="lc-es">Partido</span></th><th><span class="lc-zh">日期</span><span class="lc-es">Fecha</span></th><th><span class="lc-zh">星期</span><span class="lc-es">Día</span></th><th><span class="lc-zh">报名截止</span><span class="lc-es">Cierre</span></th><th><span class="lc-zh">类型</span><span class="lc-es">Tipo</span></th><th><span class="lc-zh">备注</span><span class="lc-es">Nota</span></th></tr></thead><tbody id="sbPre"></tbody></table></div>
   <div class="card"><div class="card-t"><span class="lc-zh">第 1–10 场</span><span class="lc-es">Partidos 1–10</span></div><table class="sched-tbl"><thead><tr><th><span class="lc-zh">场次</span><span class="lc-es">Partido</span></th><th><span class="lc-zh">日期</span><span class="lc-es">Fecha</span></th><th><span class="lc-zh">星期</span><span class="lc-es">Día</span></th><th><span class="lc-zh">报名截止</span><span class="lc-es">Cierre</span></th><th><span class="lc-zh">类型</span><span class="lc-es">Tipo</span></th><th><span class="lc-zh">备注</span><span class="lc-es">Nota</span></th></tr></thead><tbody id="sb1"></tbody></table></div>
   <div class="card"><div class="card-t"><span class="lc-zh">第 11–20 场</span><span class="lc-es">Partidos 11–20</span></div><table class="sched-tbl"><thead><tr><th><span class="lc-zh">场次</span><span class="lc-es">Partido</span></th><th><span class="lc-zh">日期</span><span class="lc-es">Fecha</span></th><th><span class="lc-zh">星期</span><span class="lc-es">Día</span></th><th><span class="lc-zh">报名截止</span><span class="lc-es">Cierre</span></th><th><span class="lc-zh">类型</span><span class="lc-es">Tipo</span></th><th><span class="lc-zh">备注</span><span class="lc-es">Nota</span></th></tr></thead><tbody id="sb2"></tbody></table></div>
   <div style="display:flex;gap:18px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-top:4px">
@@ -1642,15 +1644,29 @@ const SCHEDULE = [
   {id:19,date:'7月5日',day:'周日',deadline:'7月3日（周五）',type:'both',note:'周末×世界杯赛事日',date_es:'5 jul',day_es:'Dom',deadline_es:'3 jul (Vie)',note_es:'Fin de semana × Día de partido'},
   {id:20,date:'7月6日',day:'周一',deadline:'7月4日（周六）',type:'matchday',note:'世界杯赛事日',date_es:'6 jul',day_es:'Lun',deadline_es:'4 jul (Sáb)',note_es:'Día de partido del Mundial'},
 ];
-const TP_ZH = {weekend:'<span class="tp tp-wk">🏖️ 周末PK</span>',matchday:'<span class="tp tp-md">⚽ 比赛日PK</span>',both:'<span class="tp tp-both">⚡ 周末+比赛日</span>'};
-const TP_ES = {weekend:'<span class="tp tp-wk">🏖️ PK Fin de semana</span>',matchday:'<span class="tp tp-md">⚽ PK Día de partido</span>',both:'<span class="tp tp-both">⚡ Fin de semana + Partido</span>'};
+// Pre-World Cup warm-up sessions (independent numbering, no registration deadline)
+const PRE_SCHEDULE = [
+  {id:101,name:'热身1',name_es:'Pre-Mundial 1',date:'5月31日',day:'周日',type:'prewc',note:'赛前热身 · Pre-World Cup',date_es:'31 may',day_es:'Dom',note_es:'Calentamiento · Pre-Mundial',deadline:'随时可报名',deadline_es:'Sin fecha límite',pre:true},
+  {id:102,name:'热身2',name_es:'Pre-Mundial 2',date:'6月1日',day:'周一',type:'prewc',note:'赛前热身 · Pre-World Cup',date_es:'1 jun',day_es:'Lun',note_es:'Calentamiento · Pre-Mundial',deadline:'随时可报名',deadline_es:'Sin fecha límite',pre:true},
+  {id:103,name:'热身3',name_es:'Pre-Mundial 3',date:'6月2日',day:'周二',type:'prewc',note:'赛前热身 · Pre-World Cup',date_es:'2 jun',day_es:'Mar',note_es:'Calentamiento · Pre-Mundial',deadline:'随时可报名',deadline_es:'Sin fecha límite',pre:true},
+  {id:104,name:'热身4',name_es:'Pre-Mundial 4',date:'6月3日',day:'周三',type:'prewc',note:'赛前热身 · Pre-World Cup',date_es:'3 jun',day_es:'Mié',note_es:'Calentamiento · Pre-Mundial',deadline:'随时可报名',deadline_es:'Sin fecha límite',pre:true},
+  {id:105,name:'热身5',name_es:'Pre-Mundial 5',date:'6月4日',day:'周四',type:'prewc',note:'赛前热身 · Pre-World Cup',date_es:'4 jun',day_es:'Jue',note_es:'Calentamiento · Pre-Mundial',deadline:'随时可报名',deadline_es:'Sin fecha límite',pre:true},
+  {id:106,name:'热身6',name_es:'Pre-Mundial 6',date:'6月5日',day:'周五',type:'prewc',note:'赛前热身 · Pre-World Cup',date_es:'5 jun',day_es:'Vie',note_es:'Calentamiento · Pre-Mundial',deadline:'随时可报名',deadline_es:'Sin fecha límite',pre:true},
+];
+const TP_ZH = {weekend:'<span class="tp tp-wk">🏖️ 周末PK</span>',matchday:'<span class="tp tp-md">⚽ 比赛日PK</span>',both:'<span class="tp tp-both">⚡ 周末+比赛日</span>',prewc:'<span class="tp tp-pre">🔥 热身PK</span>'};
+const TP_ES = {weekend:'<span class="tp tp-wk">🏖️ PK Fin de semana</span>',matchday:'<span class="tp tp-md">⚽ PK Día de partido</span>',both:'<span class="tp tp-both">⚡ Fin de semana + Partido</span>',prewc:'<span class="tp tp-pre">🔥 PK Pre-Mundial</span>'};
 const TP = TP_ZH; // legacy alias
 function tp(type){ return LANG==='es' ? TP_ES[type] : TP_ZH[type]; }
 function sDate(s){return L(s.date,s.date_es);}
 function sDay(s){return L(s.day,s.day_es);}
 function sDeadline(s){return L(s.deadline,s.deadline_es);}
 function sNote(s){return L(s.note,s.note_es);}
-function matchLabel(id){ return L('第'+id+'场','Partido '+id); }
+function matchLabel(id){
+  var all=(typeof PRE_SCHEDULE!=='undefined'?PRE_SCHEDULE:[]).concat(typeof SCHEDULE!=='undefined'?SCHEDULE:[]);
+  var e=all.find(function(s){return String(s.id)===String(id);});
+  if(e&&e.name) return L(e.name, e.name_es||e.name);
+  return L('第'+id+'场','Partido '+id);
+}
 function rTxt(res){ return res==='胜'?L('胜','Victoria'):res==='败'?L('败','Derrota'):(res||''); }
 // Score category labels and tags for new 6-category breakdown
 const SCORE_CATS = [
@@ -1945,17 +1961,35 @@ function buildSchedule(){
       <td style="color:var(--muted2);font-size:11px">${sNote(s)}</td>
     </tr>`).join('');
   });
+  // warm-up (Pre-World Cup) table on the schedule page
+  const sbPre=document.getElementById('sbPre');
+  if(sbPre){
+    sbPre.innerHTML=PRE_SCHEDULE.map(s=>`<tr>
+      <td><strong>${matchLabel(s.id)}</strong></td>
+      <td>${sDate(s)}</td>
+      <td style="color:var(--muted2)">${sDay(s)}</td>
+      <td style="color:var(--muted);font-size:11px">${sDeadline(s)}</td>
+      <td>${tp(s.type)}</td>
+      <td style="color:var(--muted2);font-size:11px">${sNote(s)}</td>
+    </tr>`).join('');
+  }
   const cbContainer=document.getElementById('matchCheckboxes');
   if(cbContainer){
-    const ttMapZ={weekend:'🏖️周末PK',matchday:'⚽赛事日',both:'⚡双倍'};const ttMapE={weekend:'🏖️ Fin de semana',matchday:'⚽ Día de partido',both:'⚡ Doble'};const ttMap=LANG==='es'?ttMapE:ttMapZ;
-    cbContainer.innerHTML=SCHEDULE.map(s=>`
+    const ttMapZ={weekend:'🏖️周末PK',matchday:'⚽赛事日',both:'⚡双倍',prewc:'🔥热身PK'};const ttMapE={weekend:'🏖️ Fin de semana',matchday:'⚽ Día de partido',both:'⚡ Doble',prewc:'🔥 Pre-Mundial'};const ttMap=LANG==='es'?ttMapE:ttMapZ;
+    const preHtml=PRE_SCHEDULE.map(s=>`
+      <label style="display:flex;align-items:flex-start;gap:8px;padding:7px 10px;background:rgba(139,92,246,.08);border-radius:7px;cursor:pointer;border:1px solid rgba(139,92,246,.30);font-size:11px;color:var(--muted2);transition:border-color .2s" onmouseover="this.style.borderColor='#A78BFA'" onmouseout="this.style.borderColor='rgba(139,92,246,.30)'">
+        <input type="checkbox" value="${s.id}" style="margin-top:2px;accent-color:#A78BFA;flex-shrink:0">
+        <div><div style="font-weight:600;color:var(--text)">${matchLabel(s.id)} · ${sDate(s)} ${sDay(s)}</div><div style="color:#A78BFA;font-size:10px;margin-top:1px">${ttMap[s.type]} · ${L('随时可报名','Sin fecha límite')}</div></div>
+      </label>`).join('');
+    const formalHtml=SCHEDULE.map(s=>`
       <label style="display:flex;align-items:flex-start;gap:8px;padding:7px 10px;background:var(--s3);border-radius:7px;cursor:pointer;border:1px solid var(--border);font-size:11px;color:var(--muted2);transition:border-color .2s" onmouseover="this.style.borderColor='var(--didi)'" onmouseout="this.style.borderColor='var(--border)'">
         <input type="checkbox" value="${s.id}" style="margin-top:2px;accent-color:var(--didi);flex-shrink:0">
         <div><div style="font-weight:600;color:var(--text)">${matchLabel(s.id)} · ${sDate(s)} ${sDay(s)}</div><div style="color:var(--muted);font-size:10px;margin-top:1px">${ttMap[s.type]} · ${L('截止','Cierre ')}${sDeadline(s)}</div></div>
       </label>`).join('');
+    cbContainer.innerHTML=preHtml+formalHtml;
   }
   const psel=document.getElementById('pairMatchSel');
-  if(psel) SCHEDULE.forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=`${matchLabel(s.id)} · ${sDate(s)} ${sDay(s)}`;psel.appendChild(o)});
+  if(psel){ PRE_SCHEDULE.concat(SCHEDULE).forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=`${matchLabel(s.id)} · ${sDate(s)} ${sDay(s)}`;psel.appendChild(o)}); }
 }
 
 // ══════════════════════════════════
