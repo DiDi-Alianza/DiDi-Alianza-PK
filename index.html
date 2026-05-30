@@ -1553,6 +1553,25 @@ select.fi option{background:#18181E}
 
 </div>
 
+<!-- ═══ HIDDEN: 运营 Dashboard (#dashboard) ═══ -->
+<div id="pDash" style="display:none;position:fixed;inset:0;z-index:5000;background:var(--bg,#0c0c10);overflow:auto;padding:0">
+  <div style="max-width:1000px;margin:0 auto;padding:22px 18px 60px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px">
+      <div>
+        <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--didi);font-weight:700"><span class="lc-zh">运营专属 · 仅内部可见</span><span class="lc-es">Solo operaciones · interno</span></div>
+        <div style="font-family:Fraunces,serif;font-weight:600;font-size:24px;color:var(--text)"><span class="lc-zh">📊 PK 赛运营 Dashboard</span><span class="lc-es">📊 Dashboard de operaciones PK</span></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-s btn-sm" onclick="renderDashboard()" style="font-size:11px"><span class="lc-zh">🔄 刷新</span><span class="lc-es">🔄 Actualizar</span></button>
+        <button class="btn btn-s btn-sm" onclick="exportDashboard()" style="font-size:11px"><span class="lc-zh">⬇️ 导出</span><span class="lc-es">⬇️ Exportar</span></button>
+        <button class="btn btn-s btn-sm" onclick="operatorLogout();closeDashboard();" style="font-size:11px"><span class="lc-zh">退出登录</span><span class="lc-es">Salir</span></button>
+        <button class="btn btn-s btn-sm" onclick="closeDashboard()" style="font-size:11px"><span class="lc-zh">✕ 关闭</span><span class="lc-es">✕ Cerrar</span></button>
+      </div>
+    </div>
+    <div id="dashBody"></div>
+  </div>
+</div>
+
 <!-- ═══ PAGE 8: 配对系统（管理员专用） ═══ -->
 <div class="page" id="p7">
   <div class="slbl"><span class="lc-zh">管理员专用</span><span class="lc-es">Solo administradores</span></div>
@@ -1926,6 +1945,198 @@ function mxDateStamp(){
   var m=new Date(Date.now()-MX_OFFSET_MS);
   return m.getUTCFullYear()+'-'+_p2(m.getUTCMonth()+1)+'-'+_p2(m.getUTCDate());
 }
+
+// ══════════════════════════════════
+// OPERATIONS DASHBOARD (hidden, #dashboard, operator-only)
+// ══════════════════════════════════
+async function logEvent(kind){
+  try{ if(sb) await sb.from('events').insert([{kind:kind}]); }catch(e){ /* never block UI */ }
+}
+function _dashDay(ts){ // ISO -> CDMX date YYYY-MM-DD (reuse mxTime logic)
+  if(!ts) return '';
+  try{ var str=String(ts).trim().replace(' ','T').replace(/([+-]\d\d)$/,'$1:00'); var d=new Date(str); if(isNaN(d.getTime()))return String(ts).slice(0,10); var m=new Date(d.getTime()-MX_OFFSET_MS); return m.getUTCFullYear()+'-'+_p2(m.getUTCMonth()+1)+'-'+_p2(m.getUTCDate()); }catch(e){ return String(ts).slice(0,10); }
+}
+async function openDashboard(){
+  if(!(await requireOperator())){ return; }
+  var d=document.getElementById('pDash'); if(!d) return;
+  d.style.display='block';
+  document.body.style.overflow='hidden';
+  renderDashboard();
+}
+function closeDashboard(){
+  var d=document.getElementById('pDash'); if(d) d.style.display='none';
+  document.body.style.overflow='';
+  if(location.hash==='#dashboard'){ history.replaceState(null,'',location.pathname+location.search); }
+}
+function _card(label,value,sub){
+  return '<div style="background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:16px 18px">'
+    +'<div style="font-size:12px;color:var(--muted2);margin-bottom:6px">'+label+'</div>'
+    +'<div style="font-size:26px;font-weight:800;color:var(--text);line-height:1.1">'+value+'</div>'
+    +(sub?('<div style="font-size:11px;color:var(--muted);margin-top:4px">'+sub+'</div>'):'')+'</div>';
+}
+function _svgBars(series, color){
+  // series: [{label, value}], vertical bars
+  if(!series.length) return '<div style="font-size:12px;color:var(--muted2)">'+L('暂无数据','Sin datos')+'</div>';
+  var max=Math.max.apply(null,series.map(function(s){return s.value;}))||1;
+  var W=Math.max(320, series.length*46), H=160, pad=24, bw=28, gap=(W-pad*2-bw*series.length)/Math.max(1,series.length-1);
+  var bars=series.map(function(s,i){
+    var h=Math.round((s.value/max)*(H-pad*2));
+    var x=pad+i*(bw+gap), y=H-pad-h;
+    return '<g>'
+      +'<rect x="'+x+'" y="'+y+'" width="'+bw+'" height="'+h+'" rx="4" fill="'+color+'"></rect>'
+      +'<text x="'+(x+bw/2)+'" y="'+(y-4)+'" text-anchor="middle" font-size="10" fill="var(--text)">'+s.value+'</text>'
+      +'<text x="'+(x+bw/2)+'" y="'+(H-pad+12)+'" text-anchor="middle" font-size="9" fill="var(--muted)">'+s.label+'</text>'
+      +'</g>';
+  }).join('');
+  return '<svg viewBox="0 0 '+W+' '+(H+6)+'" style="width:100%;height:auto;max-width:'+W+'px">'+bars+'</svg>';
+}
+function _lastNDays(n){
+  var arr=[]; var now=new Date(Date.now()-MX_OFFSET_MS);
+  for(var i=n-1;i>=0;i--){ var d=new Date(now.getTime()-i*86400000); arr.push(d.getUTCFullYear()+'-'+_p2(d.getUTCMonth()+1)+'-'+_p2(d.getUTCDate())); }
+  return arr;
+}
+window._DASH={};
+async function renderDashboard(){
+  var body=document.getElementById('dashBody');
+  if(!body) return;
+  body.innerHTML='<div style="font-size:13px;color:var(--muted)">'+L('加载数据中…','Cargando datos…')+'</div>';
+  if(!sb){ body.innerHTML='<div style="font-size:13px;color:var(--lose)">'+L('后台未连接','Backend no conectado')+'</div>'; return; }
+  try{
+    var R=await Promise.all([
+      sb.from('registrations').select('vendor_code,team_name,match_id,riders,created_at'),
+      sb.from('redemptions').select('points,est_cash,status,curp6,created_at'),
+      sb.from('pt_riders').select('vendor_code,rider_id'),
+      sb.from('events').select('kind,created_at')
+    ]);
+    var regs=(R[0].data||[]), reds=(R[1].data||[]), pts=(R[2].data||[]), evs=(R[3].data||[]);
+    window._DASH={regs:regs,reds:reds,pts:pts,evs:evs};
+
+    // ---- registrations metrics ----
+    var teamSet={}, vendorSet={}, riderSet={}, warmEntries=0, formalEntries=0;
+    regs.forEach(function(r){
+      if(r.team_name) teamSet[r.team_name]=1;
+      if(r.vendor_code) vendorSet[String(r.vendor_code).toUpperCase()]=1;
+      var rd=r.riders; if(typeof rd==='string'){ try{rd=JSON.parse(rd);}catch(e){rd=[];} }
+      (rd||[]).forEach(function(x){ if(x) riderSet[String(x).trim()]=1; });
+      if(Number(r.match_id)>=101) warmEntries++; else formalEntries++;
+    });
+    var teamsTotal=Object.keys(teamSet).length;
+    var vendorsTotal=Object.keys(vendorSet).length;
+    var ridersTotal=Object.keys(riderSet).length;
+    var entriesTotal=regs.length;
+    var avgEntries=teamsTotal?(entriesTotal/teamsTotal).toFixed(1):'0';
+
+    // ---- redemptions metrics ----
+    var redCount=reds.length;
+    var redPts=reds.reduce(function(s,r){return s+(Number(r.points)||0);},0);
+    var redCash=reds.reduce(function(s,r){return s+(Number(r.est_cash)||0);},0);
+    var redDone=reds.filter(function(r){return r.status==='completed';});
+    var redPending=reds.filter(function(r){return r.status==='pending';});
+    var redCashDone=redDone.reduce(function(s,r){return s+(Number(r.est_cash)||0);},0);
+    var redCashPend=redPending.reduce(function(s,r){return s+(Number(r.est_cash)||0);},0);
+    var redCurpSet={}; reds.forEach(function(r){ if(r.curp6) redCurpSet[r.curp6]=1; });
+    var redRiders=Object.keys(redCurpSet).length;
+
+    // ---- pt metrics ----
+    var ptVendorSet={}; pts.forEach(function(r){ if(r.vendor_code) ptVendorSet[String(r.vendor_code).toUpperCase()]=1; });
+    var ptVendors=Object.keys(ptVendorSet).length, ptRiders=pts.length;
+
+    // ---- events metrics ----
+    var pv=evs.filter(function(e){return e.kind==='page_view';}).length;
+    var cq=evs.filter(function(e){return e.kind==='curp_query';}).length;
+
+    // ---- daily series (last 14 days) ----
+    var days=_lastNDays(14);
+    function dailyCount(list, predicate){ var m={}; days.forEach(function(d){m[d]=0;}); list.forEach(function(r){ if(predicate&&!predicate(r))return; var d=_dashDay(r.created_at); if(d in m) m[d]++; }); return days.map(function(d){return {label:d.slice(5), value:m[d]};}); }
+    var seriesPV=dailyCount(evs,function(e){return e.kind==='page_view';});
+    var seriesReg=dailyCount(regs,null);
+
+    // ---- top vendors by entries ----
+    var vCount={}; regs.forEach(function(r){ var v=String(r.vendor_code||'').toUpperCase(); if(v) vCount[v]=(vCount[v]||0)+1; });
+    var topV=Object.keys(vCount).map(function(v){return {v:v,c:vCount[v]};}).sort(function(a,b){return b.c-a.c;}).slice(0,8);
+
+    var sec=function(t){return '<div style="font-family:Fraunces,serif;font-weight:600;font-size:16px;margin:22px 0 10px;color:var(--text)">'+t+'</div>';};
+    var grid=function(cards){return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">'+cards.join('')+'</div>';};
+
+    var html='';
+    html+=sec(L('📊 规模','📊 Escala'));
+    html+=grid([
+      _card(L('报名队伍数','Equipos inscritos'),teamsTotal,L('去重队伍名','Equipos únicos')),
+      _card(L('去重骑手数','Riders únicos'),ridersTotal),
+      _card(L('参与供应商数','Proveedores'),vendorsTotal),
+      _card(L('累计报名场次','Inscripciones totales'),entriesTotal,L('热身 '+warmEntries+' · 正式 '+formalEntries,'Calent. '+warmEntries+' · Oficial '+formalEntries)),
+      _card(L('人均报名场次','Inscrip./equipo'),avgEntries)
+    ]);
+
+    html+=sec(L('📈 活跃','📈 Actividad'));
+    html+=grid([
+      _card(L('累计页面访问','Visitas totales'),pv),
+      _card(L('累计积分查询','Consultas de puntos'),cq)
+    ]);
+    html+='<div style="background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-top:12px"><div style="font-size:12px;color:var(--muted2);margin-bottom:8px">'+L('近14天每日访问量','Visitas diarias (14 días)')+'</div>'+_svgBars(seriesPV,'var(--didi)')+'</div>';
+    html+='<div style="background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-top:12px"><div style="font-size:12px;color:var(--muted2);margin-bottom:8px">'+L('近14天每日新增报名','Inscripciones diarias (14 días)')+'</div>'+_svgBars(seriesReg,'#3D9EFF')+'</div>';
+
+    html+=sec(L('💱 积分兑换','💱 Canje de puntos'));
+    html+=grid([
+      _card(L('兑换申请次数','Solicitudes de canje'),redCount,L('已完成 '+redDone.length+' · 待处理 '+redPending.length,'Compl. '+redDone.length+' · Pend. '+redPending.length)),
+      _card(L('兑换积分总数','Puntos canjeados'),redPts.toLocaleString()),
+      _card(L('兑换金额(比索)','Monto (pesos)'),redCash.toLocaleString(),L('已完成 '+redCashDone.toLocaleString()+' · 待 '+redCashPend.toLocaleString(),'Compl. '+redCashDone.toLocaleString())),
+      _card(L('兑换骑手数','Riders que canjearon'),redRiders)
+    ]);
+
+    html+=sec(L('🧩 兼职(PT)','🧩 Medio tiempo (PT)'));
+    html+=grid([
+      _card(L('PT 供应商数','Proveedores PT'),ptVendors),
+      _card(L('PT 骑手数','Riders PT'),ptRiders)
+    ]);
+
+    html+=sec(L('🏆 报名最多的供应商 Top 8','🏆 Top 8 proveedores'));
+    if(topV.length){
+      html+='<div style="background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:8px 12px">'+topV.map(function(t,i){
+        return '<div style="display:flex;justify-content:space-between;padding:7px 4px;border-bottom:1px solid var(--border);font-size:13px"><span>'+(i+1)+'. '+t.v+'</span><span style="font-weight:700">'+t.c+L(' 场',' insc.')+'</span></div>';
+      }).join('')+'</div>';
+    } else { html+='<div style="font-size:12px;color:var(--muted2)">'+L('暂无数据','Sin datos')+'</div>'; }
+
+    html+='<div style="font-size:11px;color:var(--muted);margin-top:18px">'+L('数据实时来自数据库 · 时间为墨西哥城时间 · 更新于 ','Datos en vivo · hora CDMX · actualizado ')+_dashDay(new Date().toISOString())+'</div>';
+
+    body.innerHTML=html;
+  }catch(err){
+    console.error(err);
+    body.innerHTML='<div style="font-size:13px;color:var(--lose)">'+L('加载失败：','Error: ')+(err.message||err)+'</div>';
+  }
+}
+function exportDashboard(){
+  var d=window._DASH; if(!d||!d.regs){ alert(L('请先等数据加载完成','Espera a que carguen los datos')); return; }
+  try{
+    var wb=XLSX.utils.book_new();
+    // summary sheet
+    var teamSet={},vendorSet={},riderSet={};
+    d.regs.forEach(function(r){ if(r.team_name)teamSet[r.team_name]=1; if(r.vendor_code)vendorSet[String(r.vendor_code).toUpperCase()]=1; var rd=r.riders; if(typeof rd==='string'){try{rd=JSON.parse(rd);}catch(e){rd=[];}} (rd||[]).forEach(function(x){if(x)riderSet[String(x).trim()]=1;}); });
+    var redPts=d.reds.reduce(function(s,r){return s+(Number(r.points)||0);},0);
+    var redCash=d.reds.reduce(function(s,r){return s+(Number(r.est_cash)||0);},0);
+    var pv=d.evs.filter(function(e){return e.kind==='page_view';}).length;
+    var cq=d.evs.filter(function(e){return e.kind==='curp_query';}).length;
+    var aoa=[
+      [L('指标','Métrica'),L('数值','Valor')],
+      [L('报名队伍数','Equipos'),Object.keys(teamSet).length],
+      [L('去重骑手数','Riders únicos'),Object.keys(riderSet).length],
+      [L('参与供应商数','Proveedores'),Object.keys(vendorSet).length],
+      [L('累计报名场次','Inscripciones'),d.regs.length],
+      [L('累计页面访问','Visitas'),pv],
+      [L('累计积分查询','Consultas'),cq],
+      [L('兑换次数','Canjes'),d.reds.length],
+      [L('兑换积分总数','Puntos canjeados'),redPts],
+      [L('兑换金额(比索)','Monto pesos'),redCash],
+      [L('PT 骑手数','Riders PT'),d.pts.length]
+    ];
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(aoa),'summary');
+    XLSX.writeFile(wb, L('PK赛Dashboard_','Dashboard_')+mxDateStamp()+'.xlsx');
+  }catch(e){ alert(L('导出失败：','Error: ')+(e.message||e)); }
+}
+// hash routing
+function _checkDashHash(){ try{ if(location.hash==='#dashboard'){ openDashboard(); } }catch(e){} }
+if(typeof window!=='undefined' && window.addEventListener){ window.addEventListener('hashchange', _checkDashHash); }
+
 function go(idx){
   document.querySelectorAll('.page').forEach((p,i)=>p.classList.toggle('active',i===idx));
   document.querySelectorAll('.ntab').forEach((t,i)=>t.classList.toggle('active',i===idx));
@@ -2118,7 +2329,7 @@ function refreshDynamic(){
 }
 
 // Apply on load
-document.addEventListener('DOMContentLoaded', function(){ applyLang(); loadSharedData(); });
+document.addEventListener('DOMContentLoaded', function(){ applyLang(); loadSharedData(); try{logEvent('page_view');}catch(e){} try{_checkDashHash();}catch(e){} });
 
 
 // Admin password (obfuscated — not stored as plain text)
@@ -2521,6 +2732,7 @@ function queryCurp(){
     err.textContent=L(`未找到 CURP 后6位「${curp}」，请确认输入是否正确，或联系运营团队查询`,`No se encontró el CURP «${curp}». Verifica que sea correcto o contacta a operaciones.`);
     err.classList.add('show');return;
   }
+  try{ logEvent('curp_query'); }catch(e){}
 
   const pts = data.cumulative_pts;
   const tier = getTier(pts);
