@@ -1409,6 +1409,10 @@ select.fi option{background:#18181E}
       <div style="font-size:13px;font-weight:600;margin-bottom:3px"><span class="lc-zh">点击或拖入骑手积分明细文件</span><span class="lc-es">Haz clic o arrastra el archivo de detalle de puntos</span></div>
       <div style="font-size:10px;color:var(--muted)"><span class="lc-zh">骑手累计积分汇总.xlsx</span><span class="lc-es">Resumen_puntos_acumulados_riders.xlsx</span></div>
     </div>
+    <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-d btn-sm" onclick="clearCurpData()" style="font-size:11px"><span class="lc-zh">🗑️ 清空全部积分数据</span><span class="lc-es">🗑️ Borrar todos los puntos</span></button>
+      <span style="font-size:11px;color:var(--muted2)"><span class="lc-zh">要换一版全新积分时：先点此清空，再上传新文件（避免旧骑手残留）。不可恢复。</span><span class="lc-es">Para reemplazar con una versión nueva: borra primero y luego sube el archivo (evita riders viejos residuales). Irreversible.</span></span>
+    </div>
     <div class="alert" id="curpUploadMsg" style="margin-top:8px;font-size:11px"></div>
     <!-- Loaded status -->
     <div id="curpDataStatus" style="display:none;margin-top:10px;padding:10px 14px;background:var(--win-pale);border:1px solid var(--win-b);border-radius:8px;font-size:12px;color:var(--win)"></div>
@@ -2503,6 +2507,19 @@ async function saveResults(){
 }
 async function saveMatchup(){ await dbSaveData('matchup_data', MATCHUP_DATA); await dbSaveData('matchup_vendor_map', MATCHUP_VENDOR_MAP); }
 async function saveCurp(){ await dbSaveData('curp_map', REAL_CURP_MAP); }
+async function clearCurpData(){
+  if(!(await requireOperator())) return;
+  if(!confirm(L('确定要清空全部骑手积分数据吗？此操作不可恢复！\n建议先导出备份。','¿Borrar TODOS los puntos de los riders? ¡Es irreversible!\nSe recomienda exportar un respaldo primero.'))) return;
+  if(!confirm(L('再次确认：清空后，所有骑手将查不到积分，直到你上传新文件。继续？','Confirma de nuevo: tras borrar, ningún rider verá puntos hasta que subas un archivo nuevo. ¿Continuar?'))) return;
+  try{
+    Object.keys(REAL_CURP_MAP).forEach(function(k){ delete REAL_CURP_MAP[k]; });
+    if(typeof dbDeleteData==='function'){ await dbDeleteData('curp_map'); }
+    var m=document.getElementById('curpUploadMsg'); if(m){ m.className='alert a-ok show'; m.textContent=L('✅ 已清空全部积分数据，现在可以上传新版文件。','✅ Todos los puntos fueron borrados. Ahora puedes subir el archivo nuevo.'); }
+    var st=document.getElementById('curpDataStatus'); if(st){ st.style.display='none'; }
+  }catch(e){
+    var m2=document.getElementById('curpUploadMsg'); if(m2){ m2.className='alert a-err show'; m2.textContent=L('清空失败：','Error: ')+(e.message||e); }
+  }
+}
 async function saveVendorList(){ await dbSaveData('vendor_list', VENDOR_LIST); }
 // Load shared data on startup so public/rider queries work on any device
 async function loadSharedData(){
