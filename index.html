@@ -1567,6 +1567,7 @@ select.fi option{background:#18181E}
         <div style="font-family:Fraunces,serif;font-weight:600;font-size:24px;color:var(--text)"><span class="lc-zh">📊 PK 赛运营 Dashboard</span><span class="lc-es">📊 Dashboard de operaciones PK</span></div>
       </div>
       <div style="display:flex;gap:8px">
+        <button class="btn btn-s btn-sm" onclick="toggleLang()" style="font-size:11px" title="切换语言 / Cambiar idioma"><span class="lc-zh">🇪🇸 ES</span><span class="lc-es">🇨🇳 中文</span></button>
         <button class="btn btn-s btn-sm" onclick="renderDashboard()" style="font-size:11px"><span class="lc-zh">🔄 刷新</span><span class="lc-es">🔄 Actualizar</span></button>
         <button class="btn btn-s btn-sm" onclick="exportDashboard()" style="font-size:11px"><span class="lc-zh">⬇️ 导出</span><span class="lc-es">⬇️ Exportar</span></button>
         <button class="btn btn-s btn-sm" onclick="operatorLogout();closeDashboard();" style="font-size:11px"><span class="lc-zh">退出登录</span><span class="lc-es">Salir</span></button>
@@ -2007,6 +2008,9 @@ async function renderDashboard(){
   if(!body) return;
   body.innerHTML='<div style="font-size:13px;color:var(--muted)">'+L('加载数据中…','Cargando datos…')+'</div>';
   if(!sb){ body.innerHTML='<div style="font-size:13px;color:var(--lose)">'+L('后台未连接','Backend no conectado')+'</div>'; return; }
+  // Ensure vendor RM map is loaded before computing the RM board (avoids race where
+  // dashboard renders before loadSharedData finishes, dumping everyone into "未分配 RM")
+  if(!VENDOR_RM || !Object.keys(VENDOR_RM).length){ try{ await loadSharedData(); }catch(e){} }
   try{
     var R=await Promise.all([
       sb.from('registrations').select('vendor_code,team_name,match_id,riders,created_at'),
@@ -2376,6 +2380,11 @@ function refreshDynamic(){
     var _rap=document.getElementById('redemptionAdminPanel'); if(_rap && _rap.style.display!=='none'){ _rap.style.display='none'; _rap.innerHTML=''; }
     var _pr=document.getElementById('ptResult'); if(_pr){ _pr.className='alert'; _pr.textContent=''; }
     if(typeof updateVendorListStatus==='function') updateVendorListStatus();
+  }catch(e){}
+  // re-render operator dashboard in the new language if it is currently open
+  try{
+    var _pd=document.getElementById('pDash');
+    if(_pd && _pd.style.display!=='none' && typeof renderDashboard==='function') renderDashboard();
   }catch(e){}
 }
 
