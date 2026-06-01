@@ -2145,7 +2145,7 @@ function go(idx){
   document.querySelectorAll('.page').forEach((p,i)=>p.classList.toggle('active',i===idx));
   document.querySelectorAll('.ntab').forEach((t,i)=>t.classList.toggle('active',i===idx));
   if(idx===5) initScorePage();
-  if(idx===2) renderTeamList();
+  if(idx===2){ renderTeamList(); try{ updateVendorListStatus(); }catch(e){} }
   if(idx===4) initMatchupPage();
 }
 
@@ -2329,6 +2329,7 @@ function refreshDynamic(){
     var _pap=document.getElementById('ptRiderAdminPanel'); if(_pap && _pap.style.display!=='none'){ _pap.style.display='none'; _pap.innerHTML=''; }
     var _rap=document.getElementById('redemptionAdminPanel'); if(_rap && _rap.style.display!=='none'){ _rap.style.display='none'; _rap.innerHTML=''; }
     var _pr=document.getElementById('ptResult'); if(_pr){ _pr.className='alert'; _pr.textContent=''; }
+    if(typeof updateVendorListStatus==='function') updateVendorListStatus();
   }catch(e){}
 }
 
@@ -2520,6 +2521,18 @@ async function clearCurpData(){
     var m2=document.getElementById('curpUploadMsg'); if(m2){ m2.className='alert a-err show'; m2.textContent=L('清空失败：','Error: ')+(e.message||e); }
   }
 }
+function updateVendorListStatus(){
+  var el=document.getElementById('vendorListStatus'); if(!el) return;
+  var n=VENDOR_LIST?Object.keys(VENDOR_LIST).length:0;
+  if(n>0){
+    el.textContent=L('✓ 已加载 '+n+' 家供应商（报名时将校验 Vendor Code）','✓ '+n+' proveedores cargados (se validará el Vendor Code al inscribir)');
+    el.style.color='var(--win)';
+  } else {
+    el.innerHTML=L('<span class="lc-zh">未加载（报名时不校验 Vendor Code）</span>','<span class="lc-es">No cargada (no se valida el Vendor Code al inscribir)</span>').replace(/<span class="lc-(zh|es)">|<\/span>/g,'');
+    el.textContent=L('未加载（报名时不校验 Vendor Code）','No cargada (no se valida el Vendor Code al inscribir)');
+    el.style.color='var(--muted2)';
+  }
+}
 async function saveVendorList(){ await dbSaveData('vendor_list', VENDOR_LIST); }
 // Load shared data on startup so public/rider queries work on any device
 async function loadSharedData(){
@@ -2533,6 +2546,7 @@ async function loadSharedData(){
   try{ if(typeof initScorePage==='function') initScorePage(); }catch(e){}
   try{ if(typeof renderTop10==='function') renderTop10(); }catch(e){}
   try{ if(typeof initMatchupPage==='function') initMatchupPage(); }catch(e){}
+  try{ if(typeof updateVendorListStatus==='function') updateVendorListStatus(); }catch(e){}
 }
 
 // ---- redemption (积分兑换申请) helpers ----
