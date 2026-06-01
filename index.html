@@ -2702,7 +2702,7 @@ function handleVendorUpload(file){
       (function(){var k=Object.keys(ws).filter(function(x){return x[0]!=='!';});var mC=0,mR=0;k.forEach(function(x){try{var c=XLSX.utils.decode_cell(x);if(c.c>mC)mC=c.c;if(c.r>mR)mR=c.r;}catch(e){}});if(mC>0)ws['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:mR,c:mC}});})();
       var rawObjs=XLSX.utils.sheet_to_json(ws,{raw:true,defval:'',blankrows:false});
       if(!rawObjs.length)throw new Error(L('文件为空','El archivo está vacío'));
-      var nk=function(k){return String(k).replace(/[^ -~一-鿿]/g,'').trim().toLowerCase();};
+      var nk=function(k){return String(k).replace(/[^ -~一-鿿]/g,'').replace(/\s+/g,'').trim().toLowerCase();};
       var rows=rawObjs.map(function(raw){var o={};Object.keys(raw).forEach(function(k){o[nk(k)]=raw[k];});return o;});
       var gc=function(r,cands){for(var i=0;i<cands.length;i++){var v=r[cands[i]];if(v!==undefined&&v!=='')return String(v).trim();}return '';};
       VENDOR_LIST={}; VENDOR_RM={};
@@ -2714,7 +2714,8 @@ function handleVendorUpload(file){
         if(vc){VENDOR_LIST[vc]=name||vc; if(rm) VENDOR_RM[vc]=rm; count++;}
       });
       if(count===0)throw new Error(L('未找到 vendor_code 列，请确认文件格式','No se encontró la columna vendor_code; verifica el formato del archivo'));
-      if(statusEl)statusEl.textContent=L('✓ 已加载 '+count+' 家供应商（报名时将校验 Vendor Code）','✓ '+count+' proveedores cargados (se validará el Vendor Code al inscribir)');
+      var rmCount=Object.keys(VENDOR_RM).length;
+      if(statusEl)statusEl.textContent=L('✓ 已加载 '+count+' 家供应商（含 RM '+rmCount+' 家）（报名时将校验 Vendor Code）','✓ '+count+' proveedores cargados ('+rmCount+' con RM) (se validará el Vendor Code al inscribir)');
       if(statusEl)statusEl.style.color='var(--win)';
       saveVendorList();
     }catch(err){
@@ -3727,7 +3728,7 @@ function handleRegUpload(file){
       })();
       var rawObjs=XLSX.utils.sheet_to_json(ws,{raw:true,defval:'',blankrows:false});
       if(!rawObjs.length)throw new Error(L('文件为空','El archivo está vacío'));
-      var nk=function(k){return String(k).replace(/[^ -~一-鿿]/g,'').trim().toLowerCase();};
+      var nk=function(k){return String(k).replace(/[^ -~一-鿿]/g,'').replace(/\s+/g,'').trim().toLowerCase();};
       var rows=rawObjs.map(function(raw){var o={};Object.keys(raw).forEach(function(k){o[nk(k)]=raw[k];});return o;});
 
       // Detect format: long (one rider per row) or wide (multiple rider_id columns)
@@ -4119,7 +4120,7 @@ function handleCurpDataUpload(file){
       if(!rawObjs.length)throw new Error(L('文件为空','El archivo está vacío'));
 
       // Normalize keys
-      var nk=function(k){return String(k).replace(/[^ -~一-鿿]/g,'').trim().toLowerCase();};
+      var nk=function(k){return String(k).replace(/[^ -~一-鿿]/g,'').replace(/\s+/g,'').trim().toLowerCase();};
       var rows=rawObjs.map(function(raw){var o={};Object.keys(raw).forEach(function(k){o[nk(k)]=raw[k];});return o;});
 
       var gc=function(r,cands){for(var i=0;i<cands.length;i++){var v=r[cands[i]];if(v!==undefined&&v!=='')return v;}return '';};
