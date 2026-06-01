@@ -1378,7 +1378,7 @@ select.fi option{background:#18181E}
 <div class="page" id="p6">
   <div class="slbl" data-i18n="curp_slbl">骑手专属</div>
   <div class="stitle"><span class="lc-zh">🏍️ 骑手积分查询</span><span class="lc-es">🏍️ Consulta de puntos del rider</span></div>
-  <div class="ssub"><span class="lc-zh">输入 CURP 后6位查询你的累计积分，了解可兑换金额，积分永久保留</span><span class="lc-es">Ingresa los últimos 6 dígitos de tu CURP para consultar tus puntos acumulados y el monto canjeable; los puntos se conservan permanentemente</span></div>
+  <div class="ssub"><span class="lc-zh">输入骑手 ID 后6位查询你的累计积分，了解可兑换金额，积分永久保留</span><span class="lc-es">Ingresa los últimos 6 dígitos de tu Rider ID para consultar tus puntos acumulados y el monto canjeable; los puntos se conservan permanentemente</span></div>
 
   <!-- 运营入口 -->
   <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
@@ -1391,7 +1391,7 @@ select.fi option{background:#18181E}
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
       <div>
         <div style="font-weight:700;color:var(--didi);font-size:14px"><span class="lc-zh">⚙️ 骑手累计积分数据上传</span><span class="lc-es">⚙️ Subir datos de puntos acumulados de riders</span></div>
-        <div style="font-size:11px;color:var(--muted2);margin-top:4px"><span class="lc-zh">上传后骑手可用 CURP 后6位查询累计积分和预估兑换金额</span><span class="lc-es">Tras subirlo, los riders pueden consultar sus puntos acumulados y el monto estimado con los últimos 6 de su CURP</span></div>
+        <div style="font-size:11px;color:var(--muted2);margin-top:4px"><span class="lc-zh">上传后骑手可用骑手 ID 后6位查询累计积分和预估兑换金额</span><span class="lc-es">Tras subirlo, los riders pueden consultar sus puntos acumulados y el monto estimado con los últimos 6 de su Rider ID</span></div>
       </div>
       <button onclick="document.getElementById('curpAdminPanel').style.display='none'" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:20px;line-height:1">✕</button>
     </div>
@@ -1428,10 +1428,10 @@ select.fi option{background:#18181E}
   </div>
 
   <div class="card">
-    <div class="card-t" id="curpInputTitle" data-i18n="curp_input_title">🔍 输入 CURP 后6位查询积分</div>
-    <div style="font-size:12px;color:var(--muted2);margin-bottom:14px;line-height:1.7"><span class="lc-zh">CURP 是墨西哥居民身份唯一编码。请输入你的 CURP 号<strong style="color:var(--text)">最后6位字符</strong>进行查询。</span><span class="lc-es">La CURP es la clave única de identidad en México. Ingresa los <strong style="color:var(--text)">últimos 6 caracteres</strong> de tu CURP para consultar.</span></div>
+    <div class="card-t" id="curpInputTitle" data-i18n="curp_input_title">🔍 输入骑手 ID 后6位查询积分</div>
+    <div style="font-size:12px;color:var(--muted2);margin-bottom:14px;line-height:1.7"><span class="lc-zh">请输入你的<strong style="color:var(--text)">骑手 ID 最后6位</strong>进行查询。</span><span class="lc-es">Ingresa los <strong style="color:var(--text)">últimos 6 dígitos de tu Rider ID</strong> para consultar.</span></div>
     <div class="curp-search">
-      <input class="curp-in" id="curpIn" type="text" placeholder="输入 CURP 后 6 位" maxlength="6">
+      <input class="curp-in" id="curpIn" type="text" placeholder="输入骑手 ID 后 6 位" maxlength="6">
       <button class="btn btn-p" id="curpQueryBtn" onclick="queryCurp()" data-i18n="curp_btn">查询积分</button>
     </div>
     <div class="q-err" id="curpErr"></div>
@@ -1440,7 +1440,7 @@ select.fi option{background:#18181E}
 
   <div class="card">
     <div class="card-t"><span class="lc-zh">💱 申请积分兑换</span><span class="lc-es">💱 Solicitar canje de puntos</span></div>
-    <div style="font-size:12px;color:var(--muted2);margin-bottom:14px;line-height:1.7"><span class="lc-zh">输入 CURP 后6位即可申请兑换。兑换金额由平台核算后<strong style="color:var(--text)">打入你所属供应商的账户</strong>，请于下周向你的供应商领取。</span><span class="lc-es">Ingresa los últimos 6 de tu CURP para solicitar el canje. El monto, tras el cálculo de la plataforma, se <strong style="color:var(--text)">deposita en la cuenta de tu proveedor</strong>; recógelo con él la próxima semana.</span></div>
+    <div style="font-size:12px;color:var(--muted2);margin-bottom:14px;line-height:1.7"><span class="lc-zh">输入骑手 ID 后6位即可申请兑换。兑换金额由平台核算后<strong style="color:var(--text)">打入你所属供应商的账户</strong>，请于下周向你的供应商领取。</span><span class="lc-es">Ingresa los últimos 6 de tu Rider ID para solicitar el canje. El monto, tras el cálculo de la plataforma, se <strong style="color:var(--text)">deposita en la cuenta de tu proveedor</strong>; recógelo con él la próxima semana.</span></div>
     <button class="btn btn-p" onclick="openRedeemModal((document.getElementById('curpIn')||{}).value)"><span class="lc-zh">💱 申请兑换</span><span class="lc-es">💱 Solicitar canje</span></button>
   </div>
 
@@ -2299,7 +2299,7 @@ const I18N = {
     sc_team_placeholder:'输入队伍名称（如 骑士011）',
     sc_rider_placeholder:'输入骑手 Rider ID（数字）',
     sc_query_btn:'查询',
-    curp_slbl:'骑手专属', curp_input_title:'🔍 输入 CURP 后6位查询积分', curp_btn:'查询积分',
+    curp_slbl:'骑手专属', curp_input_title:'🔍 输入骑手 ID 后6位查询积分', curp_btn:'查询积分',
     mu_search_vc:'输入 Vendor Code 查看自己的对阵',
     reg_vcode_ph:'例：V001234',
     reg_tname_ph:'为队伍取个独特名字，例：阿根廷雄鹰',
@@ -2322,7 +2322,7 @@ const I18N = {
     sc_team_placeholder:'Ingresa el nombre del equipo (ej. Equipo01)',
     sc_rider_placeholder:'Ingresa el Rider ID (número)',
     sc_query_btn:'Consultar',
-    curp_slbl:'Exclusivo Riders', curp_input_title:'🔍 Ingresa los últimos 6 dígitos de tu CURP', curp_btn:'Consultar Puntos',
+    curp_slbl:'Exclusivo Riders', curp_input_title:'🔍 Ingresa los últimos 6 dígitos de tu Rider ID', curp_btn:'Consultar Puntos',
     mu_search_vc:'Ingresa tu Vendor Code para ver tus emparejamientos',
     reg_vcode_ph:'Ej.: V001234',
     reg_tname_ph:'Ponle un nombre único a tu equipo, ej.: Águilas Argentinas',
@@ -2356,9 +2356,9 @@ function applyLang(){
   // Logo sub
   var logoSub = document.querySelector('.logo-sub'); if(logoSub) logoSub.textContent = t('logo_sub');
   document.title = L('DiDi Alianza · 骑手PK赛平台','DiDi Alianza · Plataforma PK');
-  // CURP input placeholder (special-cased)
+  // points query input placeholder (special-cased)
   var cin = document.getElementById('curpIn');
-  if(cin) cin.placeholder = LANG === 'es' ? 'Últimos 6 de tu CURP' : '输入 CURP 后 6 位';
+  if(cin) cin.placeholder = LANG === 'es' ? 'Últimos 6 de tu Rider ID' : '输入骑手 ID 后 6 位';
   // Re-render any dynamic content so it picks up the new language
   refreshDynamic();
 }
@@ -2814,11 +2814,11 @@ function queryCurp(){
   const curp=document.getElementById('curpIn').value.trim().toUpperCase();
   const err=document.getElementById('curpErr'),panel=document.getElementById('curpPanel');
   err.classList.remove('show');panel.classList.remove('show');
-  if(curp.length<4){err.textContent=L('请输入 CURP 后6位（至少4个字符）','Ingresa los últimos 6 de tu CURP (mín. 4 caracteres)');err.classList.add('show');return}
+  if(curp.length<4){err.textContent=L('请输入骑手 ID 后6位（至少4个字符）','Ingresa los últimos 6 de tu Rider ID (mín. 4 caracteres)');err.classList.add('show');return}
 
   const data = REAL_CURP_MAP[curp];
   if(!data){
-    err.textContent=L(`未找到 CURP 后6位「${curp}」，请确认输入是否正确，或联系运营团队查询`,`No se encontró el CURP «${curp}». Verifica que sea correcto o contacta a operaciones.`);
+    err.textContent=L(`未找到骑手 ID 后6位「${curp}」，请确认输入是否正确，或联系运营团队查询`,`No se encontró el Rider ID «${curp}». Verifica que sea correcto o contacta a operaciones.`);
     err.classList.add('show');return;
   }
   try{ logEvent('curp_query'); }catch(e){}
@@ -2839,7 +2839,7 @@ function queryCurp(){
   panel.innerHTML=`
     <div style="margin-top:14px">
       ${warn7d ? '<div class="note n-lose" style="margin-bottom:12px">⚠️ <strong>'+L('警告：','Aviso: ')+'</strong>'+L('检测到该骑手有连续7天未在线记录，积分存在清零风险！请尽快保持活跃。','Se detectaron 7 días seguidos sin conexión. ¡Tus puntos corren riesgo de resetearse! Mantente activo.')+'</div>' : ''}
-      <div style="font-size:11px;color:var(--muted);margin-bottom:12px">${L('CURP后6位：','Últimos 6 del CURP: ')}<strong style="color:var(--text);font-family:monospace;letter-spacing:2px">${curp}</strong>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:12px">${L('骑手 ID 后6位：','Últimos 6 del Rider ID: ')}<strong style="color:var(--text);font-family:monospace;letter-spacing:2px">${curp}</strong>
         <span style="margin-left:12px;background:var(--s2);border-radius:5px;padding:2px 8px;font-size:10px">Rider ID: ${data.rider_id}</span>
       </div>
       <div class="sc-row" style="margin-bottom:12px">
@@ -2884,8 +2884,8 @@ function openRedeemModal(prefill){
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow:auto';
   ov.innerHTML='<div style="background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:460px;width:100%;font-family:inherit">'
     +'<div style="font-weight:700;font-size:18px;margin-bottom:4px;color:var(--text)">'+L('💱 申请积分兑换','💱 Solicitar canje de puntos')+'</div>'
-    +'<div style="font-size:12px;color:var(--muted2);margin-bottom:16px;line-height:1.6">'+L('输入你的 CURP 后6位查询并申请兑换','Ingresa los últimos 6 de tu CURP para consultar y solicitar el canje')+'</div>'
-    +'<input id="_rdCurp" maxlength="6" placeholder="'+L('CURP 后6位','Últimos 6 del CURP')+'" style="width:100%;box-sizing:border-box;padding:11px 13px;margin-bottom:10px;border-radius:9px;border:1px solid var(--border);background:var(--s2);color:var(--text);font-size:15px;letter-spacing:3px;text-transform:uppercase;font-family:monospace">'
+    +'<div style="font-size:12px;color:var(--muted2);margin-bottom:16px;line-height:1.6">'+L('输入你的骑手 ID 后6位查询并申请兑换','Ingresa los últimos 6 de tu Rider ID para consultar y solicitar el canje')+'</div>'
+    +'<input id="_rdCurp" maxlength="6" placeholder="'+L('骑手 ID 后6位','Últimos 6 del Rider ID')+'" style="width:100%;box-sizing:border-box;padding:11px 13px;margin-bottom:10px;border-radius:9px;border:1px solid var(--border);background:var(--s2);color:var(--text);font-size:15px;letter-spacing:3px;text-transform:uppercase;font-family:monospace">'
     +'<button id="_rdLookup" style="width:100%;padding:10px;border-radius:9px;border:none;background:var(--didi);color:#fff;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:14px">'+L('查询','Consultar')+'</button>'
     +'<div id="_rdBody"></div>'
     +'<div style="display:flex;justify-content:flex-end;margin-top:16px"><button id="_rdClose" style="padding:9px 16px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);font-weight:700;cursor:pointer;font-family:inherit">'+L('关闭','Cerrar')+'</button></div>'
@@ -2898,9 +2898,9 @@ function openRedeemModal(prefill){
   curpIn.focus();
   async function doLookup(){
     var curp6=curpIn.value.trim().toUpperCase();
-    if(curp6.length<4){ body.innerHTML='<div style="color:#FF3F5A;font-size:12px">'+L('请输入 CURP 后6位（至少4位）','Ingresa los últimos 6 del CURP (mín. 4)')+'</div>'; return; }
+    if(curp6.length<4){ body.innerHTML='<div style="color:#FF3F5A;font-size:12px">'+L('请输入骑手 ID 后6位（至少4位）','Ingresa los últimos 6 del Rider ID (mín. 4)')+'</div>'; return; }
     var data=REAL_CURP_MAP[curp6];
-    if(!data){ body.innerHTML='<div style="color:#FF3F5A;font-size:12px">'+L('未找到该 CURP，请确认输入或联系运营团队','CURP no encontrado; verifica o contacta a operaciones')+'</div>'; return; }
+    if(!data){ body.innerHTML='<div style="color:#FF3F5A;font-size:12px">'+L('未找到该骑手 ID，请确认输入或联系运营团队','Rider ID no encontrado; verifica o contacta a operaciones')+'</div>'; return; }
     body.innerHTML='<div style="font-size:12px;color:var(--muted)">'+L('加载中…','Cargando…')+'</div>';
     var my=await dbGetMyRedemptions(curp6);
     var completed=my.filter(function(r){return r.status==='completed';}).reduce(function(s,r){return s+(r.points||0);},0);
