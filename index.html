@@ -1055,6 +1055,7 @@ select.fi option{background:#18181E}
       <span class="lc-zh">📥 上传供应商名单</span><span class="lc-es">📥 Subir lista de proveedores</span>
       <input type="file" id="vendorFileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleVendorUpload(this.files[0]);this.value='';">
     </label>
+    <span style="font-size:10px;color:var(--muted);flex-basis:100%;margin-top:2px"><span class="lc-zh">列：vendor_code、vendor_name、rm（可选，RM 负责人；仅运营导出/看板可见，Vendor 看不到）</span><span class="lc-es">Columnas: vendor_code, vendor_name, rm (opcional; solo visible para operaciones, no para vendors)</span></span>
   </div>
   <div class="itabs">
     <button class="itab active" onclick="switchReg('new')"><span class="lc-zh">➕ 新建 / 报名</span><span class="lc-es">➕ Nuevo / Inscribir</span></button>
@@ -1713,6 +1714,7 @@ let REG_RIDER_MAP = {};
 let RIDER_SCORE_MAP = {}; // riderId → score entry, populated from score file // riderId → teamName (from registration file)
 const REAL_CURP_MAP = {}; // Historical data cleared for v28
 let VENDOR_LIST = {};
+let VENDOR_RM = {}; // {vendor_code: RM name} — operator-only, never shown to vendors
 // Matchup data — set when published
 let MATCHUP_DATA = null;
 // Global vendor→riders map (from score file, used for fallback matching)
@@ -2057,7 +2059,7 @@ async function renderDashboard(){
 
     // ---- top vendors by entries ----
     var vCount={}; regs.forEach(function(r){ var v=String(r.vendor_code||'').toUpperCase(); if(v) vCount[v]=(vCount[v]||0)+1; });
-    var topV=Object.keys(vCount).map(function(v){return {v:v,c:vCount[v]};}).sort(function(a,b){return b.c-a.c;}).slice(0,8);
+    var topV=Object.keys(vCount).map(function(v){return {v:v,c:vCount[v]};}).sort(function(a,b){return b.c-a.c;}).slice(0,10);
 
     var sec=function(t){return '<div style="font-family:Fraunces,serif;font-weight:600;font-size:16px;margin:22px 0 10px;color:var(--text)">'+t+'</div>';};
     var grid=function(cards){return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">'+cards.join('')+'</div>';};
@@ -2094,7 +2096,42 @@ async function renderDashboard(){
       _card(L('PT 骑手数','Riders PT'),ptRiders)
     ]);
 
-    html+=sec(L('🏆 报名最多的供应商 Top 8','🏆 Top 8 proveedores'));
+    // ---- RM board (operator-only): per-RM vendor count (unique) + entries (cumulative) + today ----
+    var _today=_dashDay(new Date().toISOString());
+    var rmAgg={};
+    regs.forEach(function(r){
+      var vc=String(r.vendor_code||'').toUpperCase();
+      var rm=(VENDOR_RM&&VENDOR_RM[vc])?VENDOR_RM[vc]:L('（未分配 RM）','(Sin RM)');
+      if(!rmAgg[rm]) rmAgg[rm]={v:{},e:0,et:0,vt:{}};
+      if(vc) rmAgg[rm].v[vc]=1;
+      rmAgg[rm].e++;
+      if(_dashDay(r.created_at)===_today){ rmAgg[rm].et++; if(vc) rmAgg[rm].vt[vc]=1; }
+    });
+    var rmRows=Object.keys(rmAgg).map(function(rm){return {rm:rm,vendors:Object.keys(rmAgg[rm].v).length,entries:rmAgg[rm].e,vt:Object.keys(rmAgg[rm].vt).length,et:rmAgg[rm].et};}).sort(function(a,b){return b.entries-a.entries;});
+    html+=sec(L('👤 RM 业绩追踪（仅运营可见）','👤 Seguimiento por RM (solo operaciones)'));
+    if(rmRows.length){
+      html+='<div style="background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:6px 4px;overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:520px">'
+        +'<thead><tr style="color:var(--muted2)">'
+        +'<th style="text-align:left;padding:8px 10px">RM</th>'
+        +'<th style="text-align:right;padding:8px 10px">'+L('Vendor数(累计·去重)','Vendors (acum.)')+'</th>'
+        +'<th style="text-align:right;padding:8px 10px">'+L('报名次数(累计)','Inscrip. (acum.)')+'</th>'
+        +'<th style="text-align:right;padding:8px 10px">'+L('今日Vendor数','Vendors hoy')+'</th>'
+        +'<th style="text-align:right;padding:8px 10px">'+L('今日报名次数','Inscrip. hoy')+'</th>'
+        +'</tr></thead><tbody>'
+        +rmRows.map(function(r){return '<tr style="border-top:1px solid var(--border)">'
+          +'<td style="padding:8px 10px;font-weight:600">'+r.rm+'</td>'
+          +'<td style="text-align:right;padding:8px 10px">'+r.vendors+'</td>'
+          +'<td style="text-align:right;padding:8px 10px;font-weight:700">'+r.entries+'</td>'
+          +'<td style="text-align:right;padding:8px 10px;color:var(--didi)">'+r.vt+'</td>'
+          +'<td style="text-align:right;padding:8px 10px;color:var(--didi);font-weight:700">'+r.et+'</td>'
+          +'</tr>';}).join('')
+        +'</tbody></table></div>';
+      html+='<div style="font-size:11px;color:var(--muted);margin-top:6px">'+L('“今日”= 墨西哥城自然日 0 点起。RM 来自供应商名单里的 RM 列；未填 RM 的归入“未分配 RM”。','“Hoy” = desde las 0:00 hora CDMX. El RM proviene de la columna RM en la lista de proveedores.')+'</div>';
+    } else {
+      html+='<div style="font-size:12px;color:var(--muted2)">'+L('暂无数据（需在供应商名单中包含 RM 列）','Sin datos (incluye una columna RM en la lista de proveedores)')+'</div>';
+    }
+
+    html+=sec(L('🏆 报名最多的供应商 Top 10','🏆 Top 10 proveedores'));
     if(topV.length){
       html+='<div style="background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:8px 12px">'+topV.map(function(t,i){
         return '<div style="display:flex;justify-content:space-between;padding:7px 4px;border-bottom:1px solid var(--border);font-size:13px"><span>'+(i+1)+'. '+t.v+'</span><span style="font-weight:700">'+t.c+L(' 场',' insc.')+'</span></div>';
@@ -2134,6 +2171,15 @@ function exportDashboard(){
       [L('PT 骑手数','Riders PT'),d.pts.length]
     ];
     XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(aoa),'summary');
+    // RM sheet
+    try{
+      var _today2=_dashDay(new Date().toISOString());
+      var rmA={};
+      d.regs.forEach(function(r){ var vc=String(r.vendor_code||'').toUpperCase(); var rm=(VENDOR_RM&&VENDOR_RM[vc])?VENDOR_RM[vc]:L('（未分配 RM）','(Sin RM)'); if(!rmA[rm])rmA[rm]={v:{},e:0,et:0,vt:{}}; if(vc)rmA[rm].v[vc]=1; rmA[rm].e++; if(_dashDay(r.created_at)===_today2){rmA[rm].et++; if(vc)rmA[rm].vt[vc]=1;} });
+      var rmAoa=[[ 'RM', L('Vendor数累计','Vendors acum'), L('报名次数累计','Inscrip acum'), L('今日Vendor数','Vendors hoy'), L('今日报名次数','Inscrip hoy') ]];
+      Object.keys(rmA).sort(function(a,b){return rmA[b].e-rmA[a].e;}).forEach(function(rm){ rmAoa.push([rm, Object.keys(rmA[rm].v).length, rmA[rm].e, Object.keys(rmA[rm].vt).length, rmA[rm].et]); });
+      XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rmAoa),'RM');
+    }catch(e){}
     XLSX.writeFile(wb, L('PK赛Dashboard_','Dashboard_')+mxDateStamp()+'.xlsx');
   }catch(e){ alert(L('导出失败：','Error: ')+(e.message||e)); }
 }
@@ -2533,7 +2579,7 @@ function updateVendorListStatus(){
     el.style.color='var(--muted2)';
   }
 }
-async function saveVendorList(){ await dbSaveData('vendor_list', VENDOR_LIST); }
+async function saveVendorList(){ await dbSaveData('vendor_list', VENDOR_LIST); await dbSaveData('vendor_rm', VENDOR_RM); }
 // Load shared data on startup so public/rider queries work on any device
 async function loadSharedData(){
   const d = await dbLoadAllData();
@@ -2542,6 +2588,7 @@ async function loadSharedData(){
   if(d.matchup_vendor_map) MATCHUP_VENDOR_MAP = d.matchup_vendor_map;
   if(d.matchup_data) MATCHUP_DATA = d.matchup_data;
   if(d.vendor_list && Object.keys(d.vendor_list).length) VENDOR_LIST = d.vendor_list;
+  if(d.vendor_rm) VENDOR_RM = d.vendor_rm;
   if(d.curp_map){ Object.keys(REAL_CURP_MAP).forEach(function(k){delete REAL_CURP_MAP[k];}); Object.assign(REAL_CURP_MAP, d.curp_map); }
   try{ if(typeof initScorePage==='function') initScorePage(); }catch(e){}
   try{ if(typeof renderTop10==='function') renderTop10(); }catch(e){}
@@ -2658,12 +2705,13 @@ function handleVendorUpload(file){
       var nk=function(k){return String(k).replace(/[^ -~一-鿿]/g,'').trim().toLowerCase();};
       var rows=rawObjs.map(function(raw){var o={};Object.keys(raw).forEach(function(k){o[nk(k)]=raw[k];});return o;});
       var gc=function(r,cands){for(var i=0;i<cands.length;i++){var v=r[cands[i]];if(v!==undefined&&v!=='')return String(v).trim();}return '';};
-      VENDOR_LIST={};
+      VENDOR_LIST={}; VENDOR_RM={};
       var count=0;
       rows.forEach(function(r){
         var vc=gc(r,['vendor_code','vendor code','vendorcode','供应商代码','vendor']).toUpperCase();
         var name=gc(r,['vendor_name','name','供应商名称','名称','company']);
-        if(vc){VENDOR_LIST[vc]=name||vc;count++;}
+        var rm=gc(r,['rm','rm_name','rmname','rm名字','rm负责人','负责人','负责rm','responsable','manager','负责人rm']);
+        if(vc){VENDOR_LIST[vc]=name||vc; if(rm) VENDOR_RM[vc]=rm; count++;}
       });
       if(count===0)throw new Error(L('未找到 vendor_code 列，请确认文件格式','No se encontró la columna vendor_code; verifica el formato del archivo'));
       if(statusEl)statusEl.textContent=L('✓ 已加载 '+count+' 家供应商（报名时将校验 Vendor Code）','✓ '+count+' proveedores cargados (se validará el Vendor Code al inscribir)');
@@ -4466,27 +4514,31 @@ async function downloadRegistrations(){
       if(!teams||!teams.length){alert(L('暂无报名数据','No hay datos de inscripción'));return;}
       try{
         var wb=XLSX.utils.book_new();
-        var rows=[[L('队伍名称','Equipo'),'Vendor Code',L('报名场次','Partidos'),L('骑手1','Rider 1'),L('骑手2','Rider 2'),L('骑手3','Rider 3'),L('骑手4','Rider 4'),L('骑手5','Rider 5'),L('报名时间','Fecha')]];
+        var rows=[['RM',L('队伍名称','Equipo'),'Vendor Code',L('报名场次','Partidos'),L('骑手1','Rider 1'),L('骑手2','Rider 2'),L('骑手3','Rider 3'),L('骑手4','Rider 4'),L('骑手5','Rider 5'),L('报名时间(CDMX)','Fecha (CDMX)')]];
         teams.forEach(function(t){
           // Team objects store: teamName (not name), riders[] array (not rider1..rider5)
           var name=t.teamName||t.name||'';
           var rd=t.riders||[];
-          rows.push([name, t.vendorCode||'', t.matchId||'',
+          var vc=String(t.vendorCode||'').toUpperCase();
+          var rm=(VENDOR_RM&&VENDOR_RM[vc])?VENDOR_RM[vc]:'';
+          rows.push([rm, name, t.vendorCode||'', t.matchId||'',
             rd[0]||'', rd[1]||'', rd[2]||'', rd[3]||'', rd[4]||'',
-            t.createdAt||'']);
+            mxTime(t.createdAt)]);
         });
         XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),L('报名明细','Inscripciones'));
 
         // Per-rider sheet
-        var riderRows=[[L('骑手ID','Rider ID'),L('所属队伍','Equipo'),'Vendor Code',L('报名场次','Partidos')]];
+        var riderRows=[['RM',L('骑手ID','Rider ID'),L('所属队伍','Equipo'),'Vendor Code',L('报名场次','Partidos')]];
         teams.forEach(function(t){
           var name=t.teamName||t.name||'';
+          var vc=String(t.vendorCode||'').toUpperCase();
+          var rm=(VENDOR_RM&&VENDOR_RM[vc])?VENDOR_RM[vc]:'';
           (t.riders||[]).forEach(function(rid){
-            if(rid)riderRows.push([rid, name, t.vendorCode||'', t.matchId||'']);
+            if(rid)riderRows.push([rm, rid, name, t.vendorCode||'', t.matchId||'']);
           });
         });
         XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(riderRows),L('骑手清单','Lista de riders'));
-        XLSX.writeFile(wb,L('报名明细_','Inscripciones_')+new Date().toISOString().slice(0,10)+'.xlsx');
+        XLSX.writeFile(wb,L('报名明细_','Inscripciones_')+mxDateStamp()+'.xlsx');
       }catch(e){alert(L('下载失败：','Error al descargar: ')+e.message);}
 }
 
