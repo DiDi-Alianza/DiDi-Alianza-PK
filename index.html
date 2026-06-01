@@ -3016,6 +3016,14 @@ function downloadRedemptions(){
 // ══════════════════════════════════
 // MATCHUP PAGE
 // ══════════════════════════════════
+function vendorName(code){
+  if(!code) return '';
+  var c=String(code); var u=c.toUpperCase();
+  var nm=(typeof VENDOR_LIST!=='undefined'&&VENDOR_LIST[u])?String(VENDOR_LIST[u]):'';
+  if(nm && nm.toUpperCase()!==u) return nm; // real custom name from the vendor list
+  var idx=u.indexOf('DIDI');
+  return idx>0 ? c.slice(0,idx) : c; // e.g. FAGOAGADIDICDMX2603286 -> FAGOAGA
+}
 function initMatchupPage(){
   const has=MATCHUP_DATA&&MATCHUP_DATA.pairs&&MATCHUP_DATA.pairs.length>0;
   document.getElementById('matchupsNotice').style.display=has?'none':'block';
@@ -3048,8 +3056,8 @@ function renderMatchupGrid(){
   if(!filtered.length){grid.innerHTML='';if(noRes)noRes.style.display='block';return;}
   if(noRes)noRes.style.display='none';
   grid.innerHTML=filtered.map((p,i)=>{
-    const va=(VENDOR_LIST&&VENDOR_LIST[p.a.vendor])?p.a.vendor+' ('+VENDOR_LIST[p.a.vendor]+')':p.a.vendor||'';
-    const vb=(VENDOR_LIST&&VENDOR_LIST[p.b.vendor])?p.b.vendor+' ('+VENDOR_LIST[p.b.vendor]+')':p.b.vendor||'';
+    const va=vendorName(p.a.vendor);
+    const vb=vendorName(p.b.vendor);
     return '<div class="matchup-card">'
       +'<div class="mu-round">'+L('对阵 ','Duelo ')+(i+1)+'</div>'
       +'<div class="mu-row">'
@@ -3284,7 +3292,7 @@ function runMatching(){
       </div>
       <div class="mrc-teams">
         <div class="mrc-team">
-          <div class="mrc-vendor">${p.a.vendor}</div>
+          <div class="mrc-vendor">${vendorName(p.a.vendor)}</div>
           <div class="mrc-tname" style="color:var(--blue)">${p.a.team}</div>
           <div class="mrc-score">
             <span>⏱ ${p.a.avgHours}${L('h/天','h/d')}</span>
@@ -3296,7 +3304,7 @@ function runMatching(){
         </div>
         <div class="mrc-vs">VS</div>
         <div class="mrc-team">
-          <div class="mrc-vendor">${p.b.vendor}</div>
+          <div class="mrc-vendor">${vendorName(p.b.vendor)}</div>
           <div class="mrc-tname" style="color:var(--lose)">${p.b.team}</div>
           <div class="mrc-score">
             <span>⏱ ${p.b.avgHours}${L('h/天','h/d')}</span>
