@@ -1753,6 +1753,7 @@ let SCORE_MATCH_ID = null; // 当前 SCORE_DATA 对应的比赛场次 id
 let SCORE_ARCHIVE = {};    // 按场次归档的结果(只存参赛队)，供 Top10 按场次查看历史
 let TOP10_VIEW_ID = null;  // Top10 当前查看的场次
 let MANUAL_MATCHUP = false; // 是否刚手动上传了配对文件（为真时算分以该文件为准，忽略下拉绑定的留档配对）
+let ORDERS_ARCHIVE = {};   // 每场·每骑手完单数 {matchId:{riderId:completeOrders}}，用于"上场未完单则下场禁报名"
 let MATCHUP_ARCHIVE = {}; // {matchId: {matchId, pairs}} — 每场发布的配对都留档
 let MATCHUP_VIEW_ID = null; // 配对结果页当前正在查看的场次
 // Global vendor→riders map (from score file, used for fallback matching)
@@ -2613,7 +2614,14 @@ async function dbLoadAllData(){
 async function saveResults(){
   // 按场次归档本场结果（只存真正参赛的队），供 Top10 切换查看历史各场
   if(SCORE_MATCH_ID!=null && SCORE_DATA){
-    try{ SCORE_ARCHIVE[String(SCORE_MATCH_ID)]=(typeof filterDisplayTeams==='function')?filterDisplayTeams(Object.values(SCORE_DATA)):Object.values(SCORE_DATA); }catch(e){}
+    try{
+      var _played=(typeof filterDisplayTeams==='function')?filterDisplayTeams(Object.values(SCORE_DATA)):Object.values(SCORE_DATA);
+      SCORE_ARCHIVE[String(SCORE_MATCH_ID)]=_played;
+      // 完单数归档：只记"本场报名且配对成功(参赛队)的骑手"，未参赛骑手不记 → 不会影响其报名资格
+      var _om={};
+      _played.forEach(function(t){ (t.riders||[]).forEach(function(r){ if(r&&r.id!=null) _om[normIdG(r.id)]=Number(r.complete_orders||0); }); });
+      ORDERS_ARCHIVE[String(SCORE_MATCH_ID)]=_om;
+    }catch(e){}
   }
   await dbSaveData('score_data', SCORE_DATA);
   await dbSaveData('rider_map', RIDER_MAP);
@@ -2622,6 +2630,7 @@ async function saveResults(){
   await dbSaveData('matchup_archive', MATCHUP_ARCHIVE);
   await dbSaveData('score_match_id', SCORE_MATCH_ID);
   await dbSaveData('score_archive', SCORE_ARCHIVE);
+  await dbSaveData('orders_archive', ORDERS_ARCHIVE);
 }
 async function saveMatchup(){ await dbSaveData('matchup_data', MATCHUP_DATA); await dbSaveData('matchup_archive', MATCHUP_ARCHIVE); await dbSaveData('matchup_vendor_map', MATCHUP_VENDOR_MAP); }
 async function saveCurp(){ await dbSaveData('curp_map', REAL_CURP_MAP); }
@@ -2657,6 +2666,7 @@ async function loadSharedData(){
   if(d.score_data) SCORE_DATA = d.score_data;
   if(d.score_match_id!==undefined && d.score_match_id!==null) SCORE_MATCH_ID = d.score_match_id;
   if(d.score_archive && typeof d.score_archive==='object') SCORE_ARCHIVE = d.score_archive;
+  if(d.orders_archive && typeof d.orders_archive==='object') ORDERS_ARCHIVE = d.orders_archive;
   if(d.rider_map) RIDER_MAP = d.rider_map;
   if(d.matchup_vendor_map) MATCHUP_VENDOR_MAP = d.matchup_vendor_map;
   if(d.matchup_data) MATCHUP_DATA = d.matchup_data;
@@ -2755,6 +2765,16 @@ async function submitReg(){
   }
   const filled=riders.filter(r=>r);
   if(filled.length<5){showAlert('regErr',L(`请填写全部5名骑手 ID（已填 ${filled.length}/5）`,`Completa los 5 Rider ID (${filled.length}/5 ingresados)`));return}
+  // 上一场未完成至少一单的骑手 → 本场禁止报名
+  var _banMsgs=[];
+  selectedMatchIds.forEach(function(mid){
+    filled.forEach(function(rid){
+      var b=(typeof riderBanInfo==='function')?riderBanInfo(rid,mid):null;
+      if(b)_banMsgs.push(L('骑手 '+rid+'（'+matchLabel(parseInt(mid))+'）：上场比赛「'+b.prevLabel+'」未完成至少一单，本次无法报名，请报名下次比赛。',
+                            'Rider '+rid+' ('+matchLabel(parseInt(mid))+'): no completó al menos 1 pedido en «'+b.prevLabel+'», no puede inscribirse esta vez; inscríbete en el próximo partido.'));
+    });
+  });
+  if(_banMsgs.length){ showAlert('regErr','❌ '+_banMsgs.join('  '+L('；',' / ')+'  ')); return; }
   // cross-vendor name conflict: exists somewhere but not among this vendor's own teams
   const mine = await dbLoadVendorTeams(vc);
   const mineLower = mine.map(t=>t.teamName.toLowerCase());
@@ -3124,6 +3144,41 @@ function vendorName(code){
 function allScheduleEntry(id){
   var all=(typeof PRE_SCHEDULE!=='undefined'?PRE_SCHEDULE:[]).concat(typeof SCHEDULE!=='undefined'?SCHEDULE:[]);
   return all.find(function(s){return String(s.id)===String(id);});
+}
+// 统一的骑手ID规范化（与积分处理一致）
+function normIdG(id){
+  var s=String(id||'').trim().replace(/\.0+$/,'');
+  if(/e/i.test(s)){var n=parseFloat(s);if(!isNaN(n)&&n>0)s=Math.round(n).toString();}
+  return s;
+}
+// 某场的日期序号（M月D日 → M*100+D），用于判断"上一场"
+function matchDateKey(id){
+  var e=allScheduleEntry(parseInt(id)); if(!e||!e.date)return null;
+  var m=String(e.date).match(/(\d+)\D+?(\d+)/); if(!m)return null;
+  return parseInt(m[1])*100+parseInt(m[2]);
+}
+// 目标场次之前、最近一场"已算过积分(有完单数据)"的场次
+function prevScoredMatchId(targetId){
+  var tk=matchDateKey(targetId); if(tk==null)return null;
+  var best=null,bestK=-1;
+  Object.keys(ORDERS_ARCHIVE||{}).forEach(function(mid){
+    if(String(mid)===String(targetId))return;
+    var k=matchDateKey(mid); if(k==null||k>=tk)return;
+    if(k>bestK){bestK=k;best=mid;}
+  });
+  return best;
+}
+// 上一场该骑手是否"未完成至少一单" → 返回{prev,prevLabel}表示需禁报名；否则 null
+function riderBanInfo(riderId, targetId){
+  var prev=prevScoredMatchId(targetId); if(!prev)return null;
+  var om=ORDERS_ARCHIVE[prev]; if(!om)return null;
+  var rid=normIdG(riderId);
+  var v=om[rid];
+  if(v===undefined)v=om[String(riderId).trim()];
+  if(v===undefined){ var p=rid.slice(0,16); var hit=Object.keys(om).find(function(k){return k.slice(0,16)===p;}); if(hit)v=om[hit]; }
+  if(v===undefined) return null; // 上场无此骑手数据 → 不拦
+  if(Number(v)<1) return {prev:prev, prevLabel:(typeof matchLabel==='function'?matchLabel(parseInt(prev)):('第'+prev+'场'))};
+  return null;
 }
 function matchupAvailableIds(){
   var ids=Object.keys(MATCHUP_ARCHIVE||{}).filter(function(k){var v=MATCHUP_ARCHIVE[k];return v&&v.pairs&&v.pairs.length;});
@@ -4335,9 +4390,9 @@ async function clearEverything(){
   if(!(await requireOperator())) return;
   if(!confirm(L('⚠️ 这将清空：①所有报名记录 ②比赛结果 ③骑手积分查询数据。不可恢复，确认？','⚠️ Esto borrará: ① todas las inscripciones ② resultados ③ datos de consulta de puntos. Irreversible, ¿confirmar?'))) return;
   try{ await dbDeleteAllRegs(); }catch(err){ console.error(err); }
-  try{ for(const k of ['score_data','rider_map','matchup_vendor_map','matchup_data','matchup_archive','curp_map','vendor_list','perf_store','pair_priority','score_match_id','score_archive']) await dbDeleteData(k); }catch(e){ console.error(e); }
+  try{ for(const k of ['score_data','rider_map','matchup_vendor_map','matchup_data','matchup_archive','curp_map','vendor_list','perf_store','pair_priority','score_match_id','score_archive','orders_archive']) await dbDeleteData(k); }catch(e){ console.error(e); }
   TEAMS=[];
-  SCORE_DATA=null;SCORE_MATCH_ID=null;SCORE_ARCHIVE={};TOP10_VIEW_ID=null;RIDER_MAP={};VENDOR_RIDER_MAP={};MATCHUP_VENDOR_MAP={};
+  SCORE_DATA=null;SCORE_MATCH_ID=null;SCORE_ARCHIVE={};ORDERS_ARCHIVE={};TOP10_VIEW_ID=null;RIDER_MAP={};VENDOR_RIDER_MAP={};MATCHUP_VENDOR_MAP={};
   MATCHUP_DATA=null;MATCHUP_ARCHIVE={};MATCHUP_VIEW_ID=null;REG_RIDER_MAP={};RIDER_SCORE_MAP={};
   if(typeof GENERATED_PAIRS!=='undefined')GENERATED_PAIRS=[];
   if(typeof PERF_STORE!=='undefined'){PERF_STORE={current:null,versions:[]};PERF_DATA=[];if(typeof renderPerfStatus==='function')renderPerfStatus();}
@@ -4359,8 +4414,8 @@ async function clearEverything(){
 async function clearAllScoreData(){
   if(!(await requireOperator())) return;
   if(!confirm(L('清空已上传的配对/积分/报名骑手数据？','¿Borrar los datos cargados de duelos/puntos/inscripción?'))) return;
-  try{ for(const k of ['score_data','rider_map','matchup_vendor_map','matchup_data','score_match_id','score_archive']) await dbDeleteData(k); }catch(e){ console.error(e); }
-  SCORE_DATA=null;SCORE_MATCH_ID=null;SCORE_ARCHIVE={};TOP10_VIEW_ID=null;RIDER_MAP={};VENDOR_RIDER_MAP={};MATCHUP_VENDOR_MAP={};MATCHUP_DATA=null;REG_RIDER_MAP={};
+  try{ for(const k of ['score_data','rider_map','matchup_vendor_map','matchup_data','score_match_id','score_archive','orders_archive']) await dbDeleteData(k); }catch(e){ console.error(e); }
+  SCORE_DATA=null;SCORE_MATCH_ID=null;SCORE_ARCHIVE={};ORDERS_ARCHIVE={};TOP10_VIEW_ID=null;RIDER_MAP={};VENDOR_RIDER_MAP={};MATCHUP_VENDOR_MAP={};MATCHUP_DATA=null;REG_RIDER_MAP={};
   if(typeof GENERATED_PAIRS!=='undefined')GENERATED_PAIRS=[];
   ['matchupLoadedBadge','scoreFileBadge','regLoadedBadge'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});
   ['matchupUploadErr','scoreUploadErr','regUploadErr'].forEach(function(id){var el=document.getElementById(id);if(el){el.textContent='';el.className='alert';}});
@@ -4948,10 +5003,10 @@ function downloadAllResults(){
     });
     XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(teamRows),L('队伍维度','Por equipo'));
     // Sheet 2: rider dimension
-    var riderRows=[[L('骑手ID','Rider ID'),L('所属队伍','Equipo'),'Vendor',L('正常积分','Puntos normales'),L('PK奖励','Bono PK'),L('最终积分','Puntos finales'),L('队内排名','Rango interno'),L('在线','En línea'),L('完美单','Perfectos'),L('周末加成','Bono fin de semana'),L('D责','Resp. D'),L('排班扣','Desc. turno'),L('完单数','Pedidos')]];
+    var riderRows=[[L('骑手ID','Rider ID'),L('所属队伍','Equipo'),'Vendor',L('队伍胜负','Resultado equipo'),L('正常积分','Puntos normales'),L('PK奖励','Bono PK'),L('最终积分','Puntos finales'),L('队内排名','Rango interno'),L('在线','En línea'),L('完美单','Perfectos'),L('周末加成','Bono fin de semana'),L('D责','Resp. D'),L('排班扣','Desc. turno'),L('完单数','Pedidos')]];
     _teams.forEach(function(t){
       (t.riders||[]).forEach(function(r){
-        riderRows.push([r.id,t.name,t.vendor,r.normal_total,r.pk_bonus||0,r.final_total,r.rank||'',
+        riderRows.push([r.id,t.name,t.vendor,rTxt(t.result),r.normal_total,r.pk_bonus||0,r.final_total,r.rank||'',
           r.slot23_pt||0,r.perfect_pt||0,r.weekend_perfect_bonus_pt||0,r.deduct_3r_pt||0,r.deduct_no_order_pt||0,r.complete_orders||0]);
       });
     });
@@ -5064,9 +5119,11 @@ function applyPKBonus(teamMap){
     loser.opp_details=JSON.parse(JSON.stringify(winner.my_details));
     // Assign PK bonus to winner's riders
     var sorted=winner.riders.slice().sort(function(x,y){return y.normal_total-x.normal_total;});
+    // 输方总分为负时，按 0 计入 PK 奖励（避免负分反而拉低赢家）
+    var _pkBase=(loser.my_score>0)?loser.my_score:0;
     sorted.forEach(function(r,i){
       r.pk_rank=i+1;r.pk_pct=PK_PCTS[i]||0;
-      r.pk_bonus=(r.complete_orders>0)?Math.round(loser.my_score*r.pk_pct):0;
+      r.pk_bonus=(r.complete_orders>0)?Math.round(_pkBase*r.pk_pct):0;
       r.final_total=r.normal_total+r.pk_bonus;
     });
     // team-level: PK 赢得分汇总 + 含PK总分
@@ -5346,7 +5403,7 @@ function queryRider(){
   // Recalculate pk_bonus based on current opp score (fix stale-data inconsistency)
   var currentPkBonus=r.pk_bonus||0;
   if(iw&&currentOppScore>0&&rl>0){
-    currentPkBonus=(r.complete_orders>0)?Math.round(currentOppScore*(rl/100)):0;
+    currentPkBonus=(r.complete_orders>0)?Math.round((currentOppScore>0?currentOppScore:0)*(rl/100)):0;
   }
   var currentFinalTotal=r.normal_total+(iw?currentPkBonus:0);
 
@@ -5518,6 +5575,7 @@ function handleBulkUpload(file){
       const seen={}; const toInsert=[]; let added=0, skipped=0, errors=[];
       var lockedSet={}; // 已发布配对的场次 → 报名截止
       var lockedHit={}; // 命中的已锁场次（用于提示）
+      var bannedHit=[]; // 上场未完单被拦下的骑手（用于提示）
       dataRows.forEach((row,idx)=>{
         const vc=String(row.vendor_code||'').trim();
         const tn=String(row.team_name||'').trim();
@@ -5533,6 +5591,16 @@ function handleBulkUpload(file){
           if(typeof MATCHUP_ARCHIVE!=='undefined'&&MATCHUP_ARCHIVE&&MATCHUP_ARCHIVE[lk]&&(MATCHUP_ARCHIVE[lk].pairs||[]).length){
             lockedHit[lk]=true; return;
           }
+          // 上一场未完成至少一单的骑手 → 本场禁止报名（整行拦下并提示）
+          var _banned=[];
+          riders.filter(function(r){return r;}).forEach(function(rid){
+            var b=(typeof riderBanInfo==='function')?riderBanInfo(rid,mid):null;
+            if(b)_banned.push({rid:rid,prevLabel:b.prevLabel});
+          });
+          if(_banned.length){
+            _banned.forEach(function(x){ bannedHit.push(L('骑手 '+x.rid+' @'+matchLabel(parseInt(mid))+'（上场「'+x.prevLabel+'」未完单）','Rider '+x.rid+' @'+matchLabel(parseInt(mid))+' (sin pedido en «'+x.prevLabel+'»)')); });
+            return; // 该队该场含未完单骑手 → 不报名
+          }
           const key=vc+'|'+tn.toLowerCase()+'|'+mid;
           if(seen[key]){ skipped++; return; }
           seen[key]=true;
@@ -5546,7 +5614,10 @@ function handleBulkUpload(file){
         catch(err){ showAlert('bulkErr',L('上传失败：','Error al subir: ')+(err.message||err)); return; }
       }
       const msg=L('✅ 批量上传完成！新增 ','✅ ¡Carga masiva completada! Se agregaron ')+added+L(' 条报名记录',' inscripciones')+(skipped?L('，'+skipped+'条重复跳过',', '+skipped+' duplicadas omitidas'):'');
-      if(lockedNames){ showAlert('bulkErr',L('⚠️ 以下场次配对已生成、报名已截止，相关行未报名：','⚠️ Los siguientes partidos ya tienen emparejamientos y la inscripción está cerrada; esas filas no se inscribieron: ')+lockedNames+L('。其余未配对的场次已正常报名。','. Los demás partidos sin emparejar se inscribieron normalmente.')); }
+      var _warn=[];
+      if(lockedNames)_warn.push(L('⚠️ 以下场次配对已生成、报名已截止，相关行未报名：','⚠️ Partidos ya emparejados (inscripción cerrada), no inscritos: ')+lockedNames);
+      if(bannedHit.length)_warn.push(L('🚫 以下骑手上场参赛但未完成至少一单，本场禁止报名(整队该场未报名)：','🚫 Riders que jugaron pero sin completar 1 pedido, no inscritos: ')+bannedHit.join(L('；','; ')));
+      if(_warn.length){ showAlert('bulkErr',_warn.join('\n')); }
       else if(errors.length) showAlert('bulkErr',errors.join(' · '));
       showAlert('bulkOk',msg,'ok');
       setTimeout(()=>{switchRegList()},1500);
