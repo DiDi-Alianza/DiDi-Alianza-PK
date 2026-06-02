@@ -1266,7 +1266,7 @@ select.fi option{background:#18181E}
     <div class="card" style="margin-bottom:12px;padding:14px;border-color:rgba(99,102,241,.4)">
       <div style="font-weight:700;font-size:12px;margin-bottom:6px"><span class="lc-zh">🗓️ 这份积分属于哪一场比赛？</span><span class="lc-es">🗓️ ¿A qué partido pertenece este archivo de puntos?</span></div>
       <div style="font-size:10px;color:var(--muted2);margin-bottom:8px"><span class="lc-zh">系统会用所选场次的<strong>已发布配对</strong>来计算胜负与 PK 奖励。请先选对场次，再上传积分文件。</span><span class="lc-es">El sistema usará los <strong>emparejamientos publicados</strong> de ese partido para calcular resultados y bono PK. Elige el partido antes de subir.</span></div>
-      <select id="scoreMatchSel" class="fi" style="width:100%;padding:9px 12px;font-size:13px"></select>
+      <select id="scoreMatchSel" class="fi" onchange="MANUAL_MATCHUP=false" style="width:100%;padding:9px 12px;font-size:13px"></select>
     </div>
     <!-- ② 骑手积分文件（主上传，通常只需这一个） -->
     <div class="card" style="margin-bottom:12px;padding:16px;border-color:rgba(255,107,0,.45)">
@@ -1751,6 +1751,7 @@ let MATCHUP_DATA = null;
 let SCORE_MATCH_ID = null; // 当前 SCORE_DATA 对应的比赛场次 id
 let SCORE_ARCHIVE = {};    // 按场次归档的结果(只存参赛队)，供 Top10 按场次查看历史
 let TOP10_VIEW_ID = null;  // Top10 当前查看的场次
+let MANUAL_MATCHUP = false; // 是否刚手动上传了配对文件（为真时算分以该文件为准，忽略下拉绑定的留档配对）
 let MATCHUP_ARCHIVE = {}; // {matchId: {matchId, pairs}} — 每场发布的配对都留档
 let MATCHUP_VIEW_ID = null; // 配对结果页当前正在查看的场次
 // Global vendor→riders map (from score file, used for fallback matching)
@@ -3591,7 +3592,20 @@ function handleScoreUpload(file){
   // 按所选场次绑定配对：用该场已发布的配对来算胜负/PK（避免用错"最后发布的那场"）
   var _sel=document.getElementById('scoreMatchSel');
   var _selId=_sel&&_sel.value?String(_sel.value):null;
-  if(_selId){
+  if(MANUAL_MATCHUP && MATCHUP_DATA && MATCHUP_DATA.pairs && MATCHUP_DATA.pairs.length){
+    // 你手动上传了配对文件 → 以文件为准，忽略下拉绑定的留档配对
+    var _mt={}; MATCHUP_DATA.pairs.forEach(function(p){ if(p.a&&p.a.team)_mt[p.a.team]=1; if(p.b&&p.b.team)_mt[p.b.team]=1; });
+    var _mPairs=MATCHUP_DATA.pairs.map(function(p){return '· '+((p.a&&p.a.team)||'?')+' vs '+((p.b&&p.b.team)||'?');}).join('\n');
+    var _mLbl=_selId?((typeof matchLabel==='function')?matchLabel(parseInt(_selId)):('第'+_selId+'场')):'';
+    var _mConf=L(
+      '本场将以【你刚上传的配对文件】为准（忽略系统留档的配对）'+(_mLbl?'，归入：'+_mLbl:'')+'\n共 '+Object.keys(_mt).length+' 支参赛队、'+MATCHUP_DATA.pairs.length+' 场对决：\n\n'+_mPairs+'\n\n确认并用这份积分计算？',
+      'Se usará el archivo de emparejamientos que acabas de subir (se ignora el guardado)'+(_mLbl?', en: '+_mLbl:'')+'\n'+Object.keys(_mt).length+' equipos, '+MATCHUP_DATA.pairs.length+' duelos:\n\n'+_mPairs+'\n\n¿Confirmas y calculas con este archivo de puntos?'
+    );
+    if(!confirm(_mConf)){ showAlert('scoreUploadErr',L('已取消。','Cancelado.')); return; }
+    if(_selId){ MATCHUP_DATA.matchId=parseInt(_selId)||1; SCORE_MATCH_ID=_selId; MATCHUP_VIEW_ID=_selId; TOP10_VIEW_ID=_selId; }
+    else { SCORE_MATCH_ID=String(MATCHUP_DATA.matchId||1); TOP10_VIEW_ID=SCORE_MATCH_ID; }
+    // MATCHUP_VENDOR_MAP 已由配对文件上传时建好，保持
+  } else if(_selId){
     if(typeof MATCHUP_ARCHIVE!=='undefined'&&MATCHUP_ARCHIVE&&MATCHUP_ARCHIVE[_selId]&&(MATCHUP_ARCHIVE[_selId].pairs||[]).length){
       // 上传前确认：明确告诉用户本场将按哪份配对、共几支参赛队，避免用错配对
       var _mu=MATCHUP_ARCHIVE[_selId];
@@ -4182,6 +4196,7 @@ function handleMatchupUpload(file){
       if(!pairs.length)throw new Error(L('未找到对阵数据，请确认文件包含「队伍A」「Vendor A」「队伍B」「Vendor B」列','No se encontraron duelos; verifique que el archivo tenga columnas «队伍A» «Vendor A» «队伍B» «Vendor B»'));
 
       MATCHUP_DATA={matchId:1,pairs:pairs};
+      MANUAL_MATCHUP=true; // 手动上传的配对，算分时以它为准（覆盖下拉绑定的留档配对）
 
       // Always rebuild MATCHUP_VENDOR_MAP immediately (formatted vendor codes from matchup file)
       MATCHUP_VENDOR_MAP={};
