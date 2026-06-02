@@ -1215,6 +1215,10 @@ select.fi option{background:#18181E}
   <div id="matchupsContent" style="display:none">
     <div class="card">
       <div class="card-t" id="matchupTitle">🎯 配对结果</div>
+      <div id="matchupMatchSelWrap" style="margin:-2px 0 14px;display:none">
+        <label style="font-size:11px;color:var(--muted2);margin-right:8px"><span class="lc-zh">查看场次：</span><span class="lc-es">Ver partido: </span></label>
+        <select id="matchupMatchSel" class="fi" onchange="selectMatchupMatch(this.value)" style="width:auto;min-width:220px;max-width:100%;padding:8px 12px;font-size:13px;display:inline-block"></select>
+      </div>
       <div style="background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:16px">
         <div style="font-size:11px;color:var(--muted2);margin-bottom:10px"><span class="lc-zh">输入你的 <strong style="color:var(--didi)">Vendor Code</strong> 查看与你相关的对阵</span><span class="lc-es">Ingresa tu <strong style="color:var(--didi)">Vendor Code</strong> para ver tus duelos</span><br><span style="font-size:10px;color:var(--muted)"><span class="lc-zh">运营人员：点「查看全部」验证后可查看所有对阵</span><span class="lc-es">Operaciones: usa «Ver todo» tras verificarte para ver todos los duelos</span></span></div>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
@@ -1718,6 +1722,8 @@ let VENDOR_LIST = {};
 let VENDOR_RM = {}; // {vendor_code: RM name} — operator-only, never shown to vendors
 // Matchup data — set when published
 let MATCHUP_DATA = null;
+let MATCHUP_ARCHIVE = {}; // {matchId: {matchId, pairs}} — 每场发布的配对都留档
+let MATCHUP_VIEW_ID = null; // 配对结果页当前正在查看的场次
 // Global vendor→riders map (from score file, used for fallback matching)
 let VENDOR_RIDER_MAP = {};
 // matchupVendorMap: teamName → vendorCode (built from MATCHUP_DATA)
@@ -2560,8 +2566,9 @@ async function saveResults(){
   await dbSaveData('rider_map', RIDER_MAP);
   await dbSaveData('matchup_vendor_map', MATCHUP_VENDOR_MAP);
   await dbSaveData('matchup_data', MATCHUP_DATA);
+  await dbSaveData('matchup_archive', MATCHUP_ARCHIVE);
 }
-async function saveMatchup(){ await dbSaveData('matchup_data', MATCHUP_DATA); await dbSaveData('matchup_vendor_map', MATCHUP_VENDOR_MAP); }
+async function saveMatchup(){ await dbSaveData('matchup_data', MATCHUP_DATA); await dbSaveData('matchup_archive', MATCHUP_ARCHIVE); await dbSaveData('matchup_vendor_map', MATCHUP_VENDOR_MAP); }
 async function saveCurp(){ await dbSaveData('curp_map', REAL_CURP_MAP); }
 async function clearCurpData(){
   if(!(await requireOperator())) return;
@@ -2596,6 +2603,11 @@ async function loadSharedData(){
   if(d.rider_map) RIDER_MAP = d.rider_map;
   if(d.matchup_vendor_map) MATCHUP_VENDOR_MAP = d.matchup_vendor_map;
   if(d.matchup_data) MATCHUP_DATA = d.matchup_data;
+  if(d.matchup_archive && typeof d.matchup_archive==='object') MATCHUP_ARCHIVE = d.matchup_archive;
+  // 老数据回填：还没有归档但已有一场已发布的配对时，把它放进归档
+  if((!MATCHUP_ARCHIVE||!Object.keys(MATCHUP_ARCHIVE).length) && MATCHUP_DATA && MATCHUP_DATA.matchId && MATCHUP_DATA.pairs && MATCHUP_DATA.pairs.length){
+    MATCHUP_ARCHIVE[String(MATCHUP_DATA.matchId)]=MATCHUP_DATA;
+  }
   if(d.vendor_list && Object.keys(d.vendor_list).length) VENDOR_LIST = d.vendor_list;
   if(d.vendor_rm) VENDOR_RM = d.vendor_rm;
   if(d.curp_map){ Object.keys(REAL_CURP_MAP).forEach(function(k){delete REAL_CURP_MAP[k];}); Object.assign(REAL_CURP_MAP, d.curp_map); }
@@ -3034,18 +3046,57 @@ function vendorName(code){
   var idx=u.indexOf('DIDI');
   return idx>0 ? c.slice(0,idx) : c; // e.g. FAGOAGADIDICDMX2603286 -> FAGOAGA
 }
+function allScheduleEntry(id){
+  var all=(typeof PRE_SCHEDULE!=='undefined'?PRE_SCHEDULE:[]).concat(typeof SCHEDULE!=='undefined'?SCHEDULE:[]);
+  return all.find(function(s){return String(s.id)===String(id);});
+}
+function matchupAvailableIds(){
+  var ids=Object.keys(MATCHUP_ARCHIVE||{}).filter(function(k){var v=MATCHUP_ARCHIVE[k];return v&&v.pairs&&v.pairs.length;});
+  // include legacy single MATCHUP_DATA if it isn't in the archive yet
+  if(MATCHUP_DATA&&MATCHUP_DATA.matchId&&MATCHUP_DATA.pairs&&MATCHUP_DATA.pairs.length&&ids.indexOf(String(MATCHUP_DATA.matchId))<0) ids.push(String(MATCHUP_DATA.matchId));
+  ids.sort(function(a,b){return parseInt(b)-parseInt(a);}); // newest first
+  return ids;
+}
+function currentMatchup(){
+  if(MATCHUP_VIEW_ID!=null && MATCHUP_ARCHIVE[String(MATCHUP_VIEW_ID)]) return MATCHUP_ARCHIVE[String(MATCHUP_VIEW_ID)];
+  if(MATCHUP_DATA && (MATCHUP_VIEW_ID==null || String(MATCHUP_DATA.matchId)===String(MATCHUP_VIEW_ID))) return MATCHUP_DATA;
+  return MATCHUP_DATA;
+}
 function initMatchupPage(){
-  const has=MATCHUP_DATA&&MATCHUP_DATA.pairs&&MATCHUP_DATA.pairs.length>0;
+  var ids=matchupAvailableIds();
+  var has=ids.length>0;
   document.getElementById('matchupsNotice').style.display=has?'none':'block';
   document.getElementById('matchupsContent').style.display=has?'block':'none';
   if(!has)return;
-  const m=SCHEDULE.find(s=>s.id===MATCHUP_DATA.matchId);
-  document.getElementById('matchupTitle').textContent=L('🎯 第'+MATCHUP_DATA.matchId+'场配对结果 · ','🎯 Emparejamientos · '+matchLabel(MATCHUP_DATA.matchId)+' · ')+(m?sDate(m)+' '+sDay(m):'');
+  // pick a default viewed match: keep current if still valid, else newest published, else newest available
+  if(MATCHUP_VIEW_ID==null || ids.indexOf(String(MATCHUP_VIEW_ID))<0){
+    MATCHUP_VIEW_ID=(MATCHUP_DATA&&MATCHUP_DATA.matchId&&ids.indexOf(String(MATCHUP_DATA.matchId))>=0)?String(MATCHUP_DATA.matchId):ids[0];
+  }
+  // build the match selector dropdown
+  var sel=document.getElementById('matchupMatchSel');
+  var wrap=document.getElementById('matchupMatchSelWrap');
+  if(sel){
+    sel.innerHTML=ids.map(function(id){
+      var m=allScheduleEntry(id);
+      var lbl=matchLabel(id)+(m?' · '+sDate(m)+' '+sDay(m):'');
+      return '<option value="'+id+'"'+(String(id)===String(MATCHUP_VIEW_ID)?' selected':'')+'>'+lbl+'</option>';
+    }).join('');
+  }
+  if(wrap) wrap.style.display='block'; // 只要有配对就显示场次选择（便于确认当前查看的是哪一天）
+  renderMatchupTitleAndGrid();
+}
+function selectMatchupMatch(id){ MATCHUP_VIEW_ID=id; renderMatchupTitleAndGrid(); }
+function renderMatchupTitleAndGrid(){
+  var MD=currentMatchup();
+  if(!MD)return;
+  var m=allScheduleEntry(MD.matchId);
+  document.getElementById('matchupTitle').textContent=L('🎯 '+matchLabel(MD.matchId)+' 配对结果 · ','🎯 Emparejamientos · '+matchLabel(MD.matchId)+' · ')+(m?sDate(m)+' '+sDay(m):'');
   renderMatchupGrid();
 }
 function renderMatchupGrid(){
-  if(!MATCHUP_DATA||!MATCHUP_DATA.pairs)return;
-  const m=SCHEDULE.find(s=>s.id===MATCHUP_DATA.matchId);
+  const MD=currentMatchup();
+  if(!MD||!MD.pairs)return;
+  const m=allScheduleEntry(MD.matchId);
   const vfl=((document.getElementById('matchupVendorFilter')||{}).value||'').trim().toLowerCase();
   const tfl=((document.getElementById('matchupTeamFilter')||{}).value||'').trim().toLowerCase();
   const grid=document.getElementById('matchupsGrid');
@@ -3056,7 +3107,7 @@ function renderMatchupGrid(){
     if(noRes)noRes.style.display='none';
     return;
   }
-  const filtered=MATCHUP_DATA.pairs.filter(p=>{
+  const filtered=MD.pairs.filter(p=>{
     if(!vfl&&!tfl&&matchupAdminAuthed)return true;
     if(vfl&&!tfl)return(p.a.vendor||'').toLowerCase().includes(vfl)||(p.b.vendor||'').toLowerCase().includes(vfl);
     if(!vfl&&tfl)return(p.a.team||'').toLowerCase().includes(tfl)||(p.b.team||'').toLowerCase().includes(tfl);
@@ -3338,6 +3389,8 @@ function publishMatchups(){
     matchId,
     pairs:GENERATED_PAIRS.map(p=>({a:{team:p.a.team,vendor:p.a.vendor},b:{team:p.b.team,vendor:p.b.vendor}}))
   };
+  MATCHUP_ARCHIVE[String(matchId)]=MATCHUP_DATA; // 留档，按场次保存历史配对
+  MATCHUP_VIEW_ID=String(matchId);               // 发布后默认显示刚发布的这场
   initMatchupPage();
   saveMatchup();
   alert(L(`✅ 第${matchId}场配对结果已发布！骑手可在「配对结果」页面查看。`,`✅ ¡Emparejamientos del ${matchLabel(matchId)} publicados! Los riders pueden verlos en «Emparejamientos».`));
@@ -4068,10 +4121,10 @@ async function clearEverything(){
   if(!(await requireOperator())) return;
   if(!confirm(L('⚠️ 这将清空：①所有报名记录 ②比赛结果 ③骑手积分查询数据。不可恢复，确认？','⚠️ Esto borrará: ① todas las inscripciones ② resultados ③ datos de consulta de puntos. Irreversible, ¿confirmar?'))) return;
   try{ await dbDeleteAllRegs(); }catch(err){ console.error(err); }
-  try{ for(const k of ['score_data','rider_map','matchup_vendor_map','matchup_data','curp_map','vendor_list']) await dbDeleteData(k); }catch(e){ console.error(e); }
+  try{ for(const k of ['score_data','rider_map','matchup_vendor_map','matchup_data','matchup_archive','curp_map','vendor_list']) await dbDeleteData(k); }catch(e){ console.error(e); }
   TEAMS=[];
   SCORE_DATA=null;RIDER_MAP={};VENDOR_RIDER_MAP={};MATCHUP_VENDOR_MAP={};
-  MATCHUP_DATA=null;REG_RIDER_MAP={};RIDER_SCORE_MAP={};
+  MATCHUP_DATA=null;MATCHUP_ARCHIVE={};MATCHUP_VIEW_ID=null;REG_RIDER_MAP={};RIDER_SCORE_MAP={};
   if(typeof GENERATED_PAIRS!=='undefined')GENERATED_PAIRS=[];
   Object.keys(REAL_CURP_MAP).forEach(function(k){delete REAL_CURP_MAP[k];});
   ['matchupLoadedBadge','scoreFileBadge','regLoadedBadge'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});
