@@ -4045,12 +4045,14 @@ function handleRegUpload(file){
       if(SCORE_DATA&&Object.keys(SCORE_DATA).length>0&&Object.keys(RIDER_SCORE_MAP).length>0){
         applyRegistrationMatching();
         applyPKBonus(SCORE_DATA);
+        restrictScoreToMatchup(); // 只保留本场参赛队
         RIDER_MAP={};
         Object.values(SCORE_DATA).forEach(function(team){
           team.riders.forEach(function(r){
             RIDER_MAP[r.id]=Object.assign({},r,{teamName:team.name,teamResult:team.result,opponent:team.opponent,oppScore:team.opp_score});
           });
         });
+        if(typeof UNGROUPED_RIDERS!=='undefined')Object.keys(UNGROUPED_RIDERS).forEach(function(rid){ if(!RIDER_MAP[rid]) RIDER_MAP[rid]=UNGROUPED_RIDERS[rid]; });
         initScorePage();
         saveResults();
         if(errEl)errEl.textContent=L('✅ 报名数据已加载并重新计算：','✅ Datos de inscripción cargados y recalculados: ')+teamCount+L('支队伍，',' equipos, ')+riderCount+L('名骑手',' riders');
@@ -4219,12 +4221,14 @@ function handleMatchupUpload(file){
       if(SCORE_DATA&&Object.keys(SCORE_DATA).length>0){
         rebuildVendorFallback(SCORE_DATA);
         applyPKBonus(SCORE_DATA);
+        restrictScoreToMatchup(); // 只保留本场参赛队，避免后传配对时残留全部报名队
         RIDER_MAP={};
         Object.values(SCORE_DATA).forEach(function(team){
           team.riders.forEach(function(r){
             RIDER_MAP[r.id]=Object.assign({},r,{teamName:team.name,teamResult:team.result,opponent:team.opponent,oppScore:team.opp_score});
           });
         });
+        if(typeof UNGROUPED_RIDERS!=='undefined')Object.keys(UNGROUPED_RIDERS).forEach(function(rid){ if(!RIDER_MAP[rid]) RIDER_MAP[rid]=UNGROUPED_RIDERS[rid]; });
         initScorePage();
         saveResults();
         showAlert('matchupUploadErr',L('✅ 配对数据已加载，积分已重新计算','✅ Datos de duelos cargados, puntos recalculados'),'ok');
@@ -4982,12 +4986,14 @@ function forceRecalculate(){
   }
   rebuildVendorFallback(SCORE_DATA);
   applyPKBonus(SCORE_DATA);
+  restrictScoreToMatchup(); // 只保留本场参赛队
   RIDER_MAP={};
   Object.values(SCORE_DATA).forEach(function(team){
     team.riders.forEach(function(r){
       RIDER_MAP[r.id]=Object.assign({},r,{teamName:team.name,teamResult:team.result,opponent:team.opponent,oppScore:team.opp_score});
     });
   });
+  if(typeof UNGROUPED_RIDERS!=='undefined')Object.keys(UNGROUPED_RIDERS).forEach(function(rid){ if(!RIDER_MAP[rid]) RIDER_MAP[rid]=UNGROUPED_RIDERS[rid]; });
   initScorePage();
   var scored=Object.values(SCORE_DATA).filter(function(t){return t.my_score>0;}).length;
   var total=Object.keys(SCORE_DATA).length;
@@ -5068,6 +5074,24 @@ function applyPKBonus(teamMap){
     winner.final_score=Number(winner.my_score||0)+winner.pk_total;
     loser.pk_total=0;loser.final_score=Number(loser.my_score||0);
     winner.opp_final=loser.final_score;loser.opp_final=winner.final_score;
+  });
+}
+// 只保留本场配对里的参赛队伍：其余报名队从 SCORE_DATA 移除（骑手转入散户池，仍可个人查询）。
+// 用于"后上传配对/重算"等路径，保证计数、Top10、下载三者一致。
+function restrictScoreToMatchup(){
+  if(!SCORE_DATA) return;
+  if(!(MATCHUP_DATA && MATCHUP_DATA.pairs && MATCHUP_DATA.pairs.length)) return;
+  var ps={};
+  MATCHUP_DATA.pairs.forEach(function(p){
+    if(p.a&&p.a.team)ps[String(p.a.team).trim().toLowerCase()]=1;
+    if(p.b&&p.b.team)ps[String(p.b.team).trim().toLowerCase()]=1;
+  });
+  Object.keys(SCORE_DATA).forEach(function(k){
+    var t=SCORE_DATA[k];
+    if(!ps[String(t.name).trim().toLowerCase()]){
+      (t.riders||[]).forEach(function(r){ if(typeof UNGROUPED_RIDERS!=='undefined' && !UNGROUPED_RIDERS[r.id]) UNGROUPED_RIDERS[r.id]=Object.assign({},r,{vendor:t.vendor,teamName:'',teamResult:'',opponent:'',oppScore:0,pk_bonus:0,pk_rank:null,pk_pct:null,final_total:r.normal_total}); });
+      delete SCORE_DATA[k];
+    }
   });
 }
 
