@@ -1240,6 +1240,7 @@ select.fi option{background:#18181E}
   <div class="slbl" data-i18n="sc_slbl">比赛结束 T+2 工作日公布</div>
   <div class="stitle" data-i18n="sc_title">🏆 比赛结果 & 积分查询</div>
   <div class="ssub"><span class="lc-zh">比赛结束后 T+2 工作日公布，骑手可凭 Rider ID 查询个人积分和 PK 奖励</span><span class="lc-es">Se publica T+2 días hábiles tras el partido; los riders pueden consultar sus puntos y bono PK con su Rider ID</span></div>
+  <div id="scoreMatchLabel" style="display:none;margin-top:8px;font-size:13px;font-weight:700;color:var(--didi)"></div>
 
   <!-- ── 运营入口（隐藏，需密码） ── -->
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
@@ -1261,6 +1262,12 @@ select.fi option{background:#18181E}
     </div>
 
     <!-- 三个上传区 -->
+    <!-- 选择本场（这份积分属于哪一场比赛） -->
+    <div class="card" style="margin-bottom:12px;padding:14px;border-color:rgba(99,102,241,.4)">
+      <div style="font-weight:700;font-size:12px;margin-bottom:6px"><span class="lc-zh">🗓️ 这份积分属于哪一场比赛？</span><span class="lc-es">🗓️ ¿A qué partido pertenece este archivo de puntos?</span></div>
+      <div style="font-size:10px;color:var(--muted2);margin-bottom:8px"><span class="lc-zh">系统会用所选场次的<strong>已发布配对</strong>来计算胜负与 PK 奖励。请先选对场次，再上传积分文件。</span><span class="lc-es">El sistema usará los <strong>emparejamientos publicados</strong> de ese partido para calcular resultados y bono PK. Elige el partido antes de subir.</span></div>
+      <select id="scoreMatchSel" class="fi" style="width:100%;padding:9px 12px;font-size:13px"></select>
+    </div>
     <!-- ② 骑手积分文件（主上传，通常只需这一个） -->
     <div class="card" style="margin-bottom:12px;padding:16px;border-color:rgba(255,107,0,.45)">
       <div style="font-weight:700;font-size:13px;margin-bottom:8px"><span class="lc-zh">📊 骑手积分文件 <span style="color:var(--didi);font-size:11px">（生成结果通常只需上传这一个）</span></span><span class="lc-es">📊 Archivo de puntos de riders <span style="color:var(--didi);font-size:11px">(normalmente solo necesitas este)</span></span>
@@ -1337,6 +1344,10 @@ select.fi option{background:#18181E}
     <!-- TOP 10 -->
     <div class="card" style="margin-bottom:16px">
       <div class="card-t" data-i18n="sc_top10_title">🏆 Top 10 队伍排行</div>
+      <div id="top10MatchSelWrap" style="display:none;margin:2px 0 10px">
+        <label style="font-size:11px;color:var(--muted2);margin-right:8px"><span class="lc-zh">查看场次：</span><span class="lc-es">Ver partido: </span></label>
+        <select id="top10MatchSel" class="fi" onchange="selectTop10Match(this.value)" style="width:auto;min-width:220px;max-width:100%;padding:7px 11px;font-size:12px;display:inline-block"></select>
+      </div>
       <div style="font-size:11px;color:var(--muted2);margin-bottom:12px" data-i18n="sc_top10_sub">当场比赛综合积分最高的10支队伍（含 PK 奖励分）· 积分高者排前，胜负不影响排名</div>
       <div id="top10Table"><div style="color:var(--muted2);font-size:12px;padding:16px 0;text-align:center"><span class="lc-zh">数据加载后自动显示</span><span class="lc-es">Se muestra automáticamente al cargar los datos</span></div></div>
     </div>
@@ -1737,6 +1748,9 @@ let VENDOR_LIST = {};
 let VENDOR_RM = {}; // {vendor_code: RM name} — operator-only, never shown to vendors
 // Matchup data — set when published
 let MATCHUP_DATA = null;
+let SCORE_MATCH_ID = null; // 当前 SCORE_DATA 对应的比赛场次 id
+let SCORE_ARCHIVE = {};    // 按场次归档的结果(只存参赛队)，供 Top10 按场次查看历史
+let TOP10_VIEW_ID = null;  // Top10 当前查看的场次
 let MATCHUP_ARCHIVE = {}; // {matchId: {matchId, pairs}} — 每场发布的配对都留档
 let MATCHUP_VIEW_ID = null; // 配对结果页当前正在查看的场次
 // Global vendor→riders map (from score file, used for fallback matching)
@@ -2595,11 +2609,17 @@ async function dbLoadAllData(){
 }
 // Save operator-managed datasets (called after each upload; needs operator login)
 async function saveResults(){
+  // 按场次归档本场结果（只存真正参赛的队），供 Top10 切换查看历史各场
+  if(SCORE_MATCH_ID!=null && SCORE_DATA){
+    try{ SCORE_ARCHIVE[String(SCORE_MATCH_ID)]=(typeof filterDisplayTeams==='function')?filterDisplayTeams(Object.values(SCORE_DATA)):Object.values(SCORE_DATA); }catch(e){}
+  }
   await dbSaveData('score_data', SCORE_DATA);
   await dbSaveData('rider_map', RIDER_MAP);
   await dbSaveData('matchup_vendor_map', MATCHUP_VENDOR_MAP);
   await dbSaveData('matchup_data', MATCHUP_DATA);
   await dbSaveData('matchup_archive', MATCHUP_ARCHIVE);
+  await dbSaveData('score_match_id', SCORE_MATCH_ID);
+  await dbSaveData('score_archive', SCORE_ARCHIVE);
 }
 async function saveMatchup(){ await dbSaveData('matchup_data', MATCHUP_DATA); await dbSaveData('matchup_archive', MATCHUP_ARCHIVE); await dbSaveData('matchup_vendor_map', MATCHUP_VENDOR_MAP); }
 async function saveCurp(){ await dbSaveData('curp_map', REAL_CURP_MAP); }
@@ -2633,6 +2653,8 @@ async function saveVendorList(){ await dbSaveData('vendor_list', VENDOR_LIST); a
 async function loadSharedData(){
   const d = await dbLoadAllData();
   if(d.score_data) SCORE_DATA = d.score_data;
+  if(d.score_match_id!==undefined && d.score_match_id!==null) SCORE_MATCH_ID = d.score_match_id;
+  if(d.score_archive && typeof d.score_archive==='object') SCORE_ARCHIVE = d.score_archive;
   if(d.rider_map) RIDER_MAP = d.rider_map;
   if(d.matchup_vendor_map) MATCHUP_VENDOR_MAP = d.matchup_vendor_map;
   if(d.matchup_data) MATCHUP_DATA = d.matchup_data;
@@ -3566,6 +3588,21 @@ if(uz){
 function handleScoreUpload(file){
   if(!file)return;
   if(!file.name.match(/\.(xlsx|xls)$/i)){showAlert('scoreUploadErr',L('请上传 .xlsx 或 .xls 格式','Sube un archivo .xlsx o .xls'));return}
+  // 按所选场次绑定配对：用该场已发布的配对来算胜负/PK（避免用错"最后发布的那场"）
+  var _sel=document.getElementById('scoreMatchSel');
+  var _selId=_sel&&_sel.value?String(_sel.value):null;
+  if(_selId){
+    if(typeof MATCHUP_ARCHIVE!=='undefined'&&MATCHUP_ARCHIVE&&MATCHUP_ARCHIVE[_selId]&&(MATCHUP_ARCHIVE[_selId].pairs||[]).length){
+      MATCHUP_DATA=MATCHUP_ARCHIVE[_selId]; // 把算分用的配对指向所选场次
+      MATCHUP_VIEW_ID=_selId;
+      MATCHUP_VENDOR_MAP={}; // 让后续按所选配对重建队伍→Vendor 映射
+      SCORE_MATCH_ID=_selId;
+      TOP10_VIEW_ID=_selId; // Top10 默认切到刚上传的这场
+    } else {
+      showAlert('scoreUploadErr',L('⚠️ 所选场次还没有已发布的配对，请先到「配对系统」发布该场配对，再上传积分。','⚠️ Ese partido aún no tiene emparejamientos publicados. Publícalos primero en «Sistema de emparejamiento».'));
+      return;
+    }
+  }
   const reader=new FileReader();
   reader.onload=e=>{
     try{
@@ -4249,9 +4286,9 @@ async function clearEverything(){
   if(!(await requireOperator())) return;
   if(!confirm(L('⚠️ 这将清空：①所有报名记录 ②比赛结果 ③骑手积分查询数据。不可恢复，确认？','⚠️ Esto borrará: ① todas las inscripciones ② resultados ③ datos de consulta de puntos. Irreversible, ¿confirmar?'))) return;
   try{ await dbDeleteAllRegs(); }catch(err){ console.error(err); }
-  try{ for(const k of ['score_data','rider_map','matchup_vendor_map','matchup_data','matchup_archive','curp_map','vendor_list','perf_store','pair_priority']) await dbDeleteData(k); }catch(e){ console.error(e); }
+  try{ for(const k of ['score_data','rider_map','matchup_vendor_map','matchup_data','matchup_archive','curp_map','vendor_list','perf_store','pair_priority','score_match_id','score_archive']) await dbDeleteData(k); }catch(e){ console.error(e); }
   TEAMS=[];
-  SCORE_DATA=null;RIDER_MAP={};VENDOR_RIDER_MAP={};MATCHUP_VENDOR_MAP={};
+  SCORE_DATA=null;SCORE_MATCH_ID=null;SCORE_ARCHIVE={};TOP10_VIEW_ID=null;RIDER_MAP={};VENDOR_RIDER_MAP={};MATCHUP_VENDOR_MAP={};
   MATCHUP_DATA=null;MATCHUP_ARCHIVE={};MATCHUP_VIEW_ID=null;REG_RIDER_MAP={};RIDER_SCORE_MAP={};
   if(typeof GENERATED_PAIRS!=='undefined')GENERATED_PAIRS=[];
   if(typeof PERF_STORE!=='undefined'){PERF_STORE={current:null,versions:[]};PERF_DATA=[];if(typeof renderPerfStatus==='function')renderPerfStatus();}
@@ -4273,8 +4310,8 @@ async function clearEverything(){
 async function clearAllScoreData(){
   if(!(await requireOperator())) return;
   if(!confirm(L('清空已上传的配对/积分/报名骑手数据？','¿Borrar los datos cargados de duelos/puntos/inscripción?'))) return;
-  try{ for(const k of ['score_data','rider_map','matchup_vendor_map','matchup_data']) await dbDeleteData(k); }catch(e){ console.error(e); }
-  SCORE_DATA=null;RIDER_MAP={};VENDOR_RIDER_MAP={};MATCHUP_VENDOR_MAP={};MATCHUP_DATA=null;REG_RIDER_MAP={};
+  try{ for(const k of ['score_data','rider_map','matchup_vendor_map','matchup_data','score_match_id','score_archive']) await dbDeleteData(k); }catch(e){ console.error(e); }
+  SCORE_DATA=null;SCORE_MATCH_ID=null;SCORE_ARCHIVE={};TOP10_VIEW_ID=null;RIDER_MAP={};VENDOR_RIDER_MAP={};MATCHUP_VENDOR_MAP={};MATCHUP_DATA=null;REG_RIDER_MAP={};
   if(typeof GENERATED_PAIRS!=='undefined')GENERATED_PAIRS=[];
   ['matchupLoadedBadge','scoreFileBadge','regLoadedBadge'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});
   ['matchupUploadErr','scoreUploadErr','regUploadErr'].forEach(function(id){var el=document.getElementById(id);if(el){el.textContent='';el.className='alert';}});
@@ -4630,16 +4667,44 @@ function filterDisplayTeams(teams){
   var real=(teams||[]).filter(function(t){return typeof isRealTeam!=='function'||isRealTeam(t.name);}); // 否则至少隐藏 Vendor Code 垃圾名
   return real.length?real:(teams||[]);
 }
+// Top10 场次下拉：列出已归档场次 + 当前场
+function populateTop10Sel(viewId){
+  var sel=document.getElementById('top10MatchSel'), wrap=document.getElementById('top10MatchSelWrap');
+  if(!sel||!wrap)return;
+  var ids={};
+  Object.keys(SCORE_ARCHIVE||{}).forEach(function(k){ if((SCORE_ARCHIVE[k]||[]).length) ids[String(k)]=1; });
+  if(SCORE_MATCH_ID!=null && SCORE_DATA && Object.keys(SCORE_DATA).length) ids[String(SCORE_MATCH_ID)]=1;
+  var list=Object.keys(ids).sort(function(a,b){return parseInt(a)-parseInt(b);});
+  if(list.length<=1){ wrap.style.display='none'; } else { wrap.style.display='block'; }
+  sel.innerHTML=list.map(function(id){
+    var lbl=(typeof matchLabel==='function')?matchLabel(parseInt(id)):('第'+id+'场');
+    var ent=(typeof allScheduleEntry==='function')?allScheduleEntry(parseInt(id)):null;
+    var dt=ent?(' · '+(typeof sDate==='function'?sDate(ent):ent.date||'')+' '+(typeof sDay==='function'?sDay(ent):ent.day||'')):'';
+    return '<option value="'+id+'"'+(String(id)===String(viewId)?' selected':'')+'>'+lbl+dt+'</option>';
+  }).join('');
+}
+function selectTop10Match(id){ TOP10_VIEW_ID=id?String(id):null; renderTop10(); }
 function renderTop10(){
   var el=document.getElementById('top10Table');
   if(!el)return;
   // 队伍总分用统一的 teamTotalScore（含PK，且兼容旧数据：无 final_score 时用 my_score + 骑手 pk_bonus 现算）
   var tScore=teamTotalScore;
   // Context-aware messages based on what data is loaded
-  if(!SCORE_DATA||!Object.keys(SCORE_DATA).length){
+  var _archKeys=Object.keys(SCORE_ARCHIVE||{});
+  var _hasLive=SCORE_DATA&&Object.keys(SCORE_DATA).length>0;
+  if(!_hasLive && !_archKeys.length){
     el.innerHTML='<div style="color:var(--muted2);font-size:12px;padding:20px 0;text-align:center">'+L('请先通过「⚙️ 运营入口」上传配对文件和积分文件','Primero sube el archivo de duelos y el de puntos desde «⚙️ Entrada de operaciones»')+'</div>';
+    var _w0=document.getElementById('top10MatchSelWrap'); if(_w0)_w0.style.display='none';
     return;
   }
+  // 选择查看的场次（默认当前场，可切换历史归档场次）
+  if(TOP10_VIEW_ID==null) TOP10_VIEW_ID=(SCORE_MATCH_ID!=null?String(SCORE_MATCH_ID):(_archKeys.length?_archKeys[_archKeys.length-1]:null));
+  var _viewId=TOP10_VIEW_ID;
+  var teamsSource;
+  if(_viewId!=null && String(_viewId)===String(SCORE_MATCH_ID) && _hasLive) teamsSource=Object.values(SCORE_DATA); // 当前场用实时数据
+  else if(_viewId!=null && SCORE_ARCHIVE[_viewId]) teamsSource=SCORE_ARCHIVE[_viewId];                              // 历史场用归档
+  else teamsSource=_hasLive?Object.values(SCORE_DATA):[];
+  if(typeof populateTop10Sel==='function') populateTop10Sel(_viewId);
   // Helper: is this a real team name or a catch-all vendor-code name?
   var isRealTeam=function(name){
     if(!name)return false;
@@ -4649,14 +4714,13 @@ function renderTop10(){
     if(/^[A-Za-z0-9]+( \d+)?$/.test(name)&&name.length>12)return false;
     return true;
   };
-  // 真正参赛 = 算分时打出胜/败结果 且 队伍人数正常(≤8人，5v5一队5人)；
-  // 用"人数"挡掉那些把整个 vendor 上百名骑手凑成一队的垃圾队，不依赖"当前是哪场配对"。
+  // 真正参赛 = 算分时打出胜/败结果 且 队伍人数正常(≤8人，5v5一队5人)
   var isPlayed=function(t){return (t.result==='胜'||t.result==='败') && t.riders && t.riders.length>0 && t.riders.length<=8;};
-  var playedTeams=Object.values(SCORE_DATA).filter(isPlayed);
+  var playedTeams=teamsSource.filter(isPlayed);
   var usePlayed=playedTeams.length>0;
   // Deduplicate by team name - keep highest score entry per team name
   var nameMap={};
-  Object.values(SCORE_DATA).forEach(function(t){
+  teamsSource.forEach(function(t){
     var n=t.name;
     if(!n)return;
     if(usePlayed){ if(!isPlayed(t))return; } // 只保留真正打过比赛、人数正常的队
@@ -4965,6 +5029,39 @@ function applyPKBonus(teamMap){
 // ── initScorePage: populate dropdown + switch UI ──
 function initScorePage(){
   const has=SCORE_DATA&&Object.keys(SCORE_DATA).length>0;
+  // 填充"这份积分属于哪一场"下拉（来自已发布配对的场次）
+  try{
+    var msel=document.getElementById('scoreMatchSel');
+    if(msel){
+      var ids=(typeof MATCHUP_ARCHIVE!=='undefined'&&MATCHUP_ARCHIVE)?Object.keys(MATCHUP_ARCHIVE).filter(function(k){return (MATCHUP_ARCHIVE[k].pairs||[]).length;}):[];
+      ids.sort(function(a,b){return parseInt(a)-parseInt(b);});
+      var want=String(SCORE_MATCH_ID||MATCHUP_VIEW_ID||(MATCHUP_DATA&&MATCHUP_DATA.matchId)||(ids[ids.length-1]||''));
+      if(!ids.length){
+        msel.innerHTML='<option value="">'+L('（暂无已发布的配对，请先在「配对系统」发布配对）','(Aún no hay emparejamientos publicados)')+'</option>';
+      } else {
+        msel.innerHTML=ids.map(function(id){
+          var lbl=(typeof matchLabel==='function')?matchLabel(parseInt(id)):('第'+id+'场');
+          var ent=(typeof allScheduleEntry==='function')?allScheduleEntry(parseInt(id)):null;
+          var dt=ent?(' · '+(typeof sDate==='function'?sDate(ent):ent.date||'')+' '+(typeof sDay==='function'?sDay(ent):ent.day||'')):'';
+          return '<option value="'+id+'"'+(id===want?' selected':'')+'>'+lbl+dt+'</option>';
+        }).join('');
+      }
+    }
+  }catch(e){}
+  // 渲染"本场结果对应：第X场·日期"（公开可见）
+  try{
+    var lblEl=document.getElementById('scoreMatchLabel');
+    if(lblEl){
+      var mid=SCORE_MATCH_ID||(MATCHUP_DATA&&MATCHUP_DATA.matchId);
+      if(has&&mid){
+        var lbl2=(typeof matchLabel==='function')?matchLabel(parseInt(mid)):('第'+mid+'场');
+        var ent2=(typeof allScheduleEntry==='function')?allScheduleEntry(parseInt(mid)):null;
+        var dt2=ent2?(' · '+(typeof sDate==='function'?sDate(ent2):ent2.date||'')+' '+(typeof sDay==='function'?sDay(ent2):ent2.day||'')):'';
+        lblEl.textContent=L('📌 本场结果对应：','📌 Resultados de: ')+lbl2+dt2;
+        lblEl.style.display='block';
+      } else { lblEl.style.display='none'; }
+    }
+  }catch(e){}
   // Show/hide results area
   const scoreContent=document.getElementById('scoreContent');
   if(scoreContent)scoreContent.style.display=has?'block':'none';
