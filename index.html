@@ -3541,15 +3541,15 @@ function handleScoreUpload(file){
           const rid=normId(gc(r,['rider_id','骑手id','骑手ID']));
           const vc=String(gc(r,['vendor_code','vendor代码','vendor_id'])||'').trim().toUpperCase(); // normalize to uppercase for consistent matching
           if(!rid)return;
-          const slot23=parseFloat(gc(r,['slot23_pt','slot23积分','在线积分']))||0;
-          const perfect=parseFloat(gc(r,['perfect_pt','perfect积分','完美单积分']))||0;
-          const wknd=parseFloat(gc(r,['weekend_perfect_bonus_pt','周末加成','weekend_bonus','bonus_pt','total_bonus_perfect']))||0;
-          const d3r=negVal(gc(r,['deduct_3r_pt','3R扣分','deduct_3r','改派扣分','deduct_pt','total_dduty_3r_cnt']));
-          const dno=negVal(gc(r,['deduct_no_order_pt','排班无完单扣分','deduct_no_order','schedule_penalty_pt']));
+          const slot23=parseFloat(gc(r,['slot23_pt','slot23积分','在线积分','slot23_point_part']))||0;
+          const perfect=parseFloat(gc(r,['perfect_pt','perfect积分','完美单积分','perfect_point_part']))||0;
+          const wknd=parseFloat(gc(r,['weekend_perfect_bonus_pt','周末加成','weekend_bonus','bonus_pt','total_bonus_perfect','bonus_point_part']))||0;
+          const d3r=negVal(gc(r,['deduct_3r_pt','3R扣分','deduct_3r','改派扣分','deduct_pt','total_dduty_3r_cnt','deduct_point_part']));
+          const dno=negVal(gc(r,['deduct_no_order_pt','排班无完单扣分','deduct_no_order','schedule_penalty_pt','schedule_penalty_part']));
           const zeroOut=parseFloat(gc(r,['zero_out','清零','zero_out_flag','has_7d_no_complete_flag']))||0;
           const completeOrds=parseFloat(gc(r,['complete_orders','完单数','当日完单','total_complete_orders']))||0;
           // NOTE: skip 'ipo' — that's a per-order ratio, not total points
-          let totalPts=parseFloat(gc(r,['total_points','总积分','最终总积分']))||null;
+          let totalPts=parseFloat(gc(r,['total_points','总积分','最终总积分','effective_points','points']))||null;
           if(totalPts===null||totalPts===0){totalPts=slot23+perfect+wknd+d3r+dno;}
           if(zeroOut)totalPts=0;
           const entry={vendor_code:vc,slot23_pt:slot23,perfect_pt:perfect,
