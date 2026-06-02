@@ -3593,6 +3593,20 @@ function handleScoreUpload(file){
   var _selId=_sel&&_sel.value?String(_sel.value):null;
   if(_selId){
     if(typeof MATCHUP_ARCHIVE!=='undefined'&&MATCHUP_ARCHIVE&&MATCHUP_ARCHIVE[_selId]&&(MATCHUP_ARCHIVE[_selId].pairs||[]).length){
+      // 上传前确认：明确告诉用户本场将按哪份配对、共几支参赛队，避免用错配对
+      var _mu=MATCHUP_ARCHIVE[_selId];
+      var _lbl=(typeof matchLabel==='function')?matchLabel(parseInt(_selId)):('第'+_selId+'场');
+      var _ent=(typeof allScheduleEntry==='function')?allScheduleEntry(parseInt(_selId)):null;
+      var _dt=_ent?((typeof sDate==='function'?sDate(_ent):_ent.date||'')+' '+(typeof sDay==='function'?sDay(_ent):_ent.day||'')):'';
+      var _teamSet={};
+      (_mu.pairs||[]).forEach(function(p){ if(p.a&&p.a.team)_teamSet[p.a.team]=1; if(p.b&&p.b.team)_teamSet[p.b.team]=1; });
+      var _nTeams=Object.keys(_teamSet).length;
+      var _pairsTxt=(_mu.pairs||[]).map(function(p){return '· '+((p.a&&p.a.team)||'?')+' vs '+((p.b&&p.b.team)||'?');}).join('\n');
+      var _confMsg=L(
+        '本场将按以下配对计算：\n【'+_lbl+(_dt?' · '+_dt:'')+'】，共 '+_nTeams+' 支参赛队、'+(_mu.pairs||[]).length+' 场对决：\n\n'+_pairsTxt+'\n\n确认配对无误、继续用这份积分计算结果？',
+        'Se calculará con estos emparejamientos:\n【'+_lbl+(_dt?' · '+_dt:'')+'】, '+_nTeams+' equipos, '+(_mu.pairs||[]).length+' duelos:\n\n'+_pairsTxt+'\n\n¿Confirmas y continúas con este archivo de puntos?'
+      );
+      if(!confirm(_confMsg)){ showAlert('scoreUploadErr',L('已取消。请在上方下拉选择正确的场次后再上传。','Cancelado. Selecciona el partido correcto en el menú de arriba y vuelve a subir.')); return; }
       MATCHUP_DATA=MATCHUP_ARCHIVE[_selId]; // 把算分用的配对指向所选场次
       MATCHUP_VIEW_ID=_selId;
       MATCHUP_VENDOR_MAP={}; // 让后续按所选配对重建队伍→Vendor 映射
@@ -3902,6 +3916,21 @@ function handleScoreUpload(file){
         }
         // Apply PK bonus using MATCHUP_DATA if available
         applyPKBonus(teamMap);
+        // 只保留本场配对里的参赛队伍：其余报名队不计入结果（其骑手转入散户池，仍可个人查询）
+        if(MATCHUP_DATA && MATCHUP_DATA.pairs && MATCHUP_DATA.pairs.length){
+          var _partSet={};
+          MATCHUP_DATA.pairs.forEach(function(p){
+            if(p.a&&p.a.team)_partSet[String(p.a.team).trim().toLowerCase()]=1;
+            if(p.b&&p.b.team)_partSet[String(p.b.team).trim().toLowerCase()]=1;
+          });
+          Object.keys(teamMap).forEach(function(k){
+            var t=teamMap[k];
+            if(!_partSet[String(t.name).trim().toLowerCase()]){
+              (t.riders||[]).forEach(function(r){ if(!UNGROUPED_RIDERS[r.id]) UNGROUPED_RIDERS[r.id]=Object.assign({},r,{vendor:t.vendor,teamName:'',teamResult:'',opponent:'',oppScore:0,pk_bonus:0,pk_rank:null,pk_pct:null,final_total:r.normal_total}); });
+              delete teamMap[k];
+            }
+          });
+        }
       }
 
       SCORE_DATA=teamMap;
