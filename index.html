@@ -1261,53 +1261,62 @@ select.fi option{background:#18181E}
     </div>
 
     <!-- 三个上传区 -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
-      <div class="card" style="margin-bottom:0;padding:14px">
-        <div style="font-weight:700;font-size:12px;margin-bottom:8px"><span class="lc-zh">🎯 ① 配对结果文件</span><span class="lc-es">🎯 ① Archivo de emparejamientos</span>
-          <span id="matchupLoadedBadge" style="display:none;font-size:10px;font-weight:400;color:var(--win);margin-left:6px;background:var(--win-pale);border:1px solid var(--win-b);border-radius:20px;padding:1px 7px">✓ 已加载</span>
-        </div>
-        <div style="font-size:10px;color:var(--muted2);margin-bottom:8px"><span class="lc-zh">可选 · 已在「配对系统」发布则无需上传<br>配对结果_第X场_日期.xlsx，需含「队伍A」「Vendor A」「队伍B」「Vendor B」列</span><span class="lc-es">Opcional · no hace falta si ya se publicó en «Sistema de emparejamiento»<br>Debe incluir columnas «队伍A» «Vendor A» «队伍B» «Vendor B»</span></div>
-        <div class="upload-zone-sm" style="padding:12px"
-          ondragover="event.preventDefault();this.style.borderColor='var(--didi)'"
-          ondragleave="this.style.borderColor=''"
-          ondrop="event.preventDefault();this.style.borderColor='';handleMatchupUpload(event.dataTransfer.files[0])">
-          <input type="file" accept=".xlsx,.xls" onchange="handleMatchupUpload(this.files[0]);this.value=''">
-          <div style="font-size:18px;margin-bottom:4px">🎯</div>
-          <div style="font-size:11px;font-weight:600"><span class="lc-zh">点击或拖入配对文件</span><span class="lc-es">Haz clic o arrastra el archivo de emparejamientos</span></div>
-        </div>
-        <div class="alert" id="matchupUploadErr" style="margin-top:6px;font-size:10px"></div>
+    <!-- ② 骑手积分文件（主上传，通常只需这一个） -->
+    <div class="card" style="margin-bottom:12px;padding:16px;border-color:rgba(255,107,0,.45)">
+      <div style="font-weight:700;font-size:13px;margin-bottom:8px"><span class="lc-zh">📊 骑手积分文件 <span style="color:var(--didi);font-size:11px">（生成结果通常只需上传这一个）</span></span><span class="lc-es">📊 Archivo de puntos de riders <span style="color:var(--didi);font-size:11px">(normalmente solo necesitas este)</span></span>
+        <span id="scoreFileBadge" style="display:none;font-size:10px;font-weight:400;color:var(--win);margin-left:6px;background:var(--win-pale);border:1px solid var(--win-b);border-radius:20px;padding:1px 7px">✓ 已加载</span>
       </div>
-      <div class="card" style="margin-bottom:0;padding:14px">
-        <div style="font-weight:700;font-size:12px;margin-bottom:8px"><span class="lc-zh">📊 ② 骑手积分文件</span><span class="lc-es">📊 ② Archivo de puntos de riders</span>
-          <span id="scoreFileBadge" style="display:none;font-size:10px;font-weight:400;color:var(--win);margin-left:6px;background:var(--win-pale);border:1px solid var(--win-b);border-radius:20px;padding:1px 7px">✓ 已加载</span>
-        </div>
-        <div style="font-size:10px;color:var(--muted2);margin-bottom:8px"><span class="lc-zh">世界杯骑手积分规则-累计.xlsx<br>需含 rider_id、vendor_code、total_points 列</span><span class="lc-es">Puntos_Mundial_acumulado.xlsx<br>Debe incluir columnas rider_id, vendor_code, total_points</span></div>
-        <div class="upload-zone-sm" style="padding:12px"
-          ondragover="event.preventDefault();this.style.borderColor='var(--didi)'"
-          ondragleave="this.style.borderColor=''"
-          ondrop="event.preventDefault();this.style.borderColor='';handleScoreUpload(event.dataTransfer.files[0])">
-          <input type="file" accept=".xlsx,.xls" onchange="handleScoreUpload(this.files[0]);this.value=''">
-          <div style="font-size:18px;margin-bottom:4px">📊</div>
-          <div style="font-size:11px;font-weight:600"><span class="lc-zh">点击或拖入积分文件</span><span class="lc-es">Haz clic o arrastra el archivo de puntos</span></div>
-        </div>
-        <div class="alert" id="scoreUploadErr" style="margin-top:6px;font-size:10px"></div>
-      </div>
-    </div>
-    <!-- ③ 报名骑手 -->
-    <div class="card" style="margin-bottom:12px;padding:14px;border-color:rgba(255,107,0,.3)">
-      <div style="font-weight:700;font-size:12px;margin-bottom:6px"><span class="lc-zh">👥 ③ 报名骑手文件（可选）</span><span class="lc-es">👥 ③ Archivo de riders inscritos (opcional)</span>
-        <span id="regLoadedBadge" style="display:none;font-size:10px;font-weight:400;color:var(--win);margin-left:6px;background:var(--win-pale);border:1px solid var(--win-b);border-radius:20px;padding:1px 7px">✓ 已加载</span>
-      </div>
-      <div style="font-size:10px;color:var(--muted2);margin-bottom:8px"><span class="lc-zh">可选 · 系统已保存报名数据，一般无需上传（仅当多支队伍共用同一 Vendor、需精确匹配时再传）</span><span class="lc-es">Opcional · la inscripción ya está guardada; solo súbelo si varios equipos comparten el mismo Vendor y se necesita emparejar con precisión</span></div>
-      <div class="upload-zone-sm" style="padding:10px"
+      <div style="font-size:10px;color:var(--muted2);margin-bottom:8px"><span class="lc-zh">世界杯骑手积分规则-累计.xlsx，需含 rider_id、vendor_code、total_points 列</span><span class="lc-es">Puntos_Mundial_acumulado.xlsx · debe incluir columnas rider_id, vendor_code, total_points</span></div>
+      <div class="upload-zone-sm" style="padding:18px"
         ondragover="event.preventDefault();this.style.borderColor='var(--didi)'"
         ondragleave="this.style.borderColor=''"
-        ondrop="event.preventDefault();this.style.borderColor='';handleRegUpload(event.dataTransfer.files[0])">
-        <input type="file" accept=".xlsx,.xls,.csv" onchange="handleRegUpload(this.files[0]);this.value=''">
-        <div style="font-size:16px;margin-bottom:4px">👥</div>
-        <div style="font-size:11px;font-weight:600"><span class="lc-zh">点击或拖入报名文件</span><span class="lc-es">Haz clic o arrastra el archivo de inscripción</span></div>
+        ondrop="event.preventDefault();this.style.borderColor='';handleScoreUpload(event.dataTransfer.files[0])">
+        <input type="file" accept=".xlsx,.xls" onchange="handleScoreUpload(this.files[0]);this.value=''">
+        <div style="font-size:22px;margin-bottom:4px">📊</div>
+        <div style="font-size:12px;font-weight:700"><span class="lc-zh">点击或拖入积分文件</span><span class="lc-es">Haz clic o arrastra el archivo de puntos</span></div>
       </div>
-      <div class="alert" id="regUploadErr" style="margin-top:6px;font-size:10px"></div>
+      <div class="alert" id="scoreUploadErr" style="margin-top:6px;font-size:10px"></div>
+    </div>
+
+    <!-- 可选文件：配对 / 报名（默认折叠，平时无需） -->
+    <div style="margin-bottom:12px">
+      <button onclick="var b=document.getElementById('optFilesBox');var open=b.style.display!=='none';b.style.display=open?'none':'block';this.querySelector('.optArrow').textContent=open?'▸':'▾';" style="background:none;border:none;color:var(--muted2);cursor:pointer;font-size:12px;font-family:inherit;padding:4px 0">
+        <span class="optArrow">▸</span> <span class="lc-zh">其他文件（可选，通常无需上传）：配对结果文件 / 报名骑手文件</span><span class="lc-es">Otros archivos (opcional, normalmente no hace falta): emparejamientos / inscripción</span>
+      </button>
+      <div id="optFilesBox" style="display:none;margin-top:10px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="card" style="margin-bottom:0;padding:14px">
+            <div style="font-weight:700;font-size:12px;margin-bottom:8px"><span class="lc-zh">🎯 ① 配对结果文件</span><span class="lc-es">🎯 ① Archivo de emparejamientos</span>
+              <span id="matchupLoadedBadge" style="display:none;font-size:10px;font-weight:400;color:var(--win);margin-left:6px;background:var(--win-pale);border:1px solid var(--win-b);border-radius:20px;padding:1px 7px">✓ 已加载</span>
+            </div>
+            <div style="font-size:10px;color:var(--muted2);margin-bottom:8px"><span class="lc-zh">已在「配对系统」发布则无需上传<br>需含「队伍A」「Vendor A」「队伍B」「Vendor B」列</span><span class="lc-es">No hace falta si ya se publicó en «Sistema de emparejamiento»<br>Columnas «队伍A» «Vendor A» «队伍B» «Vendor B»</span></div>
+            <div class="upload-zone-sm" style="padding:12px"
+              ondragover="event.preventDefault();this.style.borderColor='var(--didi)'"
+              ondragleave="this.style.borderColor=''"
+              ondrop="event.preventDefault();this.style.borderColor='';handleMatchupUpload(event.dataTransfer.files[0])">
+              <input type="file" accept=".xlsx,.xls" onchange="handleMatchupUpload(this.files[0]);this.value=''">
+              <div style="font-size:18px;margin-bottom:4px">🎯</div>
+              <div style="font-size:11px;font-weight:600"><span class="lc-zh">点击或拖入配对文件</span><span class="lc-es">Haz clic o arrastra el archivo de emparejamientos</span></div>
+            </div>
+            <div class="alert" id="matchupUploadErr" style="margin-top:6px;font-size:10px"></div>
+          </div>
+          <div class="card" style="margin-bottom:0;padding:14px;border-color:rgba(255,107,0,.3)">
+            <div style="font-weight:700;font-size:12px;margin-bottom:6px"><span class="lc-zh">👥 ③ 报名骑手文件</span><span class="lc-es">👥 ③ Archivo de riders inscritos</span>
+              <span id="regLoadedBadge" style="display:none;font-size:10px;font-weight:400;color:var(--win);margin-left:6px;background:var(--win-pale);border:1px solid var(--win-b);border-radius:20px;padding:1px 7px">✓ 已加载</span>
+            </div>
+            <div style="font-size:10px;color:var(--muted2);margin-bottom:8px"><span class="lc-zh">系统已保存报名，一般无需上传（仅当多队共用同一 Vendor、需精确匹配时再传）</span><span class="lc-es">La inscripción ya está guardada; solo si varios equipos comparten el mismo Vendor</span></div>
+            <div class="upload-zone-sm" style="padding:10px"
+              ondragover="event.preventDefault();this.style.borderColor='var(--didi)'"
+              ondragleave="this.style.borderColor=''"
+              ondrop="event.preventDefault();this.style.borderColor='';handleRegUpload(event.dataTransfer.files[0])">
+              <input type="file" accept=".xlsx,.xls,.csv" onchange="handleRegUpload(this.files[0]);this.value=''">
+              <div style="font-size:16px;margin-bottom:4px">👥</div>
+              <div style="font-size:11px;font-weight:600"><span class="lc-zh">点击或拖入报名文件</span><span class="lc-es">Haz clic o arrastra el archivo de inscripción</span></div>
+            </div>
+            <div class="alert" id="regUploadErr" style="margin-top:6px;font-size:10px"></div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Status + tools -->
