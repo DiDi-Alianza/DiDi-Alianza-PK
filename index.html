@@ -1741,6 +1741,7 @@ let MATCHUP_ARCHIVE = {}; // {matchId: {matchId, pairs}} — 每场发布的配�
 let MATCHUP_VIEW_ID = null; // 配对结果页当前正在查看的场次
 // Global vendor→riders map (from score file, used for fallback matching)
 let VENDOR_RIDER_MAP = {};
+let UNGROUPED_RIDERS = {}; // 未进任何正式队伍的散户骑手（不组队，仅供积分查询）
 // matchupVendorMap: teamName → vendorCode (built from MATCHUP_DATA)
 let MATCHUP_VENDOR_MAP = {};
 // Perf data for matchmaking
@@ -3842,36 +3843,20 @@ function handleScoreUpload(file){
           });
         });
 
-        // STEP 4: Unmatched riders → catch-all vendor groups of 5
+        // STEP 4: 未匹配（没报名/没进任何正式队伍）的骑手 —— 不再凑成垃圾队！
+        // 仅保留其个人积分，供「积分查询」按骑手 ID 查询；不计入 SCORE_DATA（不参与排名/结果/导出）
         var matchedSet={};
         Object.values(teamMap).forEach(function(t){t.riders.forEach(function(r){matchedSet[normId(r.id)]=true;});});
-        var vcMap2={};
+        UNGROUPED_RIDERS={};
         rows.forEach(function(r){
           var rid2=normId(gc(r,['rider_id','骑手id']));var vc2=String(gc(r,['vendor_code'])||'').trim();
-          if(!rid2||!vc2||matchedSet[rid2])return;
-          if(!vcMap2[vc2])vcMap2[vc2]=[];vcMap2[vc2].push(rid2);
-        });
-        Object.keys(vcMap2).forEach(function(vc){
-          var rids=vcMap2[vc];var chunks=[];
-          for(var i=0;i<rids.length;i+=5)chunks.push(rids.slice(i,i+5));
-          chunks.forEach(function(chunk,ci){
-            var key2=vc+'||'+vc+(ci>0?'_'+(ci+1):'');
-            if(!teamMap[key2])teamMap[key2]={name:vc+(ci>0?' '+(ci+1):''),vendor:vc,
-              opponent:'',result:'',my_score:0,opp_score:0,
-              my_details:emptyDetails(),opp_details:emptyDetails(),riders:[]};
-            chunk.forEach(function(rid3,j){
-              var p3=riderScoreMap[rid3]||{slot23_pt:0,perfect_pt:0,weekend_perfect_bonus_pt:0,deduct_3r_pt:0,deduct_no_order_pt:0,zero_out:0,complete_orders:0,total_points:0};
-              teamMap[key2].my_score+=p3.total_points;
-              teamMap[key2].my_details.slot23_pt+=p3.slot23_pt;teamMap[key2].my_details.perfect_pt+=p3.perfect_pt;
-              teamMap[key2].my_details.weekend_perfect_bonus_pt+=p3.weekend_perfect_bonus_pt;
-              teamMap[key2].my_details.deduct_3r_pt+=p3.deduct_3r_pt;teamMap[key2].my_details.deduct_no_order_pt+=p3.deduct_no_order_pt;
-              teamMap[key2].riders.push({id:rid3,rank:j+1,slot23_pt:Math.round(p3.slot23_pt),
-                perfect_pt:Math.round(p3.perfect_pt),weekend_perfect_bonus_pt:Math.round(p3.weekend_perfect_bonus_pt),
-                deduct_3r_pt:Math.round(p3.deduct_3r_pt),deduct_no_order_pt:Math.round(p3.deduct_no_order_pt),
-                zero_out:p3.zero_out,complete_orders:p3.complete_orders,normal_total:Math.round(p3.total_points),
-                pk_bonus:0,pk_rank:null,pk_pct:null,final_total:Math.round(p3.total_points)});
-            });
-          });
+          if(!rid2||matchedSet[rid2]||UNGROUPED_RIDERS[rid2])return;
+          var p3=riderScoreMap[rid2]||{slot23_pt:0,perfect_pt:0,weekend_perfect_bonus_pt:0,deduct_3r_pt:0,deduct_no_order_pt:0,zero_out:0,complete_orders:0,total_points:0};
+          UNGROUPED_RIDERS[rid2]={id:rid2,vendor:vc2,teamName:'',teamResult:'',opponent:'',oppScore:0,
+            rank:null,slot23_pt:Math.round(p3.slot23_pt),perfect_pt:Math.round(p3.perfect_pt),
+            weekend_perfect_bonus_pt:Math.round(p3.weekend_perfect_bonus_pt),deduct_3r_pt:Math.round(p3.deduct_3r_pt),
+            deduct_no_order_pt:Math.round(p3.deduct_no_order_pt),zero_out:p3.zero_out,complete_orders:p3.complete_orders,
+            normal_total:Math.round(p3.total_points),pk_bonus:0,pk_rank:null,pk_pct:null,final_total:Math.round(p3.total_points)};
         });
         // Apply registration-based matching (if reg file was uploaded)
         if(REG_RIDER_MAP&&Object.keys(REG_RIDER_MAP).length>0){
@@ -3890,6 +3875,8 @@ function handleScoreUpload(file){
           RIDER_MAP[r.id]=Object.assign({},r,{teamName:team.name,teamResult:team.result,opponent:team.opponent,oppScore:team.opp_score});
         });
       });
+      // 把未组队的散户骑手并入（仅供积分查询，不影响排名/结果）
+      Object.keys(UNGROUPED_RIDERS||{}).forEach(function(rid){ if(!RIDER_MAP[rid]) RIDER_MAP[rid]=UNGROUPED_RIDERS[rid]; });
 
       initScorePage();
       saveResults();
@@ -4435,7 +4422,8 @@ function queryVendorResults(){
       if(!vcNameMap[n]||t.my_score>vcNameMap[n].my_score)vcNameMap[n]=t;
     }
   });
-  var teams=Object.values(vcNameMap).sort(function(a,b){return Number(b.my_score||0)-Number(a.my_score||0);});
+  var teams=Object.values(vcNameMap).sort(function(a,b){return teamTotalScore(b)-teamTotalScore(a);});
+  teams=filterDisplayTeams(teams); // 只显示真正参赛的队，过滤掉用 Vendor Code 凑出来的垃圾队
   if(!teams.length){
     panel.innerHTML='<div class="q-err show" style="display:block">'+L('未找到 Vendor Code: ','No se encontró el Vendor Code: ')+vc+L(' &nbsp; 请确认大小写（例如 EMILIODIDIMTY2512220）',' &nbsp; Verifica mayúsculas/minúsculas (ej. EMILIODIDIMTY2512220)')+'</div>';
     return;
@@ -4634,6 +4622,14 @@ function matchupParticipantSet(){
   });
   return s;
 }
+// 真正参赛的队 = 有胜/败结果 且 人数正常(≤8)。用于过滤掉用 Vendor Code 凑出来的垃圾队。
+function isPlayedTeam(t){ return !!(t && (t.result==='胜'||t.result==='败') && t.riders && t.riders.length>0 && t.riders.length<=8); }
+function filterDisplayTeams(teams){
+  var played=(teams||[]).filter(isPlayedTeam);
+  if(played.length) return played;                       // 有真正打过的 → 只显示这些
+  var real=(teams||[]).filter(function(t){return typeof isRealTeam!=='function'||isRealTeam(t.name);}); // 否则至少隐藏 Vendor Code 垃圾名
+  return real.length?real:(teams||[]);
+}
 function renderTop10(){
   var el=document.getElementById('top10Table');
   if(!el)return;
@@ -4790,6 +4786,8 @@ async function downloadRegistrations(){
 
 function downloadVendorResults(vc,teams){
   if(!teams||!teams.length){alert(L('没有数据可下载','No hay datos para descargar'));return;}
+  teams=(typeof filterDisplayTeams==='function')?filterDisplayTeams(teams):teams; // 只导出真正参赛的队
+  if(!teams.length){alert(L('该 Vendor 本场没有真正参赛的队伍','Este Vendor no tiene equipos que hayan competido'));return;}
   try{
     var wb=XLSX.utils.book_new();
     // Sheet 1: 队伍维度
