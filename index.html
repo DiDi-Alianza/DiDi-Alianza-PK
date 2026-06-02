@@ -2377,6 +2377,9 @@ function refreshDynamic(){
   try{ if(typeof initScorePage==='function') initScorePage(); }catch(e){}
   try{
     var vp=document.getElementById('vendorResultPanel'); if(vp&&vp.innerHTML.trim()&&typeof queryVendorResults==='function') queryVendorResults();
+    var tp=document.getElementById('teamResultPanel'); if(tp&&tp.innerHTML.trim()&&typeof queryTeamResults==='function') queryTeamResults();
+    var rqp=document.getElementById('riderQPanel'); if(rqp&&rqp.classList.contains('show')&&typeof queryRider==='function') queryRider();
+    if(typeof renderTop10==='function') renderTop10();
   }catch(e){}
   // clear newer dynamic panels so old-language text does not linger after switching
   try{
@@ -4324,10 +4327,10 @@ function queryVendorResults(){
     row1.appendChild(name);row1.appendChild(res);
     var score=document.createElement('div');
     score.style.cssText='font-size:22px;font-weight:900;color:var(--didi);margin-bottom:4px';
-    score.textContent=t.my_score.toLocaleString()+L(' 分',' pts');
+    score.textContent=((t.final_score!=null?t.final_score:t.my_score)||0).toLocaleString()+L(' 分',' pts');
     var opp=document.createElement('div');
     opp.style.cssText='font-size:11px;color:var(--muted2)';
-    opp.textContent=t.opponent?(L('对手：','Rival: ')+t.opponent+'（'+t.opp_score.toLocaleString()+L('分）',' pts）')):'—';
+    opp.textContent=t.opponent?(L('对手：','Rival: ')+t.opponent+'（'+((t.opp_final!=null?t.opp_final:t.opp_score)||0).toLocaleString()+L('分）',' pts）')):'—';
     var details=document.createElement('div');
     details.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;font-size:10px;color:var(--muted2)';
     var d=t.my_details||{};
@@ -4387,10 +4390,10 @@ function queryTeamResults(){
   res.textContent=isWin?L('🏆 胜','🏆 Victoria'):L('❌ 负','❌ Derrota');
   var sc=document.createElement('div');
   sc.style.cssText='font-size:24px;font-weight:900;color:var(--didi)';
-  sc.textContent=team.my_score.toLocaleString()+L(' 分',' pts');
+  sc.textContent=((team.final_score!=null?team.final_score:team.my_score)||0).toLocaleString()+L(' 分',' pts');
   var opp=document.createElement('div');
   opp.style.cssText='font-size:11px;color:var(--muted2)';
-  opp.textContent=L('对手：','Rival: ')+(team.opponent||'—')+'（'+(team.opp_score||0).toLocaleString()+L('分）',' pts）');
+  opp.textContent=L('对手：','Rival: ')+(team.opponent||'—')+'（'+((team.opp_final!=null?team.opp_final:team.opp_score)||0).toLocaleString()+L('分）',' pts）');
   right.appendChild(res);right.appendChild(sc);right.appendChild(opp);
   row1.appendChild(left);row1.appendChild(right);
 
@@ -4473,6 +4476,8 @@ function queryTeamResults(){
 function renderTop10(){
   var el=document.getElementById('top10Table');
   if(!el)return;
+  // 队伍总分 = 基础骑手积分(my_score) + PK赢得分(pk_total)；用 final_score（含PK），回退到 my_score
+  var tScore=function(t){var v=(t.final_score!==undefined&&t.final_score!==null)?t.final_score:t.my_score;return Number(v||0);};
   // Context-aware messages based on what data is loaded
   if(!SCORE_DATA||!Object.keys(SCORE_DATA).length){
     el.innerHTML='<div style="color:var(--muted2);font-size:12px;padding:20px 0;text-align:center">'+L('请先通过「⚙️ 运营入口」上传配对文件和积分文件','Primero sube el archivo de duelos y el de puntos desde «⚙️ Entrada de operaciones»')+'</div>';
@@ -4487,15 +4492,30 @@ function renderTop10(){
     if(/^[A-Za-z0-9]+( \d+)?$/.test(name)&&name.length>12)return false;
     return true;
   };
+  // 只统计"真正参赛"的队伍 = 出现在已发布配对里的队伍（来自当前/最近发布的对阵）
+  var participants=null;
+  try{
+    var _mu=(typeof currentMatchup==='function'?currentMatchup():null)||MATCHUP_DATA;
+    if(_mu&&_mu.pairs&&_mu.pairs.length){
+      participants={};
+      _mu.pairs.forEach(function(p){
+        if(p.a&&p.a.team)participants[String(p.a.team).trim().toLowerCase()]=1;
+        if(p.b&&p.b.team)participants[String(p.b.team).trim().toLowerCase()]=1;
+      });
+    }
+  }catch(e){}
   // Deduplicate by team name - keep highest score entry per team name
   var nameMap={};
   Object.values(SCORE_DATA).forEach(function(t){
     var n=t.name;
-    if(!isRealTeam(n))return; // Skip catch-all vendor-code teams
-    if(!nameMap[n]||Number(t.my_score||0)>Number(nameMap[n].my_score||0))nameMap[n]=t;
+    if(!n)return;
+    if(participants){ if(!participants[String(n).trim().toLowerCase()])return; } // 只保留真正参赛的队
+    else if(!isRealTeam(n))return; // 没有配对时，退回到过滤垃圾名
+    if(!nameMap[n]||tScore(t)>tScore(nameMap[n]))nameMap[n]=t;
   });
-  var allTeams=Object.values(nameMap).sort(function(a,b){return Number(b.my_score||0)-Number(a.my_score||0);});
-  var top10=allTeams.filter(function(t){return Number(t.my_score||0)>0;}).slice(0,10);
+  var allTeams=Object.values(nameMap).sort(function(a,b){return tScore(b)-tScore(a);});
+  // 有配对时显示全部参赛队（最多前10）；无配对时沿用"分数>0"过滤
+  var top10=(participants?allTeams:allTeams.filter(function(t){return tScore(t)>0;})).slice(0,10);
   if(!top10.length){
     var msg=Object.keys(VENDOR_RIDER_MAP||{}).length===0
       ?L('已加载配对数据 (','Datos de duelos cargados (')+allTeams.length+L('支队伍)，请在运营入口上传 ② 骑手积分文件以计算得分',' equipos), sube el archivo ② de puntos de riders en la entrada de operaciones para calcular')
@@ -4516,7 +4536,7 @@ function renderTop10(){
   table.appendChild(colgroup);
   var hdr=table.insertRow();
   hdr.style.cssText='color:var(--muted2);border-bottom:1px solid var(--border)';
-  [L('名次','Pos.'),L('队伍名称','Equipo'),'Vendor Code',L('积分（含PK奖励）','Puntos (con bono PK)'),L('胜负','Resultado')].forEach(function(h,i){
+  [L('名次','Pos.'),L('队伍名称','Equipo'),'Vendor',L('积分（含PK奖励）','Puntos (con bono PK)'),L('胜负','Resultado')].forEach(function(h,i){
     var th=document.createElement('th');
     th.style.cssText='padding:6px 8px;text-align:'+(i>=3?'center':'left')+';font-weight:600;font-size:11px;color:var(--muted2)';
     th.textContent=h;hdr.appendChild(th);
@@ -4526,8 +4546,8 @@ function renderTop10(){
     row.style.borderBottom='1px solid var(--border2)';
     var isWin=t.result==='胜';
     if(isWin)row.style.background='rgba(16,185,129,.04)';
-    var vc=(t.vendor||'—').toUpperCase();
-    var cells=[medals[i]||(i+1)+(LANG==='es'?' lugar':'位'), t.name, vc, t.my_score.toLocaleString(), isWin?L('🏆 胜','🏆 Victoria'):L('❌ 负','❌ Derrota')];
+    var vc=(typeof vendorName==='function'?vendorName(t.vendor||'—'):(t.vendor||'—')).toUpperCase();
+    var cells=[medals[i]||(i+1)+(LANG==='es'?' lugar':'位'), t.name, vc, tScore(t).toLocaleString(), isWin?L('🏆 胜','🏆 Victoria'):L('❌ 负','❌ Derrota')];
     cells.forEach(function(val,ci){
       var td=row.insertCell();
       if(ci===0) td.style.cssText='padding:8px 6px;font-weight:700;color:var(--didi);font-size:13px';
@@ -4619,10 +4639,11 @@ function downloadVendorResults(vc,teams){
   try{
     var wb=XLSX.utils.book_new();
     // Sheet 1: 队伍维度
-    var teamRows=[[L('队伍名称','Equipo'),'Vendor Code',L('比赛结果','Resultado'),L('本队积分','Mis puntos'),L('对手队伍','Equipo rival'),L('对手积分','Puntos rival'),L('在线积分','Puntos en línea'),L('完美单积分','Puntos perfectos'),L('周末加成','Bono fin de semana'),L('D责扣分','Desc. Resp. D'),L('排班扣分','Desc. turno')]];
+    var teamRows=[[L('队伍名称','Equipo'),'Vendor Code',L('比赛结果','Resultado'),L('骑手积分','Puntos riders'),L('PK赛积分','Puntos PK'),L('总积分','Total'),L('对手队伍','Equipo rival'),L('对手积分','Puntos rival'),L('在线积分','Puntos en línea'),L('完美单积分','Puntos perfectos'),L('周末加成','Bono fin de semana'),L('D责扣分','Desc. Resp. D'),L('排班扣分','Desc. turno')]];
     teams.forEach(function(t){
       var d=t.my_details||{};
-      teamRows.push([t.name,t.vendor,rTxt(t.result),t.my_score,t.opponent||'',t.opp_score||0,
+      var fin=(t.final_score!=null?t.final_score:t.my_score)||0;
+      teamRows.push([t.name,t.vendor,rTxt(t.result),t.my_score,t.pk_total||0,fin,t.opponent||'',t.opp_score||0,
         Math.round(d.slot23_pt||0),Math.round(d.perfect_pt||0),Math.round(d.weekend_perfect_bonus_pt||0),
         Math.round(d.deduct_3r_pt||0),Math.round(d.deduct_no_order_pt||0)]);
     });
@@ -4648,10 +4669,11 @@ function downloadAllResults(){
   try{
     var wb=XLSX.utils.book_new();
     // Sheet 1: team dimension
-    var teamRows=[[L('队伍名称','Equipo'),'Vendor Code',L('比赛结果','Resultado'),L('我方积分','Mis puntos'),L('对手队伍','Equipo rival'),L('对手积分','Puntos rival'),L('在线积分','Puntos en línea'),L('完美单积分','Puntos perfectos'),L('周末加成','Bono fin de semana'),L('D责扣分','Desc. Resp. D'),L('排班扣分','Desc. turno')]];
-    Object.values(SCORE_DATA).sort(function(a,b){return b.my_score-a.my_score;}).forEach(function(t){
+    var teamRows=[[L('队伍名称','Equipo'),'Vendor Code',L('比赛结果','Resultado'),L('骑手积分','Puntos riders'),L('PK赛积分','Puntos PK'),L('总积分','Total'),L('对手队伍','Equipo rival'),L('对手积分','Puntos rival'),L('在线积分','Puntos en línea'),L('完美单积分','Puntos perfectos'),L('周末加成','Bono fin de semana'),L('D责扣分','Desc. Resp. D'),L('排班扣分','Desc. turno')]];
+    Object.values(SCORE_DATA).sort(function(a,b){var fa=(a.final_score!=null?a.final_score:a.my_score)||0,fb=(b.final_score!=null?b.final_score:b.my_score)||0;return fb-fa;}).forEach(function(t){
       var d=t.my_details||{};
-      teamRows.push([t.name,t.vendor,rTxt(t.result),t.my_score,t.opponent||'',t.opp_score||0,
+      var fin=(t.final_score!=null?t.final_score:t.my_score)||0;
+      teamRows.push([t.name,t.vendor,rTxt(t.result),t.my_score,t.pk_total||0,fin,t.opponent||'',t.opp_score||0,
         Math.round(d.slot23_pt||0),Math.round(d.perfect_pt||0),Math.round(d.weekend_perfect_bonus_pt||0),
         Math.round(d.deduct_3r_pt||0),Math.round(d.deduct_no_order_pt||0)]);
     });
@@ -4755,7 +4777,7 @@ function rebuildVendorFallback(teamMap){
 function applyPKBonus(teamMap){
   if(!MATCHUP_DATA||!MATCHUP_DATA.pairs)return;
   // Reset results first
-  Object.values(teamMap).forEach(function(t){t.result='';t.opponent='';t.opp_score=0;t.riders.forEach(function(r){r.pk_bonus=0;r.pk_rank=null;r.pk_pct=null;r.final_total=r.normal_total;});});
+  Object.values(teamMap).forEach(function(t){t.result='';t.opponent='';t.opp_score=0;t.pk_total=0;t.final_score=Number(t.my_score||0);t.riders.forEach(function(r){r.pk_bonus=0;r.pk_rank=null;r.pk_pct=null;r.final_total=r.normal_total;});});
   MATCHUP_DATA.pairs.forEach(function(pair){
     // When duplicate team names exist, always use highest-scoring entry
     var aKey=Object.keys(teamMap).filter(function(k){return teamMap[k].name===pair.a.team;}).sort(function(x,y){return teamMap[y].my_score-teamMap[x].my_score;})[0];
@@ -4776,6 +4798,11 @@ function applyPKBonus(teamMap){
       r.pk_bonus=(r.complete_orders>0)?Math.round(loser.my_score*r.pk_pct):0;
       r.final_total=r.normal_total+r.pk_bonus;
     });
+    // team-level: PK 赢得分汇总 + 含PK总分
+    winner.pk_total=winner.riders.reduce(function(s,r){return s+(r.pk_bonus||0);},0);
+    winner.final_score=Number(winner.my_score||0)+winner.pk_total;
+    loser.pk_total=0;loser.final_score=Number(loser.my_score||0);
+    winner.opp_final=loser.final_score;loser.opp_final=winner.final_score;
   });
 }
 
