@@ -1335,6 +1335,7 @@ select.fi option{background:#18181E}
       <button class="btn btn-s btn-sm" onclick="clearAllScoreData()" style="border-color:rgba(239,68,68,.4);color:#EF4444"><span class="lc-zh">🗑️ 清空比赛数据</span><span class="lc-es">🗑️ Borrar datos de partidos</span></button>
       <button class="btn btn-s btn-sm" onclick="clearEverything()" style="border-color:rgba(168,85,247,.4);color:#A855F7;font-weight:700"><span class="lc-zh">🔴 清空所有数据</span><span class="lc-es">🔴 Borrar todos los datos</span></button>
     </div>
+    <div id="sharedVendorWarn" style="display:none;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.5);border-radius:9px;padding:10px 14px;margin-bottom:8px;font-size:12px;color:#F59E0B;line-height:1.6"></div>
     <div id="diagPanel" style="display:none;background:var(--s3);border:1px solid var(--border);border-radius:10px;padding:14px;margin-top:8px;font-size:10px;font-family:monospace;white-space:pre-wrap;color:var(--muted2);max-height:200px;overflow-y:auto"></div>
   </div>
 
@@ -5144,7 +5145,33 @@ function initScorePage(){
       statusBadge.textContent='⚠️ '+cnt+L('支队伍均积分为0 — 请上传 ② 骑手积分文件，或点「🔄 重算积分」重试',' equipos con 0 puntos — sube el archivo ② de puntos de riders o haz clic en «🔄 Recalcular puntos»');
     }
   }
-  // Update the top status bar — OPERATOR ONLY (sensitive operational stats; vendors must not see)
+  // 检测"多支参赛队共用同一 Vendor 但没上传 ③ 报名文件" → 提醒（否则共用 Vendor 的队会被错误分配骑手）
+  try{
+    var swEl=document.getElementById('sharedVendorWarn');
+    if(swEl && OPERATOR){
+      var hasReg=(typeof REG_RIDER_MAP!=='undefined'&&REG_RIDER_MAP&&Object.keys(REG_RIDER_MAP).length>0);
+      var vcTeams={};
+      // 用本场配对里的参赛队来判断（队名 → vendor）
+      var src=(MATCHUP_DATA&&MATCHUP_DATA.pairs&&MATCHUP_DATA.pairs.length)
+        ? (function(){var a=[];MATCHUP_DATA.pairs.forEach(function(p){if(p.a)a.push(p.a);if(p.b)a.push(p.b);});return a;})()
+        : teams.map(function(t){var d=SCORE_DATA[t.key];return {team:t.name,vendor:d&&d.vendor};});
+      src.forEach(function(t){
+        var vc=String(t.vendor||'').toUpperCase(); var nm=String(t.team||'').trim();
+        if(!vc||!nm)return;
+        if(!vcTeams[vc])vcTeams[vc]={};
+        vcTeams[vc][nm.toLowerCase()]=nm;
+      });
+      var shared=Object.keys(vcTeams).filter(function(vc){return Object.keys(vcTeams[vc]).length>=2;});
+      if(shared.length && !hasReg){
+        var detail=shared.map(function(vc){return (typeof vendorName==='function'?vendorName(vc):vc)+'（'+Object.values(vcTeams[vc]).join('、')+'）';}).join('；');
+        swEl.innerHTML=L(
+          '⚠️ <strong>本场有多支队伍共用同一 Vendor，但还没上传 ③ 报名骑手文件</strong>。系统无法判断这些骑手该归哪支队，会导致这些队的骑手分配错误、可能不显示在 Top 10。<br>共用情况：'+detail+'。<br>请到上方"其他文件"展开，上传 ③ 报名骑手文件（含 team_name 与 rider_id），再点「🔄 重算」。',
+          '⚠️ <strong>Hay equipos que comparten el mismo Vendor y aún no subiste el archivo ③ de inscripción</strong>. El sistema no puede saber a qué equipo va cada rider, así que se asignarán mal y pueden no aparecer en el Top 10.<br>Compartidos: '+detail+'.<br>Abre «Otros archivos» arriba y sube el ③ (con team_name y rider_id), luego «🔄 Recalcular».'
+        );
+        swEl.style.display='block';
+      } else { swEl.style.display='none'; }
+    } else if(swEl){ swEl.style.display='none'; }
+  }catch(e){}
   var dsb=document.getElementById('dataStatusBar');
   if(dsb){
     if(!OPERATOR){ dsb.style.display='none'; dsb.textContent=''; }
