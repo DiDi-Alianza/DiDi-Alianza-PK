@@ -2535,6 +2535,61 @@ async function renderDashboard(){
       +'</tbody></table></div>';
     html+='<div style="font-size:11px;color:var(--muted);margin-top:5px">'+L('参赛 = 该场已发布配对里"配对成功"的队伍/骑手；总骑手来自骑手名册（附件2）。当前数据来源：','Participación = equipos/riders emparejados en este partido; total = roster (anexo 2). Fuente: ')+_partSource+'</div>';
 
+    // ---- PK · 自动日报分析（按当天数据 + 与上一场对比）----
+    (function(){
+      var sumTotV=0,sumRegV=0,sumTotR=0,sumRegR=0; ownerRows.forEach(function(r){sumTotV+=r.totV;sumRegV+=r.regV;sumTotR+=r.totR;sumRegR+=r.regR;});
+      var vRate=sumTotV?sumRegV/sumTotV*100:0, rRate=sumTotR?sumRegR/sumTotR*100:0;
+      var roundName=mlabel(M||'');
+      // 与上一场对比
+      var cmp=null, prevName='';
+      if(window._TREND&&window._TREND.matches.length){
+        var ms=window._TREND.matches, idx=-1; for(var i=0;i<ms.length;i++){if(String(ms[i].id)===String(M))idx=i;}
+        if(idx>0){ var cur=ms[idx].scope.ALL||{pv:0,pr:0}, prv=ms[idx-1].scope.ALL||{pv:0,pr:0};
+          prevName=ms[idx-1].label;
+          var pvr=window._TREND.totV.ALL?prv.pv/window._TREND.totV.ALL*100:0, prr=window._TREND.totR.ALL?prv.pr/window._TREND.totR.ALL*100:0;
+          cmp={dV:cur.pv-prv.pv, dR:cur.pr-prv.pr, dVr:vRate-pvr, dRr:rRate-prr};
+        }
+      }
+      var sorted=ownerRows.slice().sort(function(a,b){return b.regV-a.regV;});
+      var top=sorted.filter(function(r){return r.regV>0;}).slice(0,3).map(function(r){return r.k+'('+r.regV+')';});
+      var zeros=ownerRows.filter(function(r){return r.regV===0&&r.totV>=1;}).sort(function(a,b){return b.totV-a.totV;}).map(function(r){return r.k+'(0/'+r.totV+')';});
+      var sign=function(n){return (n>=0?'+':'')+n;};
+      var signp=function(n){return (n>=0?'+':'')+(Math.round(n*10)/10)+'%';};
+      var arrow=function(n){return n>0?'↑':(n<0?'↓':'→');};
+      var H=function(s){return '<div style="font-weight:700;font-size:12.5px;margin:10px 0 4px">'+s+'</div>';};
+      var P=function(s){return '<div style="font-size:12px;color:var(--text);line-height:1.7;margin-bottom:2px">'+s+'</div>';};
+      var da='<div style="background:var(--s2);border:1px solid var(--didi);border-radius:12px;padding:14px 16px;margin-top:14px">';
+      da+='<div style="font-weight:800;font-size:14px;margin-bottom:6px;color:var(--didi)">'+L('📋 早会自动分析','📋 Análisis para junta','📋 Auto Analysis for Daily Meeting')+' — '+roundName+'</div>';
+      // 一、整体
+      da+=H(L('一、整体参赛情况','1. Panorama general','1. Overall participation'));
+      da+=P(L('本场参赛 Vendor '+sumRegV+'/'+sumTotV+'（'+pct(sumRegV,sumTotV)+'）；参赛骑手 '+fmtN(sumRegR)+'/'+fmtN(sumTotR)+'（'+pct(sumRegR,sumTotR)+'）。',
+             'Vendors '+sumRegV+'/'+sumTotV+' ('+pct(sumRegV,sumTotV)+'); riders '+fmtN(sumRegR)+'/'+fmtN(sumTotR)+' ('+pct(sumRegR,sumTotR)+').',
+             'Vendors '+sumRegV+'/'+sumTotV+' ('+pct(sumRegV,sumTotV)+'); riders '+fmtN(sumRegR)+'/'+fmtN(sumTotR)+' ('+pct(sumRegR,sumTotR)+').'));
+      if(vRate<30)da+=P(L('整体参赛率偏低，仍有大量 Vendor / 骑手未进入 PK 赛。','La participación general es baja; muchos vendors/riders aún no entran al PK.','Overall participation is low; many vendors/riders are still not joining the PK.'));
+      // 二、对比
+      if(cmp){
+        da+=H(L('二、与上一场对比（'+prevName+'）','2. vs partido anterior ('+prevName+')','2. vs previous round ('+prevName+')'));
+        da+=P(L('参赛 Vendor '+arrow(cmp.dV)+' '+sign(cmp.dV)+'（参赛率 '+signp(cmp.dVr)+'）；参赛骑手 '+arrow(cmp.dR)+' '+sign(cmp.dR)+'（参赛率 '+signp(cmp.dRr)+'）。',
+               'Vendors '+arrow(cmp.dV)+' '+sign(cmp.dV)+' (tasa '+signp(cmp.dVr)+'); riders '+arrow(cmp.dR)+' '+sign(cmp.dR)+' (tasa '+signp(cmp.dRr)+').',
+               'Vendors '+arrow(cmp.dV)+' '+sign(cmp.dV)+' (rate '+signp(cmp.dVr)+'); riders '+arrow(cmp.dR)+' '+sign(cmp.dR)+' (rate '+signp(cmp.dRr)+').'));
+        if(cmp.dV>0)da+=P(L('较上一场有所改善，需保持并继续扩大覆盖。','Mejora respecto al anterior; mantener y ampliar cobertura.','Improved vs last round; keep it up and widen coverage.'));
+        else if(cmp.dV<0)da+=P(L('较上一场有所下滑，需重点回访已流失的 Vendor。','Bajó respecto al anterior; recontactar a los vendors perdidos.','Declined vs last round; re-engage the vendors that dropped off.'));
+      }
+      // 三、分维度
+      da+=H(L('三、各 RM/VM 表现','3. Por RM/VM','3. By RM/VM'));
+      if(top.length)da+=P(L('表现较好：','Mejores: ','Top performers: ')+top.join('、'));
+      if(zeros.length)da+=P('<span style="color:#F59E0B">'+L('参赛为零（需重点攻坚）：','Cero participación (prioridad): ','Zero participation (priority): ')+zeros.slice(0,12).join('、')+(zeros.length>12?' …':'')+'</span>');
+      // 四、建议
+      da+=H(L('四、行动建议','4. Recomendaciones','4. Recommendations'));
+      da+=P(L('1) 优先攻坚"参赛为零"的负责人，今日内逐一联系旗下 Vendor，先破零。','1) Priorizar a los managers en cero: contactar hoy a cada vendor.','1) Prioritize zero-participation managers: contact each vendor today.'));
+      da+=P(L('2) 向 Vendor 明确：不积极参加 PK 赛会拉低其奖金池排名、直接减少最终收入；多参赛 = 排名更高 = 收入更高。','2) Dejar claro a los vendors: no participar baja su ranking en el pool de bonos y reduce sus ingresos; más participación = mejor ranking = más ingresos.','2) Make clear to vendors: not participating lowers their bonus-pool ranking and reduces final income; more participation = higher ranking = higher income.'));
+      da+=P(L('3) 本周目标：Vendor 参赛率 ≥ 30%、骑手参赛率 ≥ 15%。','3) Meta semanal: vendors ≥ 30%, riders ≥ 15%.','3) Weekly target: vendor rate ≥ 30%, rider rate ≥ 15%.'));
+      da+=P(L('4) 每天早会用本看板复盘各 RM/VM 进度，落实到具体人、具体待办；注意配对生成即报名截止，须在截止前动员。','4) Revisar a diario el avance por RM/VM; la inscripción cierra al generar emparejamientos.','4) Review progress by RM/VM daily; registration closes once matchups are generated.'));
+      da+='<div style="font-size:10px;color:var(--muted);margin-top:8px">'+L('* 本分析根据所选场次的实时数据自动生成。','* Generado automáticamente con datos del partido seleccionado.','* Auto-generated from the selected round\'s live data.')+'</div>';
+      da+='</div>';
+      html+=da;
+    })();
+
     // ---- PT · 按 RM/VM 与 Vendor ----
     var ptByVc={}; pts.forEach(function(r){ var vc=String(r.vendor_code||'').toUpperCase(); if(!vc)return; ptByVc[vc]=(ptByVc[vc]||0)+1; });
     var ptOwner={}; Object.keys(ptByVc).forEach(function(vc){ var o=vendorOwner(vc); var k=o.label; if(!ptOwner[k])ptOwner[k]={type:o.type,isNew:o.isNew,v:0,r:0}; ptOwner[k].v++; ptOwner[k].r+=ptByVc[vc]; });
