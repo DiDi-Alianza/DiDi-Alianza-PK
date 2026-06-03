@@ -2204,7 +2204,14 @@ function renderTrendByOwner(){
   var series=others.map(function(sc,i){ return {name:sc,color:palette[i%palette.length],points:t.matches.map(function(m){return {label:m.label,val:_trendMetricVal(t,sc,metric,m)};})}; });
   box.innerHTML=_svgLine(series,isPct,false); // 多线不标数字
 }
-function renderTrendChart(){ renderTrendTotal(); renderTrendByOwner(); }
+function renderRegTrend(){
+  var box=document.getElementById('regTrendChart'); if(!box) return;
+  var t=window._REGTREND; if(!t||!t.matches||!t.matches.length){ box.innerHTML='<div style="font-size:12px;color:var(--muted2)">'+L('暂无报名场次','Sin inscripciones','No registrations yet')+'</div>'; return; }
+  var el=document.getElementById('regTrendMetric'); var metric=el?el.value:'rv';
+  var series=[{name:(metric==='rv'?L('报名 Vendor 数','Vendors inscritos','Registered vendors'):L('报名队伍数','Equipos inscritos','Registered teams')),color:'#3D9EFF',points:t.matches.map(function(m){return {label:m.label,val:(metric==='rv'?m.rv:m.rt)};})}];
+  box.innerHTML=_svgLine(series,false,true);
+}
+function renderTrendChart(){ renderTrendTotal(); renderTrendByOwner(); renderRegTrend(); }
 function _lastNDays(n){
   var arr=[]; var now=new Date(Date.now()-MX_OFFSET_MS);
   for(var i=n-1;i>=0;i--){ var d=new Date(now.getTime()-i*86400000); arr.push(d.getUTCFullYear()+'-'+_p2(d.getUTCMonth()+1)+'-'+_p2(d.getUTCDate())); }
@@ -2438,6 +2445,12 @@ async function renderDashboard(){
     window._TREND={ matches:_trend, scopes:['ALL'].concat(Object.keys(_scopesSet).sort()), totV:{ALL:_allTotV}, totR:{ALL:_allTotR} };
     Object.keys(_ownerTotV).forEach(function(o){ window._TREND.totV[o]=_ownerTotV[o]; window._TREND.totR[o]=_ownerTotR[o]; });
 
+    // ===== 报名趋势（预警）：所有"有报名"的场次（含未配对的未来场次）=====
+    var _regAgg={};
+    regs.forEach(function(r){ var mid=String(r.match_id); if(!mid||mid==='undefined'||mid==='null')return; if(!_regAgg[mid])_regAgg[mid]={v:{},t:{}}; var vc=String(r.vendor_code||'').toUpperCase(); if(vc)_regAgg[mid].v[vc]=1; var tn=String(r.team_name||'').trim().toLowerCase(); if(tn)_regAgg[mid].t[vc+'|'+tn]=1; });
+    var _regIds=Object.keys(_regAgg).sort(function(a,b){var ka=matchDateKey(a),kb=matchDateKey(b);if(ka!=null&&kb!=null)return ka-kb;return parseInt(a)-parseInt(b);});
+    window._REGTREND={ matches:_regIds.map(function(mid){ return {id:mid,label:(matchLabel(parseInt(mid))||('第'+mid+'场')),rv:Object.keys(_regAgg[mid].v).length,rt:Object.keys(_regAgg[mid].t).length}; }) };
+
     // 按 owner 聚合（PK）
     var ownerAgg={};
     universe.forEach(function(vc){
@@ -2472,6 +2485,15 @@ async function renderDashboard(){
     html+=sec(L('📈 PK 趋势 · 各 RM/VM 对比','📈 Tendencia PK · por RM/VM','📈 PK Trend · by RM/VM'));
     html+='<div style="margin-bottom:8px">'+_metSel('trendMetricOwner')+'</div>';
     html+='<div id="trendChartOwner" style="background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:14px 10px">'+L('加载中…','Cargando…','Loading…')+'</div>';
+
+    // ---- 报名趋势（预警，含未配对的未来场次）----
+    html+=sec(L('📈 报名趋势 · 预警','📈 Tendencia de inscripción','📈 Registration Trend (early warning)')
+      +' <span style="font-size:11px;color:var(--muted);font-weight:400">'+L('（含尚未配对的后续场次）','(incluye partidos aún sin emparejar)','(includes upcoming, not-yet-matched rounds)')+'</span>');
+    html+='<div style="margin-bottom:8px"><select id="regTrendMetric" onchange="renderRegTrend()" style="padding:7px 11px;font-size:12px;background:var(--s2);color:var(--text);border:1px solid var(--border);border-radius:8px">'
+      +'<option value="rv">'+L('报名 Vendor 数','Vendors inscritos','Registered vendors')+'</option>'
+      +'<option value="rt">'+L('报名队伍数','Equipos inscritos','Registered teams')+'</option>'
+      +'</select></div>';
+    html+='<div id="regTrendChart" style="background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:14px 10px">'+L('加载中…','Cargando…','Loading…')+'</div>';
 
     // ---- PK · 按 RM/VM ----
     html+=sec(L('🏁 PK 参赛 · 按 RM/VM','🏁 PK por RM/VM')+' <span style="font-size:11px;color:var(--muted)">('+mlabel(M||'')+')</span>');
