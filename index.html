@@ -2158,6 +2158,13 @@ function _lastNDays(n){
 }
 window._DASH={};
 let DASH_MATCH_ID=null; // Dashboard 当前分析的场次
+let DASH_TAB='ov'; // Dashboard 当前页签
+function _dtb(t,label){ return '<button class="dtb" data-t="'+t+'" onclick="dashShowTab(\''+t+'\')" style="padding:7px 14px;font-size:12.5px;border-radius:9px;border:1px solid var(--border);background:var(--s2);color:var(--text);cursor:pointer;font-family:inherit">'+label+'</button>'; }
+function dashShowTab(t){
+  DASH_TAB=t;
+  var dabs=document.querySelectorAll('#dashBody .dtab'); for(var i=0;i<dabs.length;i++){ dabs[i].style.display=(dabs[i].getAttribute('data-t')===t)?'block':'none'; }
+  var btns=document.querySelectorAll('#dashTabBar .dtb'); for(var j=0;j<btns.length;j++){ var on=btns[j].getAttribute('data-t')===t; btns[j].style.background=on?'var(--didi)':'var(--s2)'; btns[j].style.color=on?'#fff':'var(--text)'; btns[j].style.borderColor=on?'var(--didi)':'var(--border)'; btns[j].style.fontWeight=on?'700':'400'; }
+}
 async function renderDashboard(){
   var body=document.getElementById('dashBody');
   if(!body) return;
@@ -2224,6 +2231,7 @@ async function renderDashboard(){
     var grid=function(cards){return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">'+cards.join('')+'</div>';};
 
     var html='';
+    html+='<div class="dtab" data-t="ov">';
     html+=sec(L('📊 规模','📊 Escala'));
     html+=grid([
       _card(L('报名队伍数','Equipos inscritos'),teamsTotal,L('去重队伍名','Equipos únicos')),
@@ -2314,18 +2322,30 @@ async function renderDashboard(){
     var M=DASH_MATCH_ID;
     var mlabel=function(id){ var lb=(typeof matchLabel==='function')?matchLabel(parseInt(id)):('第'+id+'场'); var en=allScheduleEntry(parseInt(id)); return lb+(en?' · '+sDate(en)+' '+sDay(en):''); };
 
-    // 真正参赛 = 该场已发布配对里"配对成功"的队伍与骑手（日会在早上，结果还没上传，故取配对）
+    // 真正参赛 = 该场已发布配对里"配对成功"的队伍；其骑手取自这些队在本场的报名记录（报名一定有5名骑手）
     var regVendorsM={}, regRidersByVc={};
     var _mu=(typeof MATCHUP_ARCHIVE!=='undefined'&&MATCHUP_ARCHIVE&&M!=null)?MATCHUP_ARCHIVE[String(M)]:null;
     var _muPairs=(_mu&&_mu.pairs&&_mu.pairs.length)?_mu.pairs:null;
+    // 本场报名：队名(小写) -> {vendor, riders[]}
+    var regByTeam={};
+    regs.forEach(function(r){
+      if(String(r.match_id)!==String(M))return;
+      var tn=String(r.team_name||'').trim().toLowerCase(); if(!tn)return;
+      var rd=r.riders; if(typeof rd==='string'){try{rd=JSON.parse(rd);}catch(e){rd=[];}}
+      regByTeam[tn]={vendor:String(r.vendor_code||'').toUpperCase(), riders:(rd||[])};
+    });
     if(_muPairs){
       _muPairs.forEach(function(p){
         [p.a,p.b].forEach(function(side){
-          if(!side)return;
-          var vc=String(side.vendor||'').toUpperCase(); if(!vc)return;
+          if(!side||!side.team)return;
+          var tn=String(side.team).trim().toLowerCase();
+          var regt=regByTeam[tn];
+          var vc=(regt&&regt.vendor)?regt.vendor:String(side.vendor||'').toUpperCase();
+          if(!vc)return;
           regVendorsM[vc]=1;
           if(!regRidersByVc[vc])regRidersByVc[vc]={};
-          (side.riders||[]).forEach(function(x){ if(x)regRidersByVc[vc][normIdG(x)]=1; });
+          var rds=(regt&&regt.riders&&regt.riders.length)?regt.riders:(side.riders||[]);
+          (rds||[]).forEach(function(x){ if(x)regRidersByVc[vc][normIdG(x)]=1; });
         });
       });
     } else {
@@ -2339,7 +2359,7 @@ async function renderDashboard(){
         (rd||[]).forEach(function(x){ if(x)regRidersByVc[vc][normIdG(x)]=1; });
       });
     }
-    var _partSource=_muPairs?L('配对（匹配成功的参赛队）','emparejamientos'):L('报名数据（该场配对还未发布）','inscripciones (sin emparejar)');
+    var _partSource=_muPairs?L('配对（匹配成功的参赛队）+ 其报名骑手','emparejamientos + inscritos'):L('报名数据（该场配对还未发布）','inscripciones (sin emparejar)');
     // 全集 = 清单里的 Vendor ∪ 本场参赛的 Vendor
     var uni={}; Object.keys(VENDOR_RMVM).forEach(function(vc){uni[vc]=1;}); Object.keys(regVendorsM).forEach(function(vc){uni[vc]=1;});
     var universe=Object.keys(uni);
@@ -2356,6 +2376,8 @@ async function renderDashboard(){
     });
     var ownerRows=Object.keys(ownerAgg).map(function(k){var a=ownerAgg[k];return {k:k,type:a.type,isNew:a.isNew,totV:a.totV,regV:a.regV,totR:a.totR,regR:a.regR};}).sort(function(a,b){return b.regV-a.regV;});
 
+    html+='</div>'; // close overview tab
+    html+='<div class="dtab" data-t="pk">';
     html+=sec(L('🗓️ 日会分析 · 选择场次','🗓️ Análisis junta diaria · Partido'));
     html+='<div style="margin-bottom:6px"><select onchange="DASH_MATCH_ID=this.value;renderDashboard()" style="padding:8px 11px;font-size:12.5px;background:var(--s2);color:var(--text);border:1px solid var(--border);border-radius:8px">'
       + (midList.length?midList.map(function(id){return '<option value="'+id+'"'+(String(id)===String(M)?' selected':'')+'>'+mlabel(id)+'</option>';}).join(''):'<option>'+L('暂无报名场次','Sin partidos')+'</option>')
@@ -2367,7 +2389,7 @@ async function renderDashboard(){
     html+=sec(L('🏁 PK 参赛 · 按 RM/VM','🏁 PK por RM/VM')+' <span style="font-size:11px;color:var(--muted)">('+mlabel(M||'')+')</span>');
     if(ownerRows.length){
       html+='<div style="background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:4px;overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:640px"><thead><tr style="color:var(--muted2)">'
-        +'<th style="text-align:left;padding:7px 9px">RM/VM</th><th style="padding:7px 9px"></th>'
+        +'<th style="text-align:left;padding:7px 9px">RM/VM</th><th style="padding:7px 9px;text-align:left">'+L('类型','Tipo')+'</th>'
         +'<th style="text-align:right;padding:7px 9px">'+L('总Vendor','Vendors')+'</th>'
         +'<th style="text-align:right;padding:7px 9px">'+L('参赛Vendor','Participan')+'</th>'
         +'<th style="text-align:right;padding:7px 9px">'+L('Vendor参赛率','Tasa V')+'</th>'
@@ -2393,7 +2415,7 @@ async function renderDashboard(){
     html+='<div style="background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:4px;max-height:420px;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:620px"><thead><tr style="color:var(--muted2)">'
       +'<th style="text-align:left;padding:7px 9px">Vendor</th>'
       +'<th style="text-align:left;padding:7px 9px">RM/VM</th>'
-      +'<th style="padding:7px 9px"></th>'
+      +'<th style="padding:7px 9px;text-align:left">'+L('类型','Tipo')+'</th>'
       +'<th style="text-align:center;padding:7px 9px">'+L('参赛本场','Participa')+'</th>'
       +'<th style="text-align:right;padding:7px 9px">'+L('总骑手','Riders')+'</th>'
       +'<th style="text-align:right;padding:7px 9px">'+L('参赛骑手','Participan')+'</th>'
@@ -2413,10 +2435,12 @@ async function renderDashboard(){
     var ptByVc={}; pts.forEach(function(r){ var vc=String(r.vendor_code||'').toUpperCase(); if(!vc)return; ptByVc[vc]=(ptByVc[vc]||0)+1; });
     var ptOwner={}; Object.keys(ptByVc).forEach(function(vc){ var o=vendorOwner(vc); var k=o.label; if(!ptOwner[k])ptOwner[k]={type:o.type,isNew:o.isNew,v:0,r:0}; ptOwner[k].v++; ptOwner[k].r+=ptByVc[vc]; });
     var ptOwnerRows=Object.keys(ptOwner).map(function(k){var a=ptOwner[k];return {k:k,type:a.type,isNew:a.isNew,v:a.v,r:a.r};}).sort(function(a,b){return b.r-a.r;});
+    html+='</div>'; // close PK tab
+    html+='<div class="dtab" data-t="pt">';
     html+=sec(L('🧩 PT 报名 · 按 RM/VM','🧩 PT por RM/VM'));
     if(ptOwnerRows.length){
       html+='<div style="background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:4px;overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:360px"><thead><tr style="color:var(--muted2)">'
-        +'<th style="text-align:left;padding:7px 9px">RM/VM</th><th style="padding:7px 9px"></th>'
+        +'<th style="text-align:left;padding:7px 9px">RM/VM</th><th style="padding:7px 9px;text-align:left">'+L('类型','Tipo')+'</th>'
         +'<th style="text-align:right;padding:7px 9px">'+L('有PT的Vendor','Vendors c/PT')+'</th>'
         +'<th style="text-align:right;padding:7px 9px">'+L('PT骑手数','Riders PT')+'</th></tr></thead><tbody>'
         +ptOwnerRows.map(function(r){return '<tr style="border-top:1px solid var(--border)"><td style="padding:7px 9px;font-weight:600">'+r.k+'</td><td style="padding:7px 9px">'+typeTag(r.type,r.isNew)+'</td><td style="text-align:right;padding:7px 9px">'+r.v+'</td><td style="text-align:right;padding:7px 9px;color:var(--didi);font-weight:700">'+r.r+'</td></tr>';}).join('')+'</tbody></table></div>';
@@ -2425,13 +2449,16 @@ async function renderDashboard(){
     var ptVRows=Object.keys(ptByVc).map(function(vc){ var o=vendorOwner(vc); return {vc:vc,owner:o.label,type:o.type,isNew:o.isNew,r:ptByVc[vc]}; }).sort(function(a,b){return b.r-a.r;});
     html+=sec(L('🧩 PT 报名 · 按 Vendor','🧩 PT por Vendor'));
     if(ptVRows.length){
-      html+='<div style="background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:4px;max-height:360px;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:360px"><thead><tr style="color:var(--muted2)"><th style="text-align:left;padding:7px 9px">Vendor</th><th style="text-align:left;padding:7px 9px">RM/VM</th><th style="padding:7px 9px"></th><th style="text-align:right;padding:7px 9px">'+L('PT骑手数','Riders PT')+'</th></tr></thead><tbody>'
+      html+='<div style="background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:4px;max-height:360px;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:360px"><thead><tr style="color:var(--muted2)"><th style="text-align:left;padding:7px 9px">Vendor</th><th style="text-align:left;padding:7px 9px">RM/VM</th><th style="padding:7px 9px;text-align:left">'+L('类型','Tipo')+'</th><th style="text-align:right;padding:7px 9px">'+L('PT骑手数','Riders PT')+'</th></tr></thead><tbody>'
         +ptVRows.map(function(r){return '<tr style="border-top:1px solid var(--border)"><td style="padding:7px 9px;font-weight:600">'+(typeof vendorName==='function'?vendorName(r.vc):r.vc)+'</td><td style="padding:7px 9px">'+r.owner+'</td><td style="padding:7px 9px">'+typeTag(r.type,r.isNew)+'</td><td style="text-align:right;padding:7px 9px;color:var(--didi);font-weight:700">'+r.r+'</td></tr>';}).join('')+'</tbody></table></div>';
     } else html+='<div style="font-size:12px;color:var(--muted2)">'+L('暂无 PT 报名','Sin registros PT')+'</div>';
 
+    html+='</div>'; // close PT tab
     html+='<div style="font-size:11px;color:var(--muted);margin-top:18px">'+L('数据实时来自数据库 · 时间为墨西哥城时间 · 更新于 ','Datos en vivo · hora CDMX · actualizado ')+_dashDay(new Date().toISOString())+'</div>';
-
-    body.innerHTML=html;
+    var _tabBar='<div id="dashTabBar" style="display:flex;gap:8px;margin:2px 0 14px;flex-wrap:wrap">'
+      +_dtb('ov',L('📊 总览','📊 Resumen'))+_dtb('pk',L('🏁 PK 明细','🏁 PK'))+_dtb('pt',L('🧩 PT 明细','🧩 PT'))+'</div>';
+    body.innerHTML=_tabBar+html;
+    dashShowTab(DASH_TAB||'ov');
   }catch(err){
     console.error(err);
     body.innerHTML='<div style="font-size:13px;color:var(--lose)">'+L('加载失败：','Error: ')+(err.message||err)+'</div>';
@@ -3837,7 +3864,7 @@ function publishMatchups(){
   if(!matchId||!GENERATED_PAIRS.length){alert(L('请先生成配对结果','Genera primero los emparejamientos'));return}
   MATCHUP_DATA={
     matchId,
-    pairs:GENERATED_PAIRS.map(p=>({a:{team:p.a.team,vendor:p.a.vendor},b:{team:p.b.team,vendor:p.b.vendor}}))
+    pairs:GENERATED_PAIRS.map(p=>({a:{team:p.a.team,vendor:p.a.vendor,riders:(p.a.riders||[]).slice()},b:{team:p.b.team,vendor:p.b.vendor,riders:(p.b.riders||[]).slice()}}))
   };
   MATCHUP_ARCHIVE[String(matchId)]=MATCHUP_DATA; // 留档，按场次保存历史配对
   MATCHUP_VIEW_ID=String(matchId);               // 发布后默认显示刚发布的这场
