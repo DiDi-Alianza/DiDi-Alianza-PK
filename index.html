@@ -1604,6 +1604,20 @@ select.fi option{background:#18181E}
         <button class="btn btn-s btn-sm" onclick="closeDashboard()" style="font-size:11px"><span class="lc-zh">✕ 关闭</span><span class="lc-es">✕ Cerrar</span></button>
       </div>
     </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0 4px">
+      <div style="background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:10px 12px">
+        <div style="font-size:12px;font-weight:700;margin-bottom:4px"><span class="lc-zh">🗂️ Vendor ↔ RM/VM 清单</span><span class="lc-es">🗂️ Lista Vendor ↔ RM/VM</span></div>
+        <div style="font-size:10px;color:var(--muted2);margin-bottom:6px"><span class="lc-zh">列：VM、RM、VENDOR Code（优先按 RM，无 RM 取 VM=新商）</span><span class="lc-es">Columnas: VM, RM, VENDOR Code</span></div>
+        <input type="file" accept=".xlsx,.xls" onchange="handleVendorRMVMUpload(this.files[0]);this.value=''" style="font-size:11px">
+        <div id="dashUploadMsg" style="font-size:11px;margin-top:5px;color:var(--muted2)"></div>
+      </div>
+      <div style="background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:10px 12px">
+        <div style="font-size:12px;font-weight:700;margin-bottom:4px"><span class="lc-zh">🛵 骑手名册（每 Vendor 骑手数）</span><span class="lc-es">🛵 Roster de riders</span></div>
+        <div style="font-size:10px;color:var(--muted2);margin-bottom:6px"><span class="lc-zh">含 rider_id、vendor_code 列；可定期更新覆盖</span><span class="lc-es">Columnas rider_id, vendor_code; actualizable</span></div>
+        <input type="file" accept=".xlsx,.xls" onchange="handleRosterUpload(this.files[0]);this.value=''" style="font-size:11px">
+        <div id="dashRosterMsg" style="font-size:11px;margin-top:5px;color:var(--muted2)"></div>
+      </div>
+    </div>
     <div id="dashBody"></div>
   </div>
 </div>
@@ -1765,6 +1779,20 @@ let RIDER_SCORE_MAP = {}; // riderId → score entry, populated from score file 
 const REAL_CURP_MAP = {}; // Historical data cleared for v28
 let VENDOR_LIST = {};
 let VENDOR_RM = {}; // {vendor_code: RM name} — operator-only, never shown to vendors
+let VENDOR_RMVM = {}; // {vendorCode: {rm, vm}} 来自附件1，运营专用
+let VENDOR_ROSTER = {}; // {vendorCode: 骑手数} 来自附件2（每个Vendor名下骑手数，动态、可更新）
+// 取 Vendor 的归属负责人：优先 RM；无 RM 取 VM（=新商）；都没有则未分配
+function vendorOwner(vc){
+  var v=String(vc||'').toUpperCase();
+  var e=VENDOR_RMVM[v]||VENDOR_RMVM[vc];
+  var rm=e&&e.rm?String(e.rm).trim():'';
+  var vm=e&&e.vm?String(e.vm).trim():'';
+  if(rm) return {label:rm, type:'RM', isNew:false};
+  if(vm) return {label:vm, type:'VM', isNew:true}; // 只有VM没有RM = 新商
+  // 兼容旧的 VENDOR_RM
+  if(VENDOR_RM[v]) return {label:String(VENDOR_RM[v]).trim(), type:'RM', isNew:false};
+  return {label:L('（未分配）','(Sin asignar)'), type:'NONE', isNew:false};
+}
 // Matchup data — set when published
 let MATCHUP_DATA = null;
 let SCORE_MATCH_ID = null; // 当前 SCORE_DATA 对应的比赛场次 id
@@ -2031,6 +2059,71 @@ async function openDashboard(){
   document.body.style.overflow='hidden';
   renderDashboard();
 }
+// 上传 附件1：Vendor ↔ RM/VM 清单（列：VM、RM、VENDOR Code）
+function handleVendorRMVMUpload(file){
+  if(!file)return;
+  var st=document.getElementById('dashUploadMsg');
+  var reader=new FileReader();
+  reader.onload=async function(e){
+    try{
+      var wb=XLSX.read(e.target.result,{type:'array'});
+      var ws=wb.Sheets[wb.SheetNames[0]];
+      var rows=XLSX.utils.sheet_to_json(ws,{raw:true,defval:''});
+      if(!rows.length)throw new Error(L('文件为空','Archivo vacío'));
+      var nk=function(k){return String(k).replace(/\s+/g,'').toLowerCase();};
+      var gc=function(r,cands){for(var i=0;i<cands.length;i++){for(var k in r){if(nk(k)===cands[i]){var v=r[k];if(v!==undefined&&v!=='')return String(v).trim();}}}return '';};
+      var map={},n=0;
+      rows.forEach(function(r){
+        var vc=gc(r,['vendorcode','vendor_code','vendorcode','code']).toUpperCase();
+        var rm=gc(r,['rm']);
+        var vm=gc(r,['vm']);
+        if(!vc)return;
+        map[vc]={rm:rm,vm:vm}; n++;
+      });
+      if(!n)throw new Error(L('没找到 VENDOR Code 列','No se encontró columna VENDOR Code'));
+      VENDOR_RMVM=map;
+      // 同步旧的 VENDOR_RM（owner=优先RM否则VM），保持 RM 看板兼容
+      VENDOR_RM={}; Object.keys(map).forEach(function(vc){ var o=map[vc].rm||map[vc].vm; if(o)VENDOR_RM[vc]=o; });
+      await dbSaveData('vendor_rmvm', VENDOR_RMVM);
+      await dbSaveData('vendor_rm', VENDOR_RM);
+      if(st){st.style.color='var(--win)';st.textContent=L('✅ Vendor–RM/VM 清单已更新：'+n+' 个 Vendor','✅ Lista Vendor–RM/VM actualizada: '+n+' vendors');}
+      renderDashboard();
+    }catch(err){ if(st){st.style.color='var(--lose)';st.textContent=L('❌ 解析失败：','❌ Error: ')+(err.message||err);} }
+  };
+  reader.readAsArrayBuffer(file);
+}
+// 上传 附件2：骑手业绩/名册（含 rider_id、vendor_code）→ 算每个 Vendor 名下去重骑手数
+function handleRosterUpload(file){
+  if(!file)return;
+  var st=document.getElementById('dashRosterMsg');
+  var reader=new FileReader();
+  reader.onload=async function(e){
+    try{
+      var wb=XLSX.read(e.target.result,{type:'array'});
+      var ws=wb.Sheets[wb.SheetNames[0]];
+      var rows=XLSX.utils.sheet_to_json(ws,{raw:true,defval:''});
+      if(!rows.length)throw new Error(L('文件为空','Archivo vacío'));
+      var nk=function(k){return String(k).replace(/\s+/g,'').toLowerCase();};
+      var gc=function(r,cands){for(var i=0;i<cands.length;i++){for(var k in r){if(nk(k)===cands[i]){var v=r[k];if(v!==undefined&&v!=='')return String(v).trim();}}}return '';};
+      var perVendor={}; // vc -> Set of riders
+      rows.forEach(function(r){
+        var vc=gc(r,['vendor_code','vendorcode']).toUpperCase();
+        var rid=normIdG(gc(r,['rider_id','riderid','骑手id']));
+        if(!vc||!rid)return;
+        if(!perVendor[vc])perVendor[vc]={};
+        perVendor[vc][rid]=1;
+      });
+      var roster={}; var totalV=0,totalR=0;
+      Object.keys(perVendor).forEach(function(vc){ roster[vc]=Object.keys(perVendor[vc]).length; totalV++; totalR+=roster[vc]; });
+      if(!totalV)throw new Error(L('没找到 vendor_code / rider_id 列','Faltan columnas vendor_code / rider_id'));
+      VENDOR_ROSTER=roster;
+      await dbSaveData('vendor_roster', VENDOR_ROSTER);
+      if(st){st.style.color='var(--win)';st.textContent=L('✅ 骑手名册已更新：'+totalV+' 个 Vendor · '+totalR+' 名骑手(去重)','✅ Roster actualizado: '+totalV+' vendors · '+totalR+' riders');}
+      renderDashboard();
+    }catch(err){ if(st){st.style.color='var(--lose)';st.textContent=L('❌ 解析失败：','❌ Error: ')+(err.message||err);} }
+  };
+  reader.readAsArrayBuffer(file);
+}
 function closeDashboard(){
   var d=document.getElementById('pDash'); if(d) d.style.display='none';
   document.body.style.overflow='';
@@ -2064,6 +2157,7 @@ function _lastNDays(n){
   return arr;
 }
 window._DASH={};
+let DASH_MATCH_ID=null; // Dashboard 当前分析的场次
 async function renderDashboard(){
   var body=document.getElementById('dashBody');
   if(!body) return;
@@ -2202,6 +2296,138 @@ async function renderDashboard(){
         return '<div style="display:flex;justify-content:space-between;padding:7px 4px;border-bottom:1px solid var(--border);font-size:13px"><span>'+(i+1)+'. '+t.v+'</span><span style="font-weight:700">'+t.c+L(' 场',' insc.')+'</span></div>';
       }).join('')+'</div>';
     } else { html+='<div style="font-size:12px;color:var(--muted2)">'+L('暂无数据','Sin datos')+'</div>'; }
+
+    // ═══════════ 日会分析：PT / PK 按 RM/VM 维度 + Vendor 维度 ═══════════
+    var hasMap=Object.keys(VENDOR_RMVM).length>0;
+    var hasRoster=Object.keys(VENDOR_ROSTER).length>0;
+    var pct=function(a,b){ return b>0?(Math.round(a/b*1000)/10)+'%':'—'; };
+    var typeTag=function(t,isNew){ if(t==='RM')return '<span style="font-size:10px;color:#3D9EFF">RM</span>'; if(t==='VM')return '<span style="font-size:10px;color:#A855F7">VM'+(isNew?'·'+L('新商','nuevo'):'')+'</span>'; return '<span style="font-size:10px;color:var(--muted)">—</span>'; };
+
+    // 场次选择
+    var matchIds={}; regs.forEach(function(r){ if(r.match_id!=null) matchIds[String(r.match_id)]=1; });
+    var midList=Object.keys(matchIds).sort(function(a,b){ var ka=matchDateKey(a),kb=matchDateKey(b); if(ka!=null&&kb!=null)return ka-kb; return parseInt(a)-parseInt(b); });
+    var todayKey=(function(){ var s=_dashDay(new Date().toISOString()); var mm=s.match(/-(\d\d)-(\d\d)/); return mm?parseInt(mm[1])*100+parseInt(mm[2]):9999; })();
+    if(DASH_MATCH_ID==null || midList.indexOf(String(DASH_MATCH_ID))<0){
+      var def=null; midList.forEach(function(id){ var k=matchDateKey(id); if(k!=null&&k<=todayKey)def=id; });
+      DASH_MATCH_ID = def || (midList.length?midList[midList.length-1]:null);
+    }
+    var M=DASH_MATCH_ID;
+    var mlabel=function(id){ var lb=(typeof matchLabel==='function')?matchLabel(parseInt(id)):('第'+id+'场'); var en=allScheduleEntry(parseInt(id)); return lb+(en?' · '+sDate(en)+' '+sDay(en):''); };
+
+    // 真正参赛 = 该场已发布配对里"配对成功"的队伍与骑手（日会在早上，结果还没上传，故取配对）
+    var regVendorsM={}, regRidersByVc={};
+    var _mu=(typeof MATCHUP_ARCHIVE!=='undefined'&&MATCHUP_ARCHIVE&&M!=null)?MATCHUP_ARCHIVE[String(M)]:null;
+    var _muPairs=(_mu&&_mu.pairs&&_mu.pairs.length)?_mu.pairs:null;
+    if(_muPairs){
+      _muPairs.forEach(function(p){
+        [p.a,p.b].forEach(function(side){
+          if(!side)return;
+          var vc=String(side.vendor||'').toUpperCase(); if(!vc)return;
+          regVendorsM[vc]=1;
+          if(!regRidersByVc[vc])regRidersByVc[vc]={};
+          (side.riders||[]).forEach(function(x){ if(x)regRidersByVc[vc][normIdG(x)]=1; });
+        });
+      });
+    } else {
+      // 配对未发布则退回用报名数据（并在标题提示）
+      regs.forEach(function(r){
+        if(String(r.match_id)!==String(M))return;
+        var vc=String(r.vendor_code||'').toUpperCase(); if(!vc)return;
+        regVendorsM[vc]=1;
+        var rd=r.riders; if(typeof rd==='string'){try{rd=JSON.parse(rd);}catch(e){rd=[];}}
+        if(!regRidersByVc[vc])regRidersByVc[vc]={};
+        (rd||[]).forEach(function(x){ if(x)regRidersByVc[vc][normIdG(x)]=1; });
+      });
+    }
+    var _partSource=_muPairs?L('配对（匹配成功的参赛队）','emparejamientos'):L('报名数据（该场配对还未发布）','inscripciones (sin emparejar)');
+    // 全集 = 清单里的 Vendor ∪ 本场参赛的 Vendor
+    var uni={}; Object.keys(VENDOR_RMVM).forEach(function(vc){uni[vc]=1;}); Object.keys(regVendorsM).forEach(function(vc){uni[vc]=1;});
+    var universe=Object.keys(uni);
+
+    // 按 owner 聚合（PK）
+    var ownerAgg={};
+    universe.forEach(function(vc){
+      var o=vendorOwner(vc); var k=o.label;
+      if(!ownerAgg[k])ownerAgg[k]={type:o.type,isNew:o.isNew,totV:0,regV:0,totR:0,regR:0};
+      ownerAgg[k].totV++;
+      if(regVendorsM[vc])ownerAgg[k].regV++;
+      ownerAgg[k].totR+=Number(VENDOR_ROSTER[vc]||0);
+      ownerAgg[k].regR+=regRidersByVc[vc]?Object.keys(regRidersByVc[vc]).length:0;
+    });
+    var ownerRows=Object.keys(ownerAgg).map(function(k){var a=ownerAgg[k];return {k:k,type:a.type,isNew:a.isNew,totV:a.totV,regV:a.regV,totR:a.totR,regR:a.regR};}).sort(function(a,b){return b.regV-a.regV;});
+
+    html+=sec(L('🗓️ 日会分析 · 选择场次','🗓️ Análisis junta diaria · Partido'));
+    html+='<div style="margin-bottom:6px"><select onchange="DASH_MATCH_ID=this.value;renderDashboard()" style="padding:8px 11px;font-size:12.5px;background:var(--s2);color:var(--text);border:1px solid var(--border);border-radius:8px">'
+      + (midList.length?midList.map(function(id){return '<option value="'+id+'"'+(String(id)===String(M)?' selected':'')+'>'+mlabel(id)+'</option>';}).join(''):'<option>'+L('暂无报名场次','Sin partidos')+'</option>')
+      + '</select></div>';
+    if(!hasMap)html+='<div style="font-size:11px;color:#F59E0B;margin-bottom:8px">'+L('⚠️ 还没上传 Vendor↔RM/VM 清单（附件1），"总Vendor数/报名率"无法计算。请在上方上传。','⚠️ Sube la lista Vendor↔RM/VM arriba para calcular totales y tasas.')+'</div>';
+    if(!hasRoster)html+='<div style="font-size:11px;color:#F59E0B;margin-bottom:8px">'+L('⚠️ 还没上传骑手名册（附件2），"骑手总数/骑手报名率"无法计算。请在上方上传。','⚠️ Sube el roster de riders arriba para totales y tasas de riders.')+'</div>';
+
+    // ---- PK · 按 RM/VM ----
+    html+=sec(L('🏁 PK 参赛 · 按 RM/VM','🏁 PK por RM/VM')+' <span style="font-size:11px;color:var(--muted)">('+mlabel(M||'')+')</span>');
+    if(ownerRows.length){
+      html+='<div style="background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:4px;overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:640px"><thead><tr style="color:var(--muted2)">'
+        +'<th style="text-align:left;padding:7px 9px">RM/VM</th><th style="padding:7px 9px"></th>'
+        +'<th style="text-align:right;padding:7px 9px">'+L('总Vendor','Vendors')+'</th>'
+        +'<th style="text-align:right;padding:7px 9px">'+L('参赛Vendor','Participan')+'</th>'
+        +'<th style="text-align:right;padding:7px 9px">'+L('Vendor参赛率','Tasa V')+'</th>'
+        +'<th style="text-align:right;padding:7px 9px">'+L('总骑手','Riders')+'</th>'
+        +'<th style="text-align:right;padding:7px 9px">'+L('参赛骑手','Participan')+'</th>'
+        +'<th style="text-align:right;padding:7px 9px">'+L('骑手参赛率','Tasa R')+'</th></tr></thead><tbody>'
+        +ownerRows.map(function(r){return '<tr style="border-top:1px solid var(--border)">'
+          +'<td style="padding:7px 9px;font-weight:600">'+r.k+'</td>'
+          +'<td style="padding:7px 9px">'+typeTag(r.type,r.isNew)+'</td>'
+          +'<td style="text-align:right;padding:7px 9px">'+r.totV+'</td>'
+          +'<td style="text-align:right;padding:7px 9px;color:var(--didi);font-weight:700">'+r.regV+'</td>'
+          +'<td style="text-align:right;padding:7px 9px">'+pct(r.regV,r.totV)+'</td>'
+          +'<td style="text-align:right;padding:7px 9px">'+(r.totR||'—')+'</td>'
+          +'<td style="text-align:right;padding:7px 9px;color:var(--didi)">'+r.regR+'</td>'
+          +'<td style="text-align:right;padding:7px 9px">'+pct(r.regR,r.totR)+'</td>'
+          +'</tr>';}).join('')+'</tbody></table></div>';
+    } else html+='<div style="font-size:12px;color:var(--muted2)">'+L('暂无数据','Sin datos')+'</div>';
+
+    // ---- PK · 按 Vendor ----
+    var vRows=universe.map(function(vc){ var o=vendorOwner(vc); var totR=Number(VENDOR_ROSTER[vc]||0); var regR=regRidersByVc[vc]?Object.keys(regRidersByVc[vc]).length:0; return {vc:vc,owner:o.label,type:o.type,isNew:o.isNew,totR:totR,regR:regR,reg:!!regVendorsM[vc]}; })
+      .sort(function(a,b){ if(b.reg!==a.reg)return b.reg-a.reg; return b.regR-a.regR; });
+    html+=sec(L('🏁 PK 参赛 · 按 Vendor','🏁 PK por Vendor'));
+    html+='<div style="background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:4px;max-height:420px;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:620px"><thead><tr style="color:var(--muted2)">'
+      +'<th style="text-align:left;padding:7px 9px">Vendor</th>'
+      +'<th style="text-align:left;padding:7px 9px">RM/VM</th>'
+      +'<th style="padding:7px 9px"></th>'
+      +'<th style="text-align:center;padding:7px 9px">'+L('参赛本场','Participa')+'</th>'
+      +'<th style="text-align:right;padding:7px 9px">'+L('总骑手','Riders')+'</th>'
+      +'<th style="text-align:right;padding:7px 9px">'+L('参赛骑手','Participan')+'</th>'
+      +'<th style="text-align:right;padding:7px 9px">'+L('骑手参赛率','Tasa R')+'</th></tr></thead><tbody>'
+      +vRows.map(function(r){return '<tr style="border-top:1px solid var(--border)">'
+        +'<td style="padding:7px 9px;font-weight:600">'+(typeof vendorName==='function'?vendorName(r.vc):r.vc)+'</td>'
+        +'<td style="padding:7px 9px">'+r.owner+'</td>'
+        +'<td style="padding:7px 9px">'+typeTag(r.type,r.isNew)+'</td>'
+        +'<td style="text-align:center;padding:7px 9px">'+(r.reg?'✅':'—')+'</td>'
+        +'<td style="text-align:right;padding:7px 9px">'+(r.totR||'—')+'</td>'
+        +'<td style="text-align:right;padding:7px 9px;color:var(--didi)">'+r.regR+'</td>'
+        +'<td style="text-align:right;padding:7px 9px">'+pct(r.regR,r.totR)+'</td>'
+        +'</tr>';}).join('')+'</tbody></table></div>';
+    html+='<div style="font-size:11px;color:var(--muted);margin-top:5px">'+L('参赛 = 该场已发布配对里"配对成功"的队伍/骑手；总骑手来自骑手名册（附件2）。当前数据来源：','Participación = equipos/riders emparejados en este partido; total = roster (anexo 2). Fuente: ')+_partSource+'</div>';
+
+    // ---- PT · 按 RM/VM 与 Vendor ----
+    var ptByVc={}; pts.forEach(function(r){ var vc=String(r.vendor_code||'').toUpperCase(); if(!vc)return; ptByVc[vc]=(ptByVc[vc]||0)+1; });
+    var ptOwner={}; Object.keys(ptByVc).forEach(function(vc){ var o=vendorOwner(vc); var k=o.label; if(!ptOwner[k])ptOwner[k]={type:o.type,isNew:o.isNew,v:0,r:0}; ptOwner[k].v++; ptOwner[k].r+=ptByVc[vc]; });
+    var ptOwnerRows=Object.keys(ptOwner).map(function(k){var a=ptOwner[k];return {k:k,type:a.type,isNew:a.isNew,v:a.v,r:a.r};}).sort(function(a,b){return b.r-a.r;});
+    html+=sec(L('🧩 PT 报名 · 按 RM/VM','🧩 PT por RM/VM'));
+    if(ptOwnerRows.length){
+      html+='<div style="background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:4px;overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:360px"><thead><tr style="color:var(--muted2)">'
+        +'<th style="text-align:left;padding:7px 9px">RM/VM</th><th style="padding:7px 9px"></th>'
+        +'<th style="text-align:right;padding:7px 9px">'+L('有PT的Vendor','Vendors c/PT')+'</th>'
+        +'<th style="text-align:right;padding:7px 9px">'+L('PT骑手数','Riders PT')+'</th></tr></thead><tbody>'
+        +ptOwnerRows.map(function(r){return '<tr style="border-top:1px solid var(--border)"><td style="padding:7px 9px;font-weight:600">'+r.k+'</td><td style="padding:7px 9px">'+typeTag(r.type,r.isNew)+'</td><td style="text-align:right;padding:7px 9px">'+r.v+'</td><td style="text-align:right;padding:7px 9px;color:var(--didi);font-weight:700">'+r.r+'</td></tr>';}).join('')+'</tbody></table></div>';
+    } else html+='<div style="font-size:12px;color:var(--muted2)">'+L('暂无 PT 报名','Sin registros PT')+'</div>';
+
+    var ptVRows=Object.keys(ptByVc).map(function(vc){ var o=vendorOwner(vc); return {vc:vc,owner:o.label,type:o.type,isNew:o.isNew,r:ptByVc[vc]}; }).sort(function(a,b){return b.r-a.r;});
+    html+=sec(L('🧩 PT 报名 · 按 Vendor','🧩 PT por Vendor'));
+    if(ptVRows.length){
+      html+='<div style="background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:4px;max-height:360px;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:360px"><thead><tr style="color:var(--muted2)"><th style="text-align:left;padding:7px 9px">Vendor</th><th style="text-align:left;padding:7px 9px">RM/VM</th><th style="padding:7px 9px"></th><th style="text-align:right;padding:7px 9px">'+L('PT骑手数','Riders PT')+'</th></tr></thead><tbody>'
+        +ptVRows.map(function(r){return '<tr style="border-top:1px solid var(--border)"><td style="padding:7px 9px;font-weight:600">'+(typeof vendorName==='function'?vendorName(r.vc):r.vc)+'</td><td style="padding:7px 9px">'+r.owner+'</td><td style="padding:7px 9px">'+typeTag(r.type,r.isNew)+'</td><td style="text-align:right;padding:7px 9px;color:var(--didi);font-weight:700">'+r.r+'</td></tr>';}).join('')+'</tbody></table></div>';
+    } else html+='<div style="font-size:12px;color:var(--muted2)">'+L('暂无 PT 报名','Sin registros PT')+'</div>';
 
     html+='<div style="font-size:11px;color:var(--muted);margin-top:18px">'+L('数据实时来自数据库 · 时间为墨西哥城时间 · 更新于 ','Datos en vivo · hora CDMX · actualizado ')+_dashDay(new Date().toISOString())+'</div>';
 
@@ -2695,6 +2921,8 @@ async function loadSharedData(){
   }
   if(d.vendor_list && Object.keys(d.vendor_list).length) VENDOR_LIST = d.vendor_list;
   if(d.vendor_rm) VENDOR_RM = d.vendor_rm;
+  if(d.vendor_rmvm && typeof d.vendor_rmvm==='object') VENDOR_RMVM = d.vendor_rmvm;
+  if(d.vendor_roster && typeof d.vendor_roster==='object') VENDOR_ROSTER = d.vendor_roster;
   // 恢复已保存的骑手业绩数据（按当前版本），免去每次重新上传
   if(d.perf_store && typeof d.perf_store==='object'){
     PERF_STORE=d.perf_store;
