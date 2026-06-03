@@ -2308,8 +2308,9 @@ async function renderDashboard(){
     // ═══════════ 日会分析：PT / PK 按 RM/VM 维度 + Vendor 维度 ═══════════
     var hasMap=Object.keys(VENDOR_RMVM).length>0;
     var hasRoster=Object.keys(VENDOR_ROSTER).length>0;
-    var pct=function(a,b){ return b>0?(Math.round(a/b*1000)/10)+'%':'—'; };
-    var typeTag=function(t,isNew){ if(t==='RM')return '<span style="font-size:10px;color:#3D9EFF">RM</span>'; if(t==='VM')return '<span style="font-size:10px;color:#A855F7">VM'+(isNew?'·'+L('新商','nuevo'):'')+'</span>'; return '<span style="font-size:10px;color:var(--muted)">—</span>'; };
+    var pct=function(a,b){ return b>0?(Math.round(a/b*1000)/10).toFixed(1)+'%':'—'; };
+    var fmtN=function(n){ n=Number(n||0); return n?n.toLocaleString():'—'; };
+    var typeTag=function(t,isNew){ if(t==='RM')return '<span style="font-size:10px;color:#3D9EFF">RM</span>'; if(t==='VM')return '<span style="font-size:10px;color:#A855F7">VM</span>'; return '<span style="font-size:10px;color:var(--muted)">—</span>'; };
 
     // 场次选择
     var matchIds={}; regs.forEach(function(r){ if(r.match_id!=null) matchIds[String(r.match_id)]=1; });
@@ -2402,10 +2403,19 @@ async function renderDashboard(){
           +'<td style="text-align:right;padding:7px 9px">'+r.totV+'</td>'
           +'<td style="text-align:right;padding:7px 9px;color:var(--didi);font-weight:700">'+r.regV+'</td>'
           +'<td style="text-align:right;padding:7px 9px">'+pct(r.regV,r.totV)+'</td>'
-          +'<td style="text-align:right;padding:7px 9px">'+(r.totR||'—')+'</td>'
-          +'<td style="text-align:right;padding:7px 9px;color:var(--didi)">'+r.regR+'</td>'
+          +'<td style="text-align:right;padding:7px 9px">'+fmtN(r.totR)+'</td>'
+          +'<td style="text-align:right;padding:7px 9px;color:var(--didi)">'+fmtN(r.regR)+'</td>'
           +'<td style="text-align:right;padding:7px 9px">'+pct(r.regR,r.totR)+'</td>'
-          +'</tr>';}).join('')+'</tbody></table></div>';
+          +'</tr>';}).join('')
+        +(function(){var tV=0,rV=0,tR=0,rR=0;ownerRows.forEach(function(r){tV+=r.totV;rV+=r.regV;tR+=r.totR;rR+=r.regR;});return '<tr style="border-top:2px solid var(--didi);font-weight:700;background:var(--s3)">'
+          +'<td style="padding:8px 9px">'+L('总计','Total')+'</td><td></td>'
+          +'<td style="text-align:right;padding:8px 9px">'+tV+'</td>'
+          +'<td style="text-align:right;padding:8px 9px;color:var(--didi)">'+rV+'</td>'
+          +'<td style="text-align:right;padding:8px 9px">'+pct(rV,tV)+'</td>'
+          +'<td style="text-align:right;padding:8px 9px">'+fmtN(tR)+'</td>'
+          +'<td style="text-align:right;padding:8px 9px;color:var(--didi)">'+fmtN(rR)+'</td>'
+          +'<td style="text-align:right;padding:8px 9px">'+pct(rR,tR)+'</td></tr>';})()
+        +'</tbody></table></div>';
     } else html+='<div style="font-size:12px;color:var(--muted2)">'+L('暂无数据','Sin datos')+'</div>';
 
     // ---- PK · 按 Vendor ----
@@ -2425,10 +2435,17 @@ async function renderDashboard(){
         +'<td style="padding:7px 9px">'+r.owner+'</td>'
         +'<td style="padding:7px 9px">'+typeTag(r.type,r.isNew)+'</td>'
         +'<td style="text-align:center;padding:7px 9px">'+(r.reg?'✅':'—')+'</td>'
-        +'<td style="text-align:right;padding:7px 9px">'+(r.totR||'—')+'</td>'
-        +'<td style="text-align:right;padding:7px 9px;color:var(--didi)">'+r.regR+'</td>'
+        +'<td style="text-align:right;padding:7px 9px">'+fmtN(r.totR)+'</td>'
+        +'<td style="text-align:right;padding:7px 9px;color:var(--didi)">'+fmtN(r.regR)+'</td>'
         +'<td style="text-align:right;padding:7px 9px">'+pct(r.regR,r.totR)+'</td>'
-        +'</tr>';}).join('')+'</tbody></table></div>';
+        +'</tr>';}).join('')
+      +(function(){var tR=0,rR=0,nReg=0;vRows.forEach(function(r){tR+=r.totR;rR+=r.regR;if(r.reg)nReg++;});return '<tr style="border-top:2px solid var(--didi);font-weight:700;background:var(--s3)">'
+        +'<td style="padding:8px 9px">'+L('总计','Total')+'</td><td></td><td></td>'
+        +'<td style="text-align:center;padding:8px 9px;color:var(--didi)">'+nReg+'</td>'
+        +'<td style="text-align:right;padding:8px 9px">'+fmtN(tR)+'</td>'
+        +'<td style="text-align:right;padding:8px 9px;color:var(--didi)">'+fmtN(rR)+'</td>'
+        +'<td style="text-align:right;padding:8px 9px">'+pct(rR,tR)+'</td></tr>';})()
+      +'</tbody></table></div>';
     html+='<div style="font-size:11px;color:var(--muted);margin-top:5px">'+L('参赛 = 该场已发布配对里"配对成功"的队伍/骑手；总骑手来自骑手名册（附件2）。当前数据来源：','Participación = equipos/riders emparejados en este partido; total = roster (anexo 2). Fuente: ')+_partSource+'</div>';
 
     // ---- PT · 按 RM/VM 与 Vendor ----
@@ -2443,14 +2460,18 @@ async function renderDashboard(){
         +'<th style="text-align:left;padding:7px 9px">RM/VM</th><th style="padding:7px 9px;text-align:left">'+L('类型','Tipo')+'</th>'
         +'<th style="text-align:right;padding:7px 9px">'+L('有PT的Vendor','Vendors c/PT')+'</th>'
         +'<th style="text-align:right;padding:7px 9px">'+L('PT骑手数','Riders PT')+'</th></tr></thead><tbody>'
-        +ptOwnerRows.map(function(r){return '<tr style="border-top:1px solid var(--border)"><td style="padding:7px 9px;font-weight:600">'+r.k+'</td><td style="padding:7px 9px">'+typeTag(r.type,r.isNew)+'</td><td style="text-align:right;padding:7px 9px">'+r.v+'</td><td style="text-align:right;padding:7px 9px;color:var(--didi);font-weight:700">'+r.r+'</td></tr>';}).join('')+'</tbody></table></div>';
+        +ptOwnerRows.map(function(r){return '<tr style="border-top:1px solid var(--border)"><td style="padding:7px 9px;font-weight:600">'+r.k+'</td><td style="padding:7px 9px">'+typeTag(r.type,r.isNew)+'</td><td style="text-align:right;padding:7px 9px">'+r.v+'</td><td style="text-align:right;padding:7px 9px;color:var(--didi);font-weight:700">'+fmtN(r.r)+'</td></tr>';}).join('')
+        +(function(){var tv=0,tr=0;ptOwnerRows.forEach(function(r){tv+=r.v;tr+=r.r;});return '<tr style="border-top:2px solid var(--didi);font-weight:700;background:var(--s3)"><td style="padding:8px 9px">'+L('总计','Total')+'</td><td></td><td style="text-align:right;padding:8px 9px">'+tv+'</td><td style="text-align:right;padding:8px 9px;color:var(--didi)">'+fmtN(tr)+'</td></tr>';})()
+        +'</tbody></table></div>';
     } else html+='<div style="font-size:12px;color:var(--muted2)">'+L('暂无 PT 报名','Sin registros PT')+'</div>';
 
     var ptVRows=Object.keys(ptByVc).map(function(vc){ var o=vendorOwner(vc); return {vc:vc,owner:o.label,type:o.type,isNew:o.isNew,r:ptByVc[vc]}; }).sort(function(a,b){return b.r-a.r;});
     html+=sec(L('🧩 PT 报名 · 按 Vendor','🧩 PT por Vendor'));
     if(ptVRows.length){
       html+='<div style="background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:4px;max-height:360px;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:360px"><thead><tr style="color:var(--muted2)"><th style="text-align:left;padding:7px 9px">Vendor</th><th style="text-align:left;padding:7px 9px">RM/VM</th><th style="padding:7px 9px;text-align:left">'+L('类型','Tipo')+'</th><th style="text-align:right;padding:7px 9px">'+L('PT骑手数','Riders PT')+'</th></tr></thead><tbody>'
-        +ptVRows.map(function(r){return '<tr style="border-top:1px solid var(--border)"><td style="padding:7px 9px;font-weight:600">'+(typeof vendorName==='function'?vendorName(r.vc):r.vc)+'</td><td style="padding:7px 9px">'+r.owner+'</td><td style="padding:7px 9px">'+typeTag(r.type,r.isNew)+'</td><td style="text-align:right;padding:7px 9px;color:var(--didi);font-weight:700">'+r.r+'</td></tr>';}).join('')+'</tbody></table></div>';
+        +ptVRows.map(function(r){return '<tr style="border-top:1px solid var(--border)"><td style="padding:7px 9px;font-weight:600">'+(typeof vendorName==='function'?vendorName(r.vc):r.vc)+'</td><td style="padding:7px 9px">'+r.owner+'</td><td style="padding:7px 9px">'+typeTag(r.type,r.isNew)+'</td><td style="text-align:right;padding:7px 9px;color:var(--didi);font-weight:700">'+fmtN(r.r)+'</td></tr>';}).join('')
+        +(function(){var tr=0;ptVRows.forEach(function(r){tr+=r.r;});return '<tr style="border-top:2px solid var(--didi);font-weight:700;background:var(--s3)"><td style="padding:8px 9px">'+L('总计','Total')+'</td><td></td><td></td><td style="text-align:right;padding:8px 9px;color:var(--didi)">'+fmtN(tr)+'</td></tr>';})()
+        +'</tbody></table></div>';
     } else html+='<div style="font-size:12px;color:var(--muted2)">'+L('暂无 PT 报名','Sin registros PT')+'</div>';
 
     html+='</div>'; // close PT tab
