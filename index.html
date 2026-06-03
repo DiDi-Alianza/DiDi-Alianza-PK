@@ -2197,12 +2197,12 @@ async function renderDashboard(){
   if(!VENDOR_RM || !Object.keys(VENDOR_RM).length){ try{ await loadSharedData(); }catch(e){} }
   try{
     var R=await Promise.all([
-      sb.from('registrations').select('vendor_code,team_name,match_id,riders,created_at'),
+      dbSelectAll('registrations','vendor_code,team_name,match_id,riders,created_at','match_id'),
       sb.from('redemptions').select('points,est_cash,status,curp6,created_at'),
-      sb.from('pt_riders').select('vendor_code,rider_id'),
+      dbSelectAll('pt_riders','vendor_code,rider_id'),
       sb.from('events').select('kind,created_at')
     ]);
-    var regs=(R[0].data||[]), reds=(R[1].data||[]), pts=(R[2].data||[]), evs=(R[3].data||[]);
+    var regs=(Array.isArray(R[0])?R[0]:(R[0].data||[])), reds=(R[1].data||[]), pts=(Array.isArray(R[2])?R[2]:(R[2].data||[])), evs=(R[3].data||[]);
     window._DASH={regs:regs,reds:reds,pts:pts,evs:evs};
 
     // ---- registrations metrics ----
@@ -2840,10 +2840,26 @@ async function dbLoadVendorTeams(vc){
   if(error){ console.error('load vendor teams', error); return []; }
   return (data||[]).map(rowToTeam);
 }
+// 分页全量读取（绕过 Supabase 单次 1000 行上限）
+async function dbSelectAll(table, columns, orderCol){
+  if(!sb) return [];
+  var all=[], from=0, page=1000;
+  while(true){
+    var q=sb.from(table).select(columns||'*');
+    if(orderCol) q=q.order(orderCol);
+    var res=await q.range(from, from+page-1);
+    if(res.error){ console.error('dbSelectAll', table, res.error); break; }
+    var data=res.data||[];
+    all=all.concat(data);
+    if(data.length<page) break;
+    from+=page;
+    if(from>200000) break; // 安全上限
+  }
+  return all;
+}
 async function dbLoadAllTeams(){
   if(!sb) return [];
-  const { data, error } = await sb.from('registrations').select('*').order('match_id');
-  if(error){ console.error('load all teams', error); return []; }
+  const data = await dbSelectAll('registrations','*','match_id');
   return (data||[]).map(rowToTeam);
 }
 async function dbInsertTeams(rows){
