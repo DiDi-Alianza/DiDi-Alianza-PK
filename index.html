@@ -2637,6 +2637,7 @@ async function renderDashboard(){
 function downloadPKByVendor(){
   var d=window._PK_VENDOR_ROWS;
   if(!d||!d.rows||!d.rows.length){ alert(L('暂无数据','Sin datos','No data')); return; }
+  _dashLangApply(); // 导出按看板语言（EN 时表头/文件名为英文）
   try{
     var head=['Vendor','Vendor Code','RM/VM',L('类型','Tipo','Type'),L('是否参赛本场','Participa','Participated'),L('总骑手','Riders totales','Total riders'),L('参赛骑手','Riders participan','Participating riders'),L('骑手参赛率','Tasa riders','Rider rate')];
     var rows=[head];
@@ -2650,6 +2651,7 @@ function downloadPKByVendor(){
     XLSX.utils.book_append_sheet(wb, ws, 'PK by Vendor');
     XLSX.writeFile(wb, 'PK_'+L('按Vendor','porVendor','byVendor')+'_'+String(d.round||'').replace(/[^\w\u4e00-\u9fa5]+/g,'_')+'_'+mxDateStamp()+'.xlsx');
   }catch(e){ alert(L('下载失败：','Error: ','Error: ')+(e.message||e)); }
+  _dashLangRestore();
 }
 function exportDashboard(){
   var d=window._DASH; if(!d||!d.regs){ alert(L('请先等数据加载完成','Espera a que carguen los datos')); return; }
