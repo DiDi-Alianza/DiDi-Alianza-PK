@@ -2937,7 +2937,7 @@ function rowToTeam(r){
     teamName: r.team_name,
     matchId: r.match_id,
     riders: Array.isArray(r.riders) ? r.riders : (r.riders ? JSON.parse(r.riders) : []),
-    createdAt: (r.created_at || '').slice(0,10)
+    createdAt: (r.created_at || '')
   };
 }
 
@@ -3350,7 +3350,7 @@ async function renderTeamList(){
       ${vt.map(t=>{
         const m=SCHEDULE.find(s=>s.id===t.matchId);
         return `<div class="team-card">
-          <div class="tc-hdr"><div class="tc-name">🏴 ${t.teamName} <span class="tbadge">${L('✓ 已报名','✓ Inscrito')}</span></div><div style="font-size:11px;color:var(--muted)">${t.createdAt}</div></div>
+          <div class="tc-hdr"><div class="tc-name">🏴 ${t.teamName} <span class="tbadge">${L('✓ 已报名','✓ Inscrito')}</span></div><div style="font-size:11px;color:var(--muted)">${t.createdAt?mxTime(t.createdAt)+' CDMX':''}</div></div>
           <div class="tc-meta"><span>📅 ${matchLabel(t.matchId)} · ${m?sDate(m)+' '+sDay(m):''}</span><span>${m?tp(m.type).replace(/<[^>]+>/g,''):''}</span><span style="color:var(--muted)">${L('截止 ','Cierre ')}${m?sDeadline(m):''}</span></div>
           <div class="rider-tags">${t.riders.map((r,i)=>`<div class="rtag">#${i+1} ${r||'<span style="color:var(--muted)">'+L('未填','vacío')+'</span>'}</div>`).join('')}</div>
           <div class="tc-actions">
@@ -5974,7 +5974,7 @@ async function downloadRegData(){
   const rows=[[L('报名ID','ID inscripción'),'Vendor Code',L('队伍名称','Equipo'),L('场次','Partido'),L('骑手1','Rider 1'),L('骑手2','Rider 2'),L('骑手3','Rider 3'),L('骑手4','Rider 4'),L('骑手5','Rider 5'),L('报名时间','Fecha inscripción')]];
   teams.forEach(t=>{
     const m=SCHEDULE.find(s=>s.id===t.matchId);
-    rows.push([t.id,t.vendorCode,t.teamName,matchLabel(t.matchId)+' '+(m?sDate(m):''),...t.riders,t.createdAt]);
+    rows.push([t.id,t.vendorCode,t.teamName,matchLabel(t.matchId)+' '+(m?sDate(m):''),...t.riders,mxTime(t.createdAt)]);
   });
   const ws=XLSX.utils.aoa_to_sheet(rows);
   ws['!cols']=[12,14,14,18,20,20,20,20,20,12].map(w=>({wch:w}));
