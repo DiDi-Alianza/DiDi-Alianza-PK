@@ -2151,27 +2151,49 @@ function _svgBars(series, color){
   }).join('');
   return '<svg viewBox="0 0 '+W+' '+(H+6)+'" style="width:100%;height:auto;max-width:'+W+'px">'+bars+'</svg>';
 }
-function _svgLine(points, color, isPct){
-  if(!points||!points.length) return '<div style="font-size:12px;color:var(--muted2)">'+L('暂无趋势数据','Sin datos','No trend data')+'</div>';
-  var W=720,H=280,padL=46,padR=18,padT=22,padB=48,n=points.length;
-  var maxV=isPct?100:Math.max.apply(null,points.map(function(p){return p.val;}));
+function _svgLine(series, isPct){
+  // series: [{name, color, points:[{label,val}]}]
+  if(!series||!series.length||!series[0].points.length) return '<div style="font-size:12px;color:var(--muted2)">'+L('暂无趋势数据','Sin datos','No trend data')+'</div>';
+  var W=720,H=300,padL=46,padR=18,padT=22,padB=60,n=series[0].points.length;
+  var allVals=[]; series.forEach(function(s){s.points.forEach(function(p){allVals.push(p.val);});});
+  var maxV=isPct?100:Math.max.apply(null,allVals);
   if(!isPct){ maxV=Math.max(1,Math.ceil(maxV*1.15)); }
   var x=function(i){ return padL + (n<=1?(W-padL-padR)/2:i*(W-padL-padR)/(n-1)); };
   var y=function(v){ return padT + (1-(maxV?v/maxV:0))*(H-padT-padB); };
   var grid='';
   for(var g=0;g<=4;g++){ var gv=maxV*g/4, gy=y(gv); grid+='<line x1="'+padL+'" y1="'+gy.toFixed(1)+'" x2="'+(W-padR)+'" y2="'+gy.toFixed(1)+'" stroke="var(--border)" stroke-width="1"/><text x="'+(padL-6)+'" y="'+(gy+3).toFixed(1)+'" text-anchor="end" font-size="10" fill="var(--muted2)">'+(isPct?(Math.round(gv*10)/10)+'%':Math.round(gv))+'</text>'; }
-  var pathD=points.map(function(p,i){return (i?'L':'M')+x(i).toFixed(1)+' '+y(p.val).toFixed(1);}).join(' ');
-  var dots=points.map(function(p,i){ var vx=x(i),vy=y(p.val),lbl=isPct?(Math.round(p.val*10)/10)+'%':Math.round(p.val); return '<circle cx="'+vx.toFixed(1)+'" cy="'+vy.toFixed(1)+'" r="3.5" fill="'+color+'"/><text x="'+vx.toFixed(1)+'" y="'+(vy-9).toFixed(1)+'" text-anchor="middle" font-size="10" fill="var(--text)" font-weight="600">'+lbl+'</text>'; }).join('');
-  var xlabels=points.map(function(p,i){ var vx=x(i),t=(p.label||''); if(t.length>9)t=t.slice(0,9)+'…'; return '<text x="'+vx.toFixed(1)+'" y="'+(H-padB+18)+'" text-anchor="middle" font-size="10" fill="var(--muted2)">'+t+'</text>'; }).join('');
-  return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto">'+grid+'<path d="'+pathD+'" fill="none" stroke="'+color+'" stroke-width="2.5" stroke-linejoin="round"/>'+dots+xlabels+'</svg>';
+  var lines='';
+  series.forEach(function(s){
+    var d=s.points.map(function(p,i){return (i?'L':'M')+x(i).toFixed(1)+' '+y(p.val).toFixed(1);}).join(' ');
+    lines+='<path d="'+d+'" fill="none" stroke="'+s.color+'" stroke-width="2.2" stroke-linejoin="round" opacity="0.95"/>';
+    lines+=s.points.map(function(p,i){return '<circle cx="'+x(i).toFixed(1)+'" cy="'+y(p.val).toFixed(1)+'" r="3" fill="'+s.color+'"/>';}).join('');
+  });
+  // x labels from first series
+  var xlabels=series[0].points.map(function(p,i){ var vx=x(i),t=(p.label||''); if(t.length>9)t=t.slice(0,9)+'…'; return '<text x="'+vx.toFixed(1)+'" y="'+(H-padB+18)+'" text-anchor="middle" font-size="10" fill="var(--muted2)">'+t+'</text>'; }).join('');
+  // legend
+  var lx=padL, ly=H-22, leg='';
+  series.forEach(function(s){
+    var w=Math.max(46, s.name.length*7+22);
+    if(lx+w>W-padR){ lx=padL; ly+=16; }
+    leg+='<line x1="'+lx+'" y1="'+ly+'" x2="'+(lx+16)+'" y2="'+ly+'" stroke="'+s.color+'" stroke-width="3"/><circle cx="'+(lx+8)+'" cy="'+ly+'" r="2.6" fill="'+s.color+'"/><text x="'+(lx+20)+'" y="'+(ly+3.5)+'" font-size="10" fill="var(--text)">'+s.name+'</text>';
+    lx+=w;
+  });
+  var H2=Math.max(H, ly+12);
+  return '<svg viewBox="0 0 '+W+' '+H2+'" style="width:100%;height:auto">'+grid+lines+xlabels+leg+'</svg>';
 }
 function renderTrendChart(){
   var box=document.getElementById('trendChart'); if(!box) return;
   var t=window._TREND; if(!t||!t.matches||!t.matches.length){ box.innerHTML='<div style="font-size:12px;color:var(--muted2)">'+L('暂无已配对的场次','Sin partidos emparejados','No matched rounds yet')+'</div>'; return; }
-  var scopeEl=document.getElementById('trendScope'), metEl=document.getElementById('trendMetric');
-  var scope=scopeEl?scopeEl.value:'ALL', metric=metEl?metEl.value:'pv';
-  var pts=t.matches.map(function(m){ var s=m.scope[scope]||{pv:0,pr:0}; var v; if(metric==='pv')v=s.pv; else if(metric==='pr')v=s.pr; else if(metric==='vrate')v=t.totV[scope]?s.pv/t.totV[scope]*100:0; else v=t.totR[scope]?s.pr/t.totR[scope]*100:0; return {label:m.label,val:v}; });
-  box.innerHTML=_svgLine(pts,'var(--didi)',(metric==='vrate'||metric==='rrate'));
+  var metEl=document.getElementById('trendMetric'); var metric=metEl?metEl.value:'pv';
+  var isPct=(metric==='vrate'||metric==='rrate');
+  var palette=['#FF6B00','#3D9EFF','#22C55E','#A855F7','#F59E0B','#EC4899','#14B8A6','#EF4444','#8B5CF6','#10B981','#F97316','#06B6D4','#D946EF','#84CC16','#6366F1'];
+  var val=function(scope,m){ var s=m.scope[scope]||{pv:0,pr:0}; if(metric==='pv')return s.pv; if(metric==='pr')return s.pr; if(metric==='vrate')return t.totV[scope]?s.pv/t.totV[scope]*100:0; return t.totR[scope]?s.pr/t.totR[scope]*100:0; };
+  // 总数加粗黑/橙；其余 RM/VM 各一色
+  var series=[];
+  series.push({name:L('总数','Total','Total'), color:'#FF6B00', points:t.matches.map(function(m){return {label:m.label,val:val('ALL',m)};})});
+  var others=t.scopes.filter(function(s){return s!=='ALL';});
+  others.forEach(function(sc,i){ series.push({name:sc, color:palette[(i+1)%palette.length], points:t.matches.map(function(m){return {label:m.label,val:val(sc,m)};})}); });
+  box.innerHTML=_svgLine(series,isPct);
 }
 function _lastNDays(n){
   var arr=[]; var now=new Date(Date.now()-MX_OFFSET_MS);
@@ -2429,16 +2451,14 @@ async function renderDashboard(){
 
     // ---- PK · 跨场次趋势折线图 ----
     html+=sec(L('📈 PK 趋势 · 各场次','📈 Tendencia PK · por partido','📈 PK Trend · by round'));
-    html+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">'
+    html+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;align-items:center">'
       +'<select id="trendMetric" onchange="renderTrendChart()" style="padding:7px 11px;font-size:12px;background:var(--s2);color:var(--text);border:1px solid var(--border);border-radius:8px">'
         +'<option value="pv">'+L('配对成功 Vendor 数','Vendors emparejados','Matched vendors')+'</option>'
         +'<option value="vrate">'+L('Vendor 参与率','Tasa participación Vendor','Vendor participation rate')+'</option>'
         +'<option value="pr">'+L('配对成功骑手数','Riders emparejados','Matched riders')+'</option>'
         +'<option value="rrate">'+L('骑手参与率','Tasa participación riders','Rider participation rate')+'</option>'
       +'</select>'
-      +'<select id="trendScope" onchange="renderTrendChart()" style="padding:7px 11px;font-size:12px;background:var(--s2);color:var(--text);border:1px solid var(--border);border-radius:8px">'
-        +(window._TREND?window._TREND.scopes.map(function(s){return '<option value="'+s+'">'+(s==='ALL'?L('总数（全部）','Total','Total'):s)+'</option>';}).join(''):'')
-      +'</select></div>';
+      +'<span style="font-size:11px;color:var(--muted2)">'+L('每条线 = 总数 / 各 RM·VM','cada línea = Total / cada RM·VM','each line = Total / each RM·VM')+'</span></div>';
     html+='<div id="trendChart" style="background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:14px 10px">'+L('加载中…','Cargando…','Loading…')+'</div>';
 
     // ---- PK · 按 RM/VM ----
