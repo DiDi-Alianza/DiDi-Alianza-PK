@@ -1266,7 +1266,7 @@ select.fi option{background:#18181E}
     <div class="card" style="margin-bottom:12px;padding:14px;border-color:rgba(99,102,241,.4)">
       <div style="font-weight:700;font-size:12px;margin-bottom:6px"><span class="lc-zh">🗓️ 这份积分属于哪一场比赛？</span><span class="lc-es">🗓️ ¿A qué partido pertenece este archivo de puntos?</span></div>
       <div style="font-size:10px;color:var(--muted2);margin-bottom:8px"><span class="lc-zh">系统会用所选场次的<strong>已发布配对</strong>来计算胜负与 PK 奖励。请先选对场次，再上传积分文件。</span><span class="lc-es">El sistema usará los <strong>emparejamientos publicados</strong> de ese partido para calcular resultados y bono PK. Elige el partido antes de subir.</span></div>
-      <select id="scoreMatchSel" class="fi" onchange="MANUAL_MATCHUP=false" style="width:100%;padding:9px 12px;font-size:13px"></select>
+      <select id="scoreMatchSel" class="fi" onchange="MANUAL_MATCHUP=false;MANUAL_REG=false" style="width:100%;padding:9px 12px;font-size:13px"></select>
     </div>
     <!-- ② 骑手积分文件（主上传，通常只需这一个） -->
     <div class="card" style="margin-bottom:12px;padding:16px;border-color:rgba(255,107,0,.45)">
@@ -1743,6 +1743,24 @@ const PK_RANK_LABELS = ['1st 🥇','2nd 🥈','3rd 🥉','4th','5th'];
 let SCORE_DATA = null;
 let RIDER_MAP = null;
 let REG_RIDER_MAP = {};
+let MANUAL_REG = false; // 是否手动上传了 ③ 报名文件（为真则用手动的，跳过自动提取）
+// 从系统已存的报名数据，自动提取"骑手→队伍"对应（免去手动上传 ③ 报名文件）
+async function autoBuildRegMap(matchId){
+  try{
+    if(matchId==null) return false;
+    if(!TEAMS || !TEAMS.length){ try{ TEAMS = await dbLoadAllTeams(); }catch(e){} }
+    var regs=(typeof getTeams==='function'?getTeams():(TEAMS||[])).filter(function(t){return String(t.matchId)===String(matchId);});
+    if(!regs.length) return false;
+    var map={};
+    regs.forEach(function(t){
+      var tn=t.teamName; var rds=t.riders||[];
+      (rds||[]).forEach(function(rid){ if(rid&&tn) map[normIdG(rid)]=tn; });
+    });
+    if(!Object.keys(map).length) return false;
+    REG_RIDER_MAP=map;
+    return true;
+  }catch(e){ return false; }
+}
 let RIDER_SCORE_MAP = {}; // riderId → score entry, populated from score file // riderId → teamName (from registration file)
 const REAL_CURP_MAP = {}; // Historical data cleared for v28
 let VENDOR_LIST = {};
@@ -3642,7 +3660,7 @@ if(uz){
 // ══════════════════════════════════
 // SCORE UPLOAD — redesigned
 // ══════════════════════════════════
-function handleScoreUpload(file){
+async function handleScoreUpload(file){
   if(!file)return;
   if(!file.name.match(/\.(xlsx|xls)$/i)){showAlert('scoreUploadErr',L('请上传 .xlsx 或 .xls 格式','Sube un archivo .xlsx o .xls'));return}
   // 按所选场次绑定配对：用该场已发布的配对来算胜负/PK（避免用错"最后发布的那场"）
@@ -3687,6 +3705,8 @@ function handleScoreUpload(file){
       return;
     }
   }
+  // 自动从已存报名数据提取"骑手→队伍"（多队共用 Vendor 时也能正确分配，免传 ③）；除非你手动传了 ③
+  if(!MANUAL_REG){ await autoBuildRegMap(SCORE_MATCH_ID||(MATCHUP_DATA&&MATCHUP_DATA.matchId)); }
   const reader=new FileReader();
   reader.onload=e=>{
     try{
@@ -4040,6 +4060,7 @@ function handleScoreUpload(file){
 // ══════════════════════════════════
 function handleRegUpload(file){
   if(!file)return;
+  MANUAL_REG=true; // 手动上传了报名文件 → 用手动的，跳过自动提取
   const reader=new FileReader();
   reader.onload=function(e){
     try{
@@ -5032,7 +5053,7 @@ function downloadAllResults(){
 
 
 // Force recalculate: re-run vendor fallback + PK bonus using current data
-function forceRecalculate(){
+async function forceRecalculate(){
   if(!SCORE_DATA||!Object.keys(SCORE_DATA).length){
     alert(L('请先上传骑手积分文件','Primero sube el archivo de puntos de riders'));return;
   }
@@ -5040,6 +5061,9 @@ function forceRecalculate(){
     alert(L('请先上传配对结果文件','Primero sube el archivo de emparejamientos'));return;
   }
   rebuildVendorFallback(SCORE_DATA);
+  // 自动用已存报名数据分配骑手（多队共用 Vendor 时也正确）；除非手动传了 ③
+  if(!MANUAL_REG){ await autoBuildRegMap(SCORE_MATCH_ID||(MATCHUP_DATA&&MATCHUP_DATA.matchId)); }
+  if(REG_RIDER_MAP&&Object.keys(REG_RIDER_MAP).length){ applyRegistrationMatching(); }
   applyPKBonus(SCORE_DATA);
   restrictScoreToMatchup(); // 只保留本场参赛队
   RIDER_MAP={};
@@ -5246,8 +5270,8 @@ function initScorePage(){
       if(shared.length && !hasReg){
         var detail=shared.map(function(vc){return (typeof vendorName==='function'?vendorName(vc):vc)+'（'+Object.values(vcTeams[vc]).join('、')+'）';}).join('；');
         swEl.innerHTML=L(
-          '⚠️ <strong>本场有多支队伍共用同一 Vendor，但还没上传 ③ 报名骑手文件</strong>。系统无法判断这些骑手该归哪支队，会导致这些队的骑手分配错误、可能不显示在 Top 10。<br>共用情况：'+detail+'。<br>请到上方"其他文件"展开，上传 ③ 报名骑手文件（含 team_name 与 rider_id），再点「🔄 重算」。',
-          '⚠️ <strong>Hay equipos que comparten el mismo Vendor y aún no subiste el archivo ③ de inscripción</strong>. El sistema no puede saber a qué equipo va cada rider, así que se asignarán mal y pueden no aparecer en el Top 10.<br>Compartidos: '+detail+'.<br>Abre «Otros archivos» arriba y sube el ③ (con team_name y rider_id), luego «🔄 Recalcular».'
+          '⚠️ <strong>本场有多支队伍共用同一 Vendor，但系统里没找到这些队的报名数据</strong>。系统本应自动从报名数据分配骑手，但这几支队查不到报名记录，骑手可能分配错误、不显示在 Top 10。<br>共用情况：'+detail+'。<br>请确认这些队已在「报名参赛」里报名本场；或到上方"其他文件"展开，手动上传 ③ 报名骑手文件后点「🔄 重算」。',
+          '⚠️ <strong>Hay equipos que comparten el mismo Vendor y no se encontró su inscripción</strong>. El sistema asigna riders automáticamente desde las inscripciones, pero no hay registro de estos equipos; pueden asignarse mal y no aparecer en el Top 10.<br>Compartidos: '+detail+'.<br>Verifica que esos equipos estén inscritos en este partido, o sube el ③ manualmente y pulsa «🔄 Recalcular».'
         );
         swEl.style.display='block';
       } else { swEl.style.display='none'; }
