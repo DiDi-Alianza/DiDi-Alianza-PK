@@ -2151,6 +2151,28 @@ function _svgBars(series, color){
   }).join('');
   return '<svg viewBox="0 0 '+W+' '+(H+6)+'" style="width:100%;height:auto;max-width:'+W+'px">'+bars+'</svg>';
 }
+function _svgLine(points, color, isPct){
+  if(!points||!points.length) return '<div style="font-size:12px;color:var(--muted2)">'+L('暂无趋势数据','Sin datos','No trend data')+'</div>';
+  var W=720,H=280,padL=46,padR=18,padT=22,padB=48,n=points.length;
+  var maxV=isPct?100:Math.max.apply(null,points.map(function(p){return p.val;}));
+  if(!isPct){ maxV=Math.max(1,Math.ceil(maxV*1.15)); }
+  var x=function(i){ return padL + (n<=1?(W-padL-padR)/2:i*(W-padL-padR)/(n-1)); };
+  var y=function(v){ return padT + (1-(maxV?v/maxV:0))*(H-padT-padB); };
+  var grid='';
+  for(var g=0;g<=4;g++){ var gv=maxV*g/4, gy=y(gv); grid+='<line x1="'+padL+'" y1="'+gy.toFixed(1)+'" x2="'+(W-padR)+'" y2="'+gy.toFixed(1)+'" stroke="var(--border)" stroke-width="1"/><text x="'+(padL-6)+'" y="'+(gy+3).toFixed(1)+'" text-anchor="end" font-size="10" fill="var(--muted2)">'+(isPct?(Math.round(gv*10)/10)+'%':Math.round(gv))+'</text>'; }
+  var pathD=points.map(function(p,i){return (i?'L':'M')+x(i).toFixed(1)+' '+y(p.val).toFixed(1);}).join(' ');
+  var dots=points.map(function(p,i){ var vx=x(i),vy=y(p.val),lbl=isPct?(Math.round(p.val*10)/10)+'%':Math.round(p.val); return '<circle cx="'+vx.toFixed(1)+'" cy="'+vy.toFixed(1)+'" r="3.5" fill="'+color+'"/><text x="'+vx.toFixed(1)+'" y="'+(vy-9).toFixed(1)+'" text-anchor="middle" font-size="10" fill="var(--text)" font-weight="600">'+lbl+'</text>'; }).join('');
+  var xlabels=points.map(function(p,i){ var vx=x(i),t=(p.label||''); if(t.length>9)t=t.slice(0,9)+'…'; return '<text x="'+vx.toFixed(1)+'" y="'+(H-padB+18)+'" text-anchor="middle" font-size="10" fill="var(--muted2)">'+t+'</text>'; }).join('');
+  return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto">'+grid+'<path d="'+pathD+'" fill="none" stroke="'+color+'" stroke-width="2.5" stroke-linejoin="round"/>'+dots+xlabels+'</svg>';
+}
+function renderTrendChart(){
+  var box=document.getElementById('trendChart'); if(!box) return;
+  var t=window._TREND; if(!t||!t.matches||!t.matches.length){ box.innerHTML='<div style="font-size:12px;color:var(--muted2)">'+L('暂无已配对的场次','Sin partidos emparejados','No matched rounds yet')+'</div>'; return; }
+  var scopeEl=document.getElementById('trendScope'), metEl=document.getElementById('trendMetric');
+  var scope=scopeEl?scopeEl.value:'ALL', metric=metEl?metEl.value:'pv';
+  var pts=t.matches.map(function(m){ var s=m.scope[scope]||{pv:0,pr:0}; var v; if(metric==='pv')v=s.pv; else if(metric==='pr')v=s.pr; else if(metric==='vrate')v=t.totV[scope]?s.pv/t.totV[scope]*100:0; else v=t.totR[scope]?s.pr/t.totR[scope]*100:0; return {label:m.label,val:v}; });
+  box.innerHTML=_svgLine(pts,'var(--didi)',(metric==='vrate'||metric==='rrate'));
+}
 function _lastNDays(n){
   var arr=[]; var now=new Date(Date.now()-MX_OFFSET_MS);
   for(var i=n-1;i>=0;i--){ var d=new Date(now.getTime()-i*86400000); arr.push(d.getUTCFullYear()+'-'+_p2(d.getUTCMonth()+1)+'-'+_p2(d.getUTCDate())); }
@@ -2230,6 +2252,7 @@ async function renderDashboard(){
     var sec=function(t){return '<div style="font-family:Fraunces,serif;font-weight:600;font-size:16px;margin:22px 0 10px;color:var(--text)">'+t+'</div>';};
     var grid=function(cards){return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">'+cards.join('')+'</div>';};
 
+    _dashLangApply();
     var html='';
     html+='<div class="dtab" data-t="ov">';
     html+=sec(L('📊 规模','📊 Escala'));
@@ -2365,6 +2388,24 @@ async function renderDashboard(){
     var uni={}; Object.keys(VENDOR_RMVM).forEach(function(vc){uni[vc]=1;}); Object.keys(regVendorsM).forEach(function(vc){uni[vc]=1;});
     var universe=Object.keys(uni);
 
+    // ===== 跨场次趋势数据（配对成功Vendor/骑手 + 参与率，按 总数/各RM·VM）=====
+    var _regByMatch={};
+    regs.forEach(function(r){ var mid=String(r.match_id); if(!_regByMatch[mid])_regByMatch[mid]={}; var tn=String(r.team_name||'').trim().toLowerCase(); if(!tn)return; var rd=r.riders; if(typeof rd==='string'){try{rd=JSON.parse(rd);}catch(e){rd=[];}} _regByMatch[mid][tn]={vendor:String(r.vendor_code||'').toUpperCase(),riders:(rd||[])}; });
+    var _ownerTotV={},_ownerTotR={},_allTotV=0,_allTotR=0;
+    Object.keys(VENDOR_RMVM).forEach(function(vc){ var o=vendorOwner(vc).label; _ownerTotV[o]=(_ownerTotV[o]||0)+1; _ownerTotR[o]=(_ownerTotR[o]||0)+Number(VENDOR_ROSTER[vc]||0); _allTotV++; _allTotR+=Number(VENDOR_ROSTER[vc]||0); });
+    var _trendIds=Object.keys(MATCHUP_ARCHIVE||{}).filter(function(k){return MATCHUP_ARCHIVE[k]&&(MATCHUP_ARCHIVE[k].pairs||[]).length;}).sort(function(a,b){var ka=matchDateKey(a),kb=matchDateKey(b);if(ka!=null&&kb!=null)return ka-kb;return parseInt(a)-parseInt(b);});
+    var _scopesSet={};
+    var _trend=_trendIds.map(function(mid){
+      var per={};
+      function acc(sc,vc,rds){ if(!per[sc])per[sc]={pv:{},pr:{}}; per[sc].pv[vc]=1; (rds||[]).forEach(function(x){if(x)per[sc].pr[normIdG(x)]=1;}); }
+      MATCHUP_ARCHIVE[mid].pairs.forEach(function(p){ [p.a,p.b].forEach(function(side){ if(!side||!side.team)return; var tn=String(side.team).trim().toLowerCase(); var regt=(_regByMatch[mid]||{})[tn]; var vc=(regt&&regt.vendor)?regt.vendor:String(side.vendor||'').toUpperCase(); if(!vc)return; var rds=(regt&&regt.riders&&regt.riders.length)?regt.riders:(side.riders||[]); var o=vendorOwner(vc).label; _scopesSet[o]=1; acc('ALL',vc,rds); acc(o,vc,rds); }); });
+      var out={id:mid,label:(matchLabel(parseInt(mid))||('第'+mid+'场')),scope:{}};
+      Object.keys(per).forEach(function(s){ out.scope[s]={pv:Object.keys(per[s].pv).length,pr:Object.keys(per[s].pr).length}; });
+      return out;
+    });
+    window._TREND={ matches:_trend, scopes:['ALL'].concat(Object.keys(_scopesSet).sort()), totV:{ALL:_allTotV}, totR:{ALL:_allTotR} };
+    Object.keys(_ownerTotV).forEach(function(o){ window._TREND.totV[o]=_ownerTotV[o]; window._TREND.totR[o]=_ownerTotR[o]; });
+
     // 按 owner 聚合（PK）
     var ownerAgg={};
     universe.forEach(function(vc){
@@ -2385,6 +2426,20 @@ async function renderDashboard(){
       + '</select></div>';
     if(!hasMap)html+='<div style="font-size:11px;color:#F59E0B;margin-bottom:8px">'+L('⚠️ 还没上传 Vendor↔RM/VM 清单（附件1），"总Vendor数/报名率"无法计算。请在上方上传。','⚠️ Sube la lista Vendor↔RM/VM arriba para calcular totales y tasas.')+'</div>';
     if(!hasRoster)html+='<div style="font-size:11px;color:#F59E0B;margin-bottom:8px">'+L('⚠️ 还没上传骑手名册（附件2），"骑手总数/骑手报名率"无法计算。请在上方上传。','⚠️ Sube el roster de riders arriba para totales y tasas de riders.')+'</div>';
+
+    // ---- PK · 跨场次趋势折线图 ----
+    html+=sec(L('📈 PK 趋势 · 各场次','📈 Tendencia PK · por partido','📈 PK Trend · by round'));
+    html+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">'
+      +'<select id="trendMetric" onchange="renderTrendChart()" style="padding:7px 11px;font-size:12px;background:var(--s2);color:var(--text);border:1px solid var(--border);border-radius:8px">'
+        +'<option value="pv">'+L('配对成功 Vendor 数','Vendors emparejados','Matched vendors')+'</option>'
+        +'<option value="vrate">'+L('Vendor 参与率','Tasa participación Vendor','Vendor participation rate')+'</option>'
+        +'<option value="pr">'+L('配对成功骑手数','Riders emparejados','Matched riders')+'</option>'
+        +'<option value="rrate">'+L('骑手参与率','Tasa participación riders','Rider participation rate')+'</option>'
+      +'</select>'
+      +'<select id="trendScope" onchange="renderTrendChart()" style="padding:7px 11px;font-size:12px;background:var(--s2);color:var(--text);border:1px solid var(--border);border-radius:8px">'
+        +(window._TREND?window._TREND.scopes.map(function(s){return '<option value="'+s+'">'+(s==='ALL'?L('总数（全部）','Total','Total'):s)+'</option>';}).join(''):'')
+      +'</select></div>';
+    html+='<div id="trendChart" style="background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:14px 10px">'+L('加载中…','Cargando…','Loading…')+'</div>';
 
     // ---- PK · 按 RM/VM ----
     html+=sec(L('🏁 PK 参赛 · 按 RM/VM','🏁 PK por RM/VM')+' <span style="font-size:11px;color:var(--muted)">('+mlabel(M||'')+')</span>');
@@ -2475,13 +2530,18 @@ async function renderDashboard(){
     } else html+='<div style="font-size:12px;color:var(--muted2)">'+L('暂无 PT 报名','Sin registros PT')+'</div>';
 
     html+='</div>'; // close PT tab
-    html+='<div style="font-size:11px;color:var(--muted);margin-top:18px">'+L('数据实时来自数据库 · 时间为墨西哥城时间 · 更新于 ','Datos en vivo · hora CDMX · actualizado ')+_dashDay(new Date().toISOString())+'</div>';
+    html+='<div style="font-size:11px;color:var(--muted);margin-top:18px">'+L('数据实时来自数据库 · 时间为墨西哥城时间 · 更新于 ','Datos en vivo · hora CDMX · actualizado ','Live data · CDMX time · updated ')+_dashDay(new Date().toISOString())+'</div>';
+    var _lb=function(v,t){var on=(DASH_LANG===v);return '<button onclick="dashSetLang(\''+v+'\')" style="padding:5px 10px;font-size:11px;border-radius:7px;border:1px solid '+(on?'var(--didi)':'var(--border)')+';background:'+(on?'var(--didi)':'var(--s2)')+';color:'+(on?'#fff':'var(--text)')+';cursor:pointer;font-family:inherit">'+t+'</button>';};
+    var _langBar='<div style="display:flex;gap:6px;margin:2px 0 8px;align-items:center"><span style="font-size:11px;color:var(--muted2);margin-right:2px">'+L('看板语言','Idioma','Language')+':</span>'+_lb('inherit',L('跟随','Auto','Auto'))+_lb('zh','中文')+_lb('es','ES')+_lb('en','EN')+'</div>';
     var _tabBar='<div id="dashTabBar" style="display:flex;gap:8px;margin:2px 0 14px;flex-wrap:wrap">'
-      +_dtb('ov',L('📊 总览','📊 Resumen'))+_dtb('pk',L('🏁 PK 明细','🏁 PK'))+_dtb('pt',L('🧩 PT 明细','🧩 PT'))+'</div>';
-    body.innerHTML=_tabBar+html;
+      +_dtb('ov',L('📊 总览','📊 Resumen','📊 Overview'))+_dtb('pk',L('🏁 PK 明细','🏁 PK','🏁 PK'))+_dtb('pt',L('🧩 PT 明细','🧩 PT','🧩 PT'))+'</div>';
+    body.innerHTML=_langBar+_tabBar+html;
     dashShowTab(DASH_TAB||'ov');
+    if(typeof renderTrendChart==='function')renderTrendChart();
+    _dashLangRestore();
   }catch(err){
     console.error(err);
+    try{_dashLangRestore();}catch(e){}
     body.innerHTML='<div style="font-size:13px;color:var(--lose)">'+L('加载失败：','Error: ')+(err.message||err)+'</div>';
   }
 }
@@ -2622,8 +2682,14 @@ function getSlotVals(prefix){return[0,1,2,3,4].map(i=>{const e=document.getEleme
 // ══════════════════════════════════════════════════════════
 let LANG = localStorage.getItem('didi_lang') || 'es';
 
-// Helper for inline dynamic strings: L('中文','Español')
-function L(zh, es){ return LANG === 'es' ? es : zh; }
+// Helper for inline dynamic strings: L('中文','Español'[,'English']). EN 缺省回退西语。
+function L(zh, es, en){ if(LANG==='en') return (en!==undefined?en:es); return LANG === 'es' ? es : zh; }
+// Dashboard 专用语言（独立于全站语言）：'inherit' 跟随全站，或 'zh'/'es'/'en'
+let DASH_LANG = localStorage.getItem('didi_dash_lang') || 'inherit';
+function dashSetLang(v){ DASH_LANG=v; try{localStorage.setItem('didi_dash_lang',v);}catch(e){} renderDashboard(); }
+// 在 Dashboard 渲染期间临时切换语言
+function _dashLangApply(){ if(DASH_LANG!=='inherit'){ window._SAVED_LANG=LANG; LANG=DASH_LANG; } }
+function _dashLangRestore(){ if(window._SAVED_LANG!==undefined){ LANG=window._SAVED_LANG; delete window._SAVED_LANG; } }
 
 const I18N = {
   zh: {
