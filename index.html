@@ -2210,11 +2210,21 @@ function renderTrendByOwner(){
   box.innerHTML=_svgLine(series,isPct,false); // 多线不标数字
 }
 function _shortDate(id){ var e=(typeof allScheduleEntry==='function')?allScheduleEntry(parseInt(id)):null; if(e&&e.date){ var m=String(e.date).match(/(\d+)\D+?(\d+)/); if(m)return m[1]+'/'+m[2]; } return (matchLabel(parseInt(id))||('#'+id)); }
+var REGTREND_TH=(function(){ try{ var s=JSON.parse(localStorage.getItem('didi_regtrend_th')||'{}'); return {rv:(s.rv!=null?s.rv:''), rt:(s.rt!=null?s.rt:'')}; }catch(e){ return {rv:'',rt:''}; } })(); // 两个指标各自的预警线（本地存储）
 function renderRegTrend(){
   var box=document.getElementById('regTrendChart'); if(!box) return;
   var t=window._REGTREND; if(!t||!t.matches||!t.matches.length){ box.innerHTML='<div style="font-size:12px;color:var(--muted2)">'+L('暂无报名场次','Sin inscripciones','No registrations yet')+'</div>'; return; }
   var el=document.getElementById('regTrendMetric'); var metric=el?el.value:'rv';
-  var thEl=document.getElementById('regTrendTh'); var th=(thEl&&thEl.value!=='')?Number(thEl.value):null; if(th!=null&&(isNaN(th)||th<=0))th=null;
+  var thEl=document.getElementById('regTrendTh');
+  if(thEl){
+    thEl.placeholder=(metric==='rv'?L('Vendor 预警线','Meta vendors','Vendor target'):L('队伍预警线','Meta equipos','Team target'));
+    if(thEl.getAttribute('data-m')!==metric){ // 切换指标 / 首次：从存储载入
+      thEl.value=REGTREND_TH[metric]||''; thEl.setAttribute('data-m',metric);
+    } else { // 同一指标、用户输入：写回存储
+      REGTREND_TH[metric]=thEl.value; try{localStorage.setItem('didi_regtrend_th',JSON.stringify(REGTREND_TH));}catch(e){}
+    }
+  }
+  var th=(REGTREND_TH[metric]!=='' && REGTREND_TH[metric]!=null)?Number(REGTREND_TH[metric]):null; if(th!=null&&(isNaN(th)||th<=0))th=null;
   var series=[{name:(metric==='rv'?L('报名 Vendor 数','Vendors inscritos','Registered vendors'):L('报名队伍数','Equipos inscritos','Registered teams')),color:'#3D9EFF',points:t.matches.map(function(m){return {label:_shortDate(m.id),val:(metric==='rv'?m.rv:m.rt)};})}];
   box.innerHTML=_svgLine(series,false,true,th);
 }
