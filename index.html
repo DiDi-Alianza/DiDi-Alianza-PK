@@ -2757,14 +2757,16 @@ function exportDashboard(){
 }
 // hash routing
 function _checkDashHash(){ try{ if(location.hash==='#dashboard'){ openDashboard(); } }catch(e){} }
-// 兑换直达：Push 链接用 .../#redeem，骑手点进来直接落在积分页并弹出兑换界面
+// 兑换直达：Push 链接用 .../#redeem，骑手点进来直接弹出兑换界面（覆盖在首页之上，绝不切页，避免空白）
 function openRedeemDeepLink(){
-  try{
-    var pages=Array.prototype.slice.call(document.querySelectorAll('.page'));
-    var idx=pages.indexOf(document.getElementById('p6'));
-    if(idx>=0) go(idx);
-  }catch(e){}
-  setTimeout(function(){ try{ openRedeemModal(''); }catch(e){} }, 350);
+  var tries=0;
+  (function open(){
+    tries++;
+    try{
+      if(typeof openRedeemModal==='function'){ openRedeemModal(''); return; }
+    }catch(e){}
+    if(tries<20) setTimeout(open,200); // 等脚本就绪后再弹
+  })();
 }
 function _checkRedeemHash(){ try{ var h=(location.hash||'').toLowerCase(); if(h==='#redeem'||h==='#canje'){ openRedeemDeepLink(); } }catch(e){} }
 if(typeof window!=='undefined' && window.addEventListener){ window.addEventListener('hashchange', _checkRedeemHash); }
