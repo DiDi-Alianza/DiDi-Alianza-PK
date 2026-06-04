@@ -1600,11 +1600,11 @@ select.fi option{background:#18181E}
         <button class="btn btn-s btn-sm" onclick="toggleLang()" style="font-size:11px" title="切换语言 / Cambiar idioma"><span class="lc-zh">🇪🇸 ES</span><span class="lc-es">🇨🇳 中文</span></button>
         <button class="btn btn-s btn-sm" onclick="renderDashboard()" style="font-size:11px"><span class="lc-zh">🔄 刷新</span><span class="lc-es">🔄 Actualizar</span></button>
         <button class="btn btn-s btn-sm" onclick="exportDashboard()" style="font-size:11px"><span class="lc-zh">⬇️ 导出</span><span class="lc-es">⬇️ Exportar</span></button>
-        <button class="btn btn-s btn-sm" onclick="operatorLogout();closeDashboard();" style="font-size:11px"><span class="lc-zh">退出登录</span><span class="lc-es">Salir</span></button>
+        <button id="dashOpLogout" class="btn btn-s btn-sm" onclick="operatorLogout();closeDashboard();" style="font-size:11px"><span class="lc-zh">退出登录</span><span class="lc-es">Salir</span></button>
         <button class="btn btn-s btn-sm" onclick="closeDashboard()" style="font-size:11px"><span class="lc-zh">✕ 关闭</span><span class="lc-es">✕ Cerrar</span></button>
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0 4px">
+    <div id="dashUploadBar" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0 4px">
       <div style="background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:10px 12px">
         <div style="font-size:12px;font-weight:700;margin-bottom:4px"><span class="lc-zh">🗂️ Vendor ↔ RM/VM 清单</span><span class="lc-es">🗂️ Lista Vendor ↔ RM/VM</span></div>
         <div style="font-size:10px;color:var(--muted2);margin-bottom:6px"><span class="lc-zh">列：VM、RM、VENDOR Code（优先按 RM，无 RM 取 VM=新商）</span><span class="lc-es">Columnas: VM, RM, VENDOR Code</span></div>
@@ -2052,11 +2052,26 @@ function _dashDay(ts){ // ISO -> CDMX date YYYY-MM-DD (reuse mxTime logic)
   if(!ts) return '';
   try{ var str=String(ts).trim().replace(' ','T').replace(/([+-]\d\d)$/,'$1:00'); var d=new Date(str); if(isNaN(d.getTime()))return String(ts).slice(0,10); var m=new Date(d.getTime()-MX_OFFSET_MS); return m.getUTCFullYear()+'-'+_p2(m.getUTCMonth()+1)+'-'+_p2(m.getUTCDate()); }catch(e){ return String(ts).slice(0,10); }
 }
+// ===== 看板只读访客（给商分/老板等，只能看+下载，不能编辑，也不知道运营账号）=====
+var DASH_VIEW_PASS = 'DiDiViewandDownload2030';   // ← 给同事的只读密码（要改就改这里这一串）
+var DASH_VIEWER = false;               // 当前是否以只读访客身份进入
 async function openDashboard(){
-  if(!(await requireOperator())){ return; }
+  var op=false; try{ op=await refreshOperator(); }catch(e){}
+  if(!op){
+    if(!DASH_VIEWER){
+      var pw=prompt(L('请输入看板访问密码（只读）：','Ingresa la contraseña del panel (solo lectura):','Enter dashboard access password (read-only):'));
+      if(pw==null) return;
+      if(String(pw)!==DASH_VIEW_PASS){ alert(L('密码错误','Contraseña incorrecta','Wrong password')); return; }
+      DASH_VIEWER=true;
+    }
+  } else { DASH_VIEWER=false; }
   var d=document.getElementById('pDash'); if(!d) return;
   d.style.display='block';
   document.body.style.overflow='hidden';
+  // 只读访客：隐藏上传入口与「退出登录」（避免编辑、避免接触运营账号）
+  var isOp=(typeof OPERATOR!=='undefined' && OPERATOR);
+  var ub=document.getElementById('dashUploadBar'); if(ub) ub.style.display=isOp?'grid':'none';
+  var lo=document.getElementById('dashOpLogout'); if(lo) lo.style.display=isOp?'inline-flex':'none';
   renderDashboard();
 }
 // 上传 附件1：Vendor ↔ RM/VM 清单（列：VM、RM、VENDOR Code）
