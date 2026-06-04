@@ -2742,6 +2742,17 @@ function exportDashboard(){
 }
 // hash routing
 function _checkDashHash(){ try{ if(location.hash==='#dashboard'){ openDashboard(); } }catch(e){} }
+// 兑换直达：Push 链接用 .../#redeem，骑手点进来直接落在积分页并弹出兑换界面
+function openRedeemDeepLink(){
+  try{
+    var pages=Array.prototype.slice.call(document.querySelectorAll('.page'));
+    var idx=pages.indexOf(document.getElementById('p6'));
+    if(idx>=0) go(idx);
+  }catch(e){}
+  setTimeout(function(){ try{ openRedeemModal(''); }catch(e){} }, 350);
+}
+function _checkRedeemHash(){ try{ var h=(location.hash||'').toLowerCase(); if(h==='#redeem'||h==='#canje'){ openRedeemDeepLink(); } }catch(e){} }
+if(typeof window!=='undefined' && window.addEventListener){ window.addEventListener('hashchange', _checkRedeemHash); }
 if(typeof window!=='undefined' && window.addEventListener){ window.addEventListener('hashchange', _checkDashHash); }
 
 function go(idx){
@@ -2959,7 +2970,7 @@ function refreshDynamic(){
 }
 
 // Apply on load
-document.addEventListener('DOMContentLoaded', function(){ applyLang(); loadSharedData(); try{logEvent('page_view');}catch(e){} try{_checkDashHash();}catch(e){} });
+document.addEventListener('DOMContentLoaded', function(){ applyLang(); loadSharedData(); try{logEvent('page_view');}catch(e){} try{_checkDashHash();}catch(e){} try{_checkRedeemHash();}catch(e){} });
 
 
 // Admin password (obfuscated — not stored as plain text)
