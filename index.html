@@ -1606,8 +1606,8 @@ select.fi option{background:#18181E}
     </div>
     <div id="dashUploadBar" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0 4px">
       <div style="background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:10px 12px">
-        <div style="font-size:12px;font-weight:700;margin-bottom:4px"><span class="lc-zh">🗂️ Vendor ↔ RM/VM 清单</span><span class="lc-es">🗂️ Lista Vendor ↔ RM/VM</span></div>
-        <div style="font-size:10px;color:var(--muted2);margin-bottom:6px"><span class="lc-zh">列：VM、RM、VENDOR Code（优先按 RM，无 RM 取 VM=新商）</span><span class="lc-es">Columnas: VM, RM, VENDOR Code</span></div>
+        <div style="font-size:12px;font-weight:700;margin-bottom:4px"><span class="lc-zh">🗂️ Vendor ↔ 渠道经理 清单</span><span class="lc-es">🗂️ Lista Vendor ↔ Gerente</span></div>
+        <div style="font-size:10px;color:var(--muted2);margin-bottom:6px"><span class="lc-zh">列：RM（渠道经理）、VENDOR Code · 已内置最新清单，可上传覆盖</span><span class="lc-es">Columnas: RM (gerente), VENDOR Code · lista precargada; sube para reemplazar</span></div>
         <input type="file" accept=".xlsx,.xls" onchange="handleVendorRMVMUpload(this.files[0]);this.value=''" style="font-size:11px">
         <div id="dashUploadMsg" style="font-size:11px;margin-top:5px;color:var(--muted2)"></div>
       </div>
@@ -1778,20 +1778,142 @@ async function autoBuildRegMap(matchId){
 let RIDER_SCORE_MAP = {}; // riderId → score entry, populated from score file // riderId → teamName (from registration file)
 const REAL_CURP_MAP = {}; // Historical data cleared for v28
 let VENDOR_LIST = {};
-let VENDOR_RM = {}; // {vendor_code: RM name} — operator-only, never shown to vendors
-let VENDOR_RMVM = {}; // {vendorCode: {rm, vm}} 来自附件1，运营专用
+// 内置 Vendor↔渠道经理 清单（2026-06-05 更新；不再区分 RM/VM，统一为「渠道经理」）
+const RMVM_VERSION = '2026-06-05';
+const BUILTIN_MGR = {
+  "ACOSTADIDICDMX2601264":"Alan Gonzalez",
+  "BALDERASDIDICDMX2604298":"Alan Gonzalez",
+  "DARMASDIDICDMX2603183":"Alan Gonzalez",
+  "DUMBIBOBDIDICDMX2601159":"Alan Gonzalez",
+  "EARLYSPACEDIDICDMX2601167":"Alan Gonzalez",
+  "ENVIAGUIADIDICDMX2603187":"Alan Gonzalez",
+  "EXCEDDDIDICDMX2602276":"Alan Gonzalez",
+  "FTORRESDIDICDMX2603279":"Alan Gonzalez",
+  "GOHEDIDICDMX26051124":"Alan Gonzalez",
+  "RAPIDITOSDIDICDMX2602277":"Alan Gonzalez",
+  "REINADELIVERYDIDICDMX2603278":"Alan Gonzalez",
+  "TENORIODIDICDMX26042107":"Alan Gonzalez",
+  "CAZABALDIDICDMX26052117":"Chris Hernandez",
+  "DELEXDIDICDMX2604292":"Chris Hernandez",
+  "MIRIAMDIDICDMX2604295":"Chris Hernandez",
+  "SANTOYODIDICDMX26042104":"Chris Hernandez",
+  "TERESADIDICDMX2604294":"Chris Hernandez",
+  "ALTACHSDIDIMTY251115":"Cristian Castro",
+  "ARLETEDIDICDMX2601262":"Cristian Castro",
+  "DATATRAFFICDIDIMTY251219":"Cristian Castro",
+  "EMANNUELDIDIMTY251228":"Cristian Castro",
+  "ENTREGATECHDIDIMTY2605143":"Cristian Castro",
+  "GONZALEZDIDIMTY251114":"Cristian Castro",
+  "JUANDIDICDMX2601261":"Cristian Castro",
+  "REGIOTRECKDIDIMTY251122":"Cristian Castro",
+  "RVPAQDIDIMTY2601216":"Cristian Castro",
+  "SARAIDIDIMTY2604227":"Cristian Castro",
+  "VICTORDIDIMTY2601214":"Cristian Castro",
+  "VLDIDICDMX2510146":"Cristian Castro",
+  "LUMIDIDIMTY2603224":"Erik",
+  "MANCILLADIDIMTY2604234":"Erik",
+  "MARROQUINDIDIMTY2605242":"Erik",
+  "MOGICADIDIMTY2605240":"Erik",
+  "ROBLEDODIDIMTY2605238":"Erik",
+  "RRSOLUDIDIMTY2603224":"Erik",
+  "SWIFTDIDIMTY2603226":"Erik",
+  "URMARDIDIMTY2604128":"Erik",
+  "US3DIDIMTY2604136":"Erik",
+  "AHUMADADIDICDMX26042110":"Esteban",
+  "ALANDIDICDMX2604299":"Esteban",
+  "BRANDONDIDICDMX2604297":"Esteban",
+  "CATANODIDICDMX26052113":"Esteban",
+  "ESPERANZADIDICDMX26042109":"Esteban",
+  "GALICIADIDICDMX26052123":"Esteban",
+  "HAZIELDIDIMTY2605239":"Esteban",
+  "INNEVEDIDICDMX26052118":"Esteban",
+  "JHERNANDEZDIDICDMX26052115":"Esteban",
+  "MONDRAGONDIDIMTY2604235":"Esteban",
+  "CARRIZALESDIDIMTY2605241":"Franco",
+  "CRUZDIDICDMX26052122":"Franco",
+  "GILDIDICDMX26052111":"Franco",
+  "JACOBODIDICDMX2508124":"Franco",
+  "MIRCYDIDICDMX26042106":"Franco",
+  "PLAZADIDICDMX26052119":"Franco",
+  "AMARODIDIMTY2604229":"Jesus",
+  "CURIELDIDICDMX26052116":"Jesus",
+  "DATATRAFFICDIDICDMX26051112":"Jesus",
+  "HILDADIDIMTY2604231":"Jesus",
+  "OMODIDICDMX2509143":"Jesus",
+  "ROGELIODIDIMTY2604233":"Jesus",
+  "ROLANDODIDIMTY2604232":"Jesus",
+  "ALEJANDRODIDICDMX2507118":"Julio",
+  "FAGOAGADIDICDMX2603286":"Julio",
+  "FASTREMISEDIDICDMX2601166":"Julio",
+  "HUMBERTODIDICDMX2601271":"Julio",
+  "JABETDIDICDMX26042103":"Julio",
+  "MASYDIDICDMX26052121":"Julio",
+  "MONZERRATDIDICDMX2604296":"Julio",
+  "SELENEDIDICDMX26042102":"Julio",
+  "TURBODIDICDMX2603291":"Julio",
+  "VILLEDADIDICDMX26042108":"Julio",
+  "ARTURDIDICDMX2601258":"Miguel Arriola",
+  "EDUARDODIDICDMX2509240":"Miguel Arriola",
+  "EXACTODIDICDMX2508125":"Miguel Arriola",
+  "EXPRESSPOLANCODIDICDMX2603282":"Miguel Arriola",
+  "FPAKDIDICDMX25110103":"Miguel Arriola",
+  "FPAKDIDIMTY25110103":"Miguel Arriola",
+  "GDELIVERYDIDICDMX2603280":"Miguel Arriola",
+  "MANANZUDIDICDMX2506112":"Miguel Arriola",
+  "QTIMEDIDICDMX2602173":"Miguel Arriola",
+  "SALONDIDICDMX2509132":"Miguel Arriola",
+  "GARNICADIDICDMX2601268":"Ramses Gonzalez",
+  "GPOMGDIDICDMX2603190":"Ramses Gonzalez",
+  "GRRDIDICDMX2510147":"Ramses Gonzalez",
+  "LOGISDELIVERDIDICDMX2603285":"Ramses Gonzalez",
+  "MELANIEDIDICDMX26052125":"Ramses Gonzalez",
+  "MEYSERDIDICDMX2509145":"Ramses Gonzalez",
+  "ROJASDIDICDMX2602278":"Ramses Gonzalez",
+  "SACBEDIDICDMX2601270":"Ramses Gonzalez",
+  "TARPETDIDICDMX2603188":"Ramses Gonzalez",
+  "EMILIODIDIMTY2512220":"Ricardo Cano",
+  "ESCAMILLADIDIMTY2602221":"Ricardo Cano",
+  "FLASHPACKDIDIMTY251227":"Ricardo Cano",
+  "FOODSYDIDIMTY2601210":"Ricardo Cano",
+  "GRUPORDDIDIMTY2602222":"Ricardo Cano",
+  "K24DIDICDMX2507121":"Ricardo Cano",
+  "KARLACAZANDRAMTY2604229":"Ricardo Cano",
+  "MICROHUBDIDIMTY2601111":"Ricardo Cano",
+  "MOTOPARADISEDIDIMTY2603123":"Ricardo Cano",
+  "MVDDIDIMTY251126":"Ricardo Cano",
+  "XRIDEDIDICDMX2603184":"Ricardo Cano",
+  "XRIDEDIDIMTY2601115":"Ricardo Cano",
+  "ALTAMIRANODIDICDMX26042100":"Roberto",
+  "ASAHARAIDIDICDMX26042105":"Roberto",
+  "KARENLOPEZDIDICDMX26042101":"Roberto",
+  "PADILLADIDIMTY2604237":"Roberto",
+  "RUTADIDICDMX26052120":"Roberto",
+  "2202MDIDICDMX2511253":"Tania Cruz",
+  "AMVMDIDICDMX2602172":"Tania Cruz",
+  "BENYZEUSDIDICDMX2509128":"Tania Cruz",
+  "BGLOBALDIDICDMX2511155":"Tania Cruz",
+  "DBILLDIDICDMX2509133":"Tania Cruz",
+  "HAIBAODIDICDMX2602179":"Tania Cruz",
+  "KARLADIDICDMX250513":"Tania Cruz",
+  "LAURADIDICDMX250519":"Tania Cruz",
+  "LOGISDIDICDMX2509141":"Tania Cruz",
+  "MARCODIDICDMX2603281":"Tania Cruz",
+  "RUSTEZE95DIDICDMX2603289":"Tania Cruz",
+  "STARMILEDIDICDMX26051126":"Tania Cruz",
+  "VICTORHUGODIDICDMX2509242":"Tania Cruz",
+};
+let VENDOR_RM = Object.assign({}, BUILTIN_MGR);   // {vendor_code: 渠道经理} — 仅运营可见
+let VENDOR_RMVM = Object.assign({}, BUILTIN_MGR); // {vendorCode: 渠道经理名}（内置/附件1），运营专用
 let VENDOR_ROSTER = {}; // {vendorCode: 骑手数} 来自附件2（每个Vendor名下骑手数，动态、可更新）
-// 取 Vendor 的归属负责人：优先 RM；无 RM 取 VM（=新商）；都没有则未分配
+// 取 Vendor 的归属渠道经理；兼容字符串与旧 {rm,vm} 结构；都没有则未分配
 function vendorOwner(vc){
   var v=String(vc||'').toUpperCase();
   var e=VENDOR_RMVM[v]||VENDOR_RMVM[vc];
-  var rm=e&&e.rm?String(e.rm).trim():'';
-  var vm=e&&e.vm?String(e.vm).trim():'';
-  if(rm) return {label:rm, type:'RM', isNew:false};
-  if(vm) return {label:vm, type:'VM', isNew:true}; // 只有VM没有RM = 新商
-  // 兼容旧的 VENDOR_RM
-  if(VENDOR_RM[v]) return {label:String(VENDOR_RM[v]).trim(), type:'RM', isNew:false};
-  return {label:L('（未分配）','(Sin asignar)'), type:'NONE', isNew:false};
+  var name='';
+  if(e){ name = (typeof e==='string') ? e.trim() : String((e.rm||e.vm||'')).trim(); }
+  if(!name && VENDOR_RM[v]) name=String(VENDOR_RM[v]).trim();
+  if(name) return {label:name, type:'', isNew:false};
+  return {label:L('（未分配）','(Sin asignar)'), type:'', isNew:false};
 }
 // Matchup data — set when published
 let MATCHUP_DATA = null;
@@ -2089,19 +2211,19 @@ function handleVendorRMVMUpload(file){
       var gc=function(r,cands){for(var i=0;i<cands.length;i++){for(var k in r){if(nk(k)===cands[i]){var v=r[k];if(v!==undefined&&v!=='')return String(v).trim();}}}return '';};
       var map={},n=0;
       rows.forEach(function(r){
-        var vc=gc(r,['vendorcode','vendor_code','vendorcode','code']).toUpperCase();
-        var rm=gc(r,['rm']);
-        var vm=gc(r,['vm']);
+        var vc=gc(r,['vendorcode','vendor_code','code']).toUpperCase();
+        var mgr=gc(r,['rm','manager','经理','渠道经理','gerente','vm']);
         if(!vc)return;
-        map[vc]={rm:rm,vm:vm}; n++;
+        map[vc]=mgr; n++;
       });
       if(!n)throw new Error(L('没找到 VENDOR Code 列','No se encontró columna VENDOR Code'));
       VENDOR_RMVM=map;
-      // 同步旧的 VENDOR_RM（owner=优先RM否则VM），保持 RM 看板兼容
-      VENDOR_RM={}; Object.keys(map).forEach(function(vc){ var o=map[vc].rm||map[vc].vm; if(o)VENDOR_RM[vc]=o; });
+      // 同步 VENDOR_RM（渠道经理），保持业绩追踪看板兼容
+      VENDOR_RM={}; Object.keys(map).forEach(function(vc){ if(map[vc])VENDOR_RM[vc]=map[vc]; });
       await dbSaveData('vendor_rmvm', VENDOR_RMVM);
+      await dbSaveData('vendor_rmvm_version', RMVM_VERSION);
       await dbSaveData('vendor_rm', VENDOR_RM);
-      if(st){st.style.color='var(--win)';st.textContent=L('✅ Vendor–RM/VM 清单已更新：'+n+' 个 Vendor','✅ Lista Vendor–RM/VM actualizada: '+n+' vendors');}
+      if(st){st.style.color='var(--win)';st.textContent=L('✅ Vendor–渠道经理 清单已更新：'+n+' 个 Vendor','✅ Lista Vendor–Gerente actualizada: '+n+' vendors');}
       renderDashboard();
     }catch(err){ if(st){st.style.color='var(--lose)';st.textContent=L('❌ 解析失败：','❌ Error: ')+(err.message||err);} }
   };
@@ -2362,18 +2484,18 @@ async function renderDashboard(){
     var rmAgg={};
     regs.forEach(function(r){
       var vc=String(r.vendor_code||'').toUpperCase();
-      var rm=(VENDOR_RM&&VENDOR_RM[vc])?VENDOR_RM[vc]:L('（未分配 RM）','(Sin RM)');
+      var rm=(VENDOR_RM&&VENDOR_RM[vc])?VENDOR_RM[vc]:L('（未分配）','(Sin asignar)');
       if(!rmAgg[rm]) rmAgg[rm]={v:{},e:0,et:0,vt:{}};
       if(vc) rmAgg[rm].v[vc]=1;
       rmAgg[rm].e++;
       if(_dashDay(r.created_at)===_today){ rmAgg[rm].et++; if(vc) rmAgg[rm].vt[vc]=1; }
     });
     var rmRows=Object.keys(rmAgg).map(function(rm){return {rm:rm,vendors:Object.keys(rmAgg[rm].v).length,entries:rmAgg[rm].e,vt:Object.keys(rmAgg[rm].vt).length,et:rmAgg[rm].et};}).sort(function(a,b){return b.entries-a.entries;});
-    html+=sec(L('👤 RM 业绩追踪（仅运营可见）','👤 Seguimiento por RM (solo operaciones)'));
+    html+=sec(L('👤 渠道经理业绩追踪（仅运营可见）','👤 Seguimiento por gerente (solo operaciones)'));
     if(rmRows.length){
       html+='<div style="background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:6px 4px;overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:520px">'
         +'<thead><tr style="color:var(--muted2)">'
-        +'<th style="text-align:left;padding:8px 10px">RM</th>'
+        +'<th style="text-align:left;padding:8px 10px">'+L('渠道经理','Gerente')+'</th>'
         +'<th style="text-align:right;padding:8px 10px">'+L('Vendor数(累计·去重)','Vendors (acum.)')+'</th>'
         +'<th style="text-align:right;padding:8px 10px">'+L('报名次数(累计)','Inscrip. (acum.)')+'</th>'
         +'<th style="text-align:right;padding:8px 10px">'+L('今日Vendor数','Vendors hoy')+'</th>'
@@ -2387,7 +2509,7 @@ async function renderDashboard(){
           +'<td style="text-align:right;padding:8px 10px;color:var(--didi);font-weight:700">'+r.et+'</td>'
           +'</tr>';}).join('')
         +'</tbody></table></div>';
-      html+='<div style="font-size:11px;color:var(--muted);margin-top:6px">'+L('“今日”= 墨西哥城自然日 0 点起。RM 来自供应商名单里的 RM 列；未填 RM 的归入“未分配 RM”。','“Hoy” = desde las 0:00 hora CDMX. El RM proviene de la columna RM en la lista de proveedores.')+'</div>';
+      html+='<div style="font-size:11px;color:var(--muted);margin-top:6px">'+L('“今日”= 墨西哥城自然日 0 点起。渠道经理来自内置清单或附件1；未匹配的归入“未分配”。','“Hoy” = desde las 0:00 hora CDMX. El gerente proviene de la lista precargada o del anexo 1.')+'</div>';
     } else {
       html+='<div style="font-size:12px;color:var(--muted2)">'+L('暂无数据（需在供应商名单中包含 RM 列）','Sin datos (incluye una columna RM en la lista de proveedores)')+'</div>';
     }
@@ -2501,7 +2623,7 @@ async function renderDashboard(){
     html+='<div style="margin-bottom:6px"><select onchange="DASH_MATCH_ID=this.value;renderDashboard()" style="padding:8px 11px;font-size:12.5px;background:var(--s2);color:var(--text);border:1px solid var(--border);border-radius:8px">'
       + (midList.length?midList.map(function(id){return '<option value="'+id+'"'+(String(id)===String(M)?' selected':'')+'>'+mlabel(id)+'</option>';}).join(''):'<option>'+L('暂无报名场次','Sin partidos')+'</option>')
       + '</select></div>';
-    if(!hasMap)html+='<div style="font-size:11px;color:#F59E0B;margin-bottom:8px">'+L('⚠️ 还没上传 Vendor↔RM/VM 清单（附件1），"总Vendor数/报名率"无法计算。请在上方上传。','⚠️ Sube la lista Vendor↔RM/VM arriba para calcular totales y tasas.')+'</div>';
+    if(!hasMap)html+='<div style="font-size:11px;color:#F59E0B;margin-bottom:8px">'+L('⚠️ 还没有 Vendor↔渠道经理 清单（附件1），"总Vendor数/报名率"无法计算。请在上方上传。','⚠️ Sube la lista Vendor↔gerente arriba para calcular totales y tasas.')+'</div>';
     if(!hasRoster)html+='<div style="font-size:11px;color:#F59E0B;margin-bottom:8px">'+L('⚠️ 还没上传骑手名册（附件2），"骑手总数/骑手报名率"无法计算。请在上方上传。','⚠️ Sube el roster de riders arriba para totales y tasas de riders.')+'</div>';
 
     // ---- PK · 跨场次趋势折线图 ----
@@ -2514,7 +2636,7 @@ async function renderDashboard(){
     html+=sec(L('📈 PK 趋势 · 总计','📈 Tendencia PK · Total','📈 PK Trend · Total'));
     html+='<div style="margin-bottom:8px">'+_metSel('trendMetricTotal')+'</div>';
     html+='<div id="trendChartTotal" style="background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:14px 10px;margin-bottom:14px">'+L('加载中…','Cargando…','Loading…')+'</div>';
-    html+=sec(L('📈 PK 趋势 · 各 RM/VM 对比','📈 Tendencia PK · por RM/VM','📈 PK Trend · by RM/VM'));
+    html+=sec(L('📈 PK 趋势 · 各渠道经理对比','📈 Tendencia PK · por gerente','📈 PK Trend · by manager'));
     html+='<div style="margin-bottom:8px">'+_metSel('trendMetricOwner')+'</div>';
     html+='<div id="trendChartOwner" style="background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:14px 10px">'+L('加载中…','Cargando…','Loading…')+'</div>';
 
@@ -2529,10 +2651,10 @@ async function renderDashboard(){
     html+='<div id="regTrendChart" style="background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:14px 10px">'+L('加载中…','Cargando…','Loading…')+'</div>';
 
     // ---- PK · 按 RM/VM ----
-    html+=sec(L('🏁 PK 参赛 · 按 RM/VM','🏁 PK por RM/VM')+' <span style="font-size:11px;color:var(--muted)">('+mlabel(M||'')+')</span>');
+    html+=sec(L('🏁 PK 参赛 · 按渠道经理','🏁 PK por gerente')+' <span style="font-size:11px;color:var(--muted)">('+mlabel(M||'')+')</span>');
     if(ownerRows.length){
       html+='<div style="background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:4px;overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:640px"><thead><tr style="color:var(--muted2)">'
-        +'<th style="text-align:left;padding:7px 9px">RM/VM</th><th style="padding:7px 9px;text-align:left">'+L('类型','Tipo')+'</th>'
+        +'<th style="text-align:left;padding:7px 9px">'+L('渠道经理','Gerente')+'</th>'
         +'<th style="text-align:right;padding:7px 9px">'+L('总Vendor','Vendors')+'</th>'
         +'<th style="text-align:right;padding:7px 9px">'+L('参赛Vendor','Participan')+'</th>'
         +'<th style="text-align:right;padding:7px 9px">'+L('Vendor参赛率','Tasa V')+'</th>'
@@ -2541,7 +2663,7 @@ async function renderDashboard(){
         +'<th style="text-align:right;padding:7px 9px">'+L('骑手参赛率','Tasa R')+'</th></tr></thead><tbody>'
         +ownerRows.map(function(r){return '<tr style="border-top:1px solid var(--border)">'
           +'<td style="padding:7px 9px;font-weight:600">'+r.k+'</td>'
-          +'<td style="padding:7px 9px">'+typeTag(r.type,r.isNew)+'</td>'
+          +''
           +'<td style="text-align:right;padding:7px 9px">'+r.totV+'</td>'
           +'<td style="text-align:right;padding:7px 9px;color:var(--didi);font-weight:700">'+r.regV+'</td>'
           +'<td style="text-align:right;padding:7px 9px">'+pct(r.regV,r.totV)+'</td>'
@@ -2550,7 +2672,7 @@ async function renderDashboard(){
           +'<td style="text-align:right;padding:7px 9px">'+pct(r.regR,r.totR)+'</td>'
           +'</tr>';}).join('')
         +(function(){var tV=0,rV=0,tR=0,rR=0;ownerRows.forEach(function(r){tV+=r.totV;rV+=r.regV;tR+=r.totR;rR+=r.regR;});return '<tr style="border-top:2px solid var(--didi);font-weight:700;background:var(--s3)">'
-          +'<td style="padding:8px 9px">'+L('总计','Total')+'</td><td></td>'
+          +'<td style="padding:8px 9px">'+L('总计','Total')+'</td>'
           +'<td style="text-align:right;padding:8px 9px">'+tV+'</td>'
           +'<td style="text-align:right;padding:8px 9px;color:var(--didi)">'+rV+'</td>'
           +'<td style="text-align:right;padding:8px 9px">'+pct(rV,tV)+'</td>'
@@ -2568,8 +2690,7 @@ async function renderDashboard(){
     window._PK_VENDOR_ROWS={ round: mlabel(M||''), rows: vRows };
     html+='<div style="background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:4px;max-height:420px;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:620px"><thead><tr style="color:var(--muted2)">'
       +'<th style="text-align:left;padding:7px 9px">Vendor</th>'
-      +'<th style="text-align:left;padding:7px 9px">RM/VM</th>'
-      +'<th style="padding:7px 9px;text-align:left">'+L('类型','Tipo')+'</th>'
+      +'<th style="text-align:left;padding:7px 9px">'+L('渠道经理','Gerente')+'</th>'
       +'<th style="text-align:center;padding:7px 9px">'+L('参赛本场','Participa')+'</th>'
       +'<th style="text-align:right;padding:7px 9px">'+L('总骑手','Riders')+'</th>'
       +'<th style="text-align:right;padding:7px 9px">'+L('参赛骑手','Participan')+'</th>'
@@ -2577,14 +2698,14 @@ async function renderDashboard(){
       +vRows.map(function(r){return '<tr style="border-top:1px solid var(--border)">'
         +'<td style="padding:7px 9px;font-weight:600">'+(typeof vendorName==='function'?vendorName(r.vc):r.vc)+'</td>'
         +'<td style="padding:7px 9px">'+r.owner+'</td>'
-        +'<td style="padding:7px 9px">'+typeTag(r.type,r.isNew)+'</td>'
+        +''
         +'<td style="text-align:center;padding:7px 9px">'+(r.reg?'✅':'—')+'</td>'
         +'<td style="text-align:right;padding:7px 9px">'+fmtN(r.totR)+'</td>'
         +'<td style="text-align:right;padding:7px 9px;color:var(--didi)">'+fmtN(r.regR)+'</td>'
         +'<td style="text-align:right;padding:7px 9px">'+pct(r.regR,r.totR)+'</td>'
         +'</tr>';}).join('')
       +(function(){var tR=0,rR=0,nReg=0;vRows.forEach(function(r){tR+=r.totR;rR+=r.regR;if(r.reg)nReg++;});return '<tr style="border-top:2px solid var(--didi);font-weight:700;background:var(--s3)">'
-        +'<td style="padding:8px 9px">'+L('总计','Total')+'</td><td></td><td></td>'
+        +'<td style="padding:8px 9px">'+L('总计','Total')+'</td><td></td>'
         +'<td style="text-align:center;padding:8px 9px;color:var(--didi)">'+nReg+'</td>'
         +'<td style="text-align:right;padding:8px 9px">'+fmtN(tR)+'</td>'
         +'<td style="text-align:right;padding:8px 9px;color:var(--didi)">'+fmtN(rR)+'</td>'
@@ -2643,7 +2764,7 @@ async function renderDashboard(){
         else if(cmp.dV<0)da+=P(L('较上一场有所下滑，需重点回访已流失的 Vendor。','Bajó respecto al anterior; recontactar a los vendors perdidos.','Declined vs last round; re-engage the vendors that dropped off.'));
       }
       // 三、分维度
-      da+=H(L('三、各 RM/VM 表现','3. Por RM/VM','3. By RM/VM'));
+      da+=H(L('三、各渠道经理表现','3. Por gerente','3. By manager'));
       if(top.length)da+=P(L('表现较好：','Mejores: ','Top performers: ')+top.join('、'));
       if(zeros.length)da+=P('<span style="color:#F59E0B">'+L('参赛为零（需重点攻坚）：','Cero participación (prioridad): ','Zero participation (priority): ')+zeros.slice(0,12).join('、')+(zeros.length>12?' …':'')+'</span>');
       // 四、建议
@@ -2651,7 +2772,7 @@ async function renderDashboard(){
       da+=P(L('1) 优先攻坚"参赛为零"的负责人，今日内逐一联系旗下 Vendor，先破零。','1) Priorizar a los managers en cero: contactar hoy a cada vendor.','1) Prioritize zero-participation managers: contact each vendor today.'));
       da+=P(L('2) 向 Vendor 明确：不积极参加 PK 赛会拉低其奖金池排名、直接减少最终收入；多参赛 = 排名更高 = 收入更高。','2) Dejar claro a los vendors: no participar baja su ranking en el pool de bonos y reduce sus ingresos; más participación = mejor ranking = más ingresos.','2) Make clear to vendors: not participating lowers their bonus-pool ranking and reduces final income; more participation = higher ranking = higher income.'));
       da+=P(L('3) 本周目标：Vendor 参赛率 ≥ 30%、骑手参赛率 ≥ 15%。','3) Meta semanal: vendors ≥ 30%, riders ≥ 15%.','3) Weekly target: vendor rate ≥ 30%, rider rate ≥ 15%.'));
-      da+=P(L('4) 每天早会用本看板复盘各 RM/VM 进度，落实到具体人、具体待办；注意配对生成即报名截止，须在截止前动员。','4) Revisar a diario el avance por RM/VM; la inscripción cierra al generar emparejamientos.','4) Review progress by RM/VM daily; registration closes once matchups are generated.'));
+      da+=P(L('4) 每天早会用本看板复盘各渠道经理进度，落实到具体人、具体待办；注意配对生成即报名截止，须在截止前动员。','4) Revisar a diario el avance por gerente; la inscripción cierra al generar emparejamientos.','4) Review progress by manager daily; registration closes once matchups are generated.'));
       da+='<div style="font-size:10px;color:var(--muted);margin-top:8px">'+L('* 本分析根据所选场次的实时数据自动生成。','* Generado automáticamente con datos del partido seleccionado.','* Auto-generated from the selected round\'s live data.')+'</div>';
       da+='</div>';
       html+=da;
@@ -2663,23 +2784,23 @@ async function renderDashboard(){
     var ptOwnerRows=Object.keys(ptOwner).map(function(k){var a=ptOwner[k];return {k:k,type:a.type,isNew:a.isNew,v:a.v,r:a.r};}).sort(function(a,b){return b.r-a.r;});
     html+='</div>'; // close PK tab
     html+='<div class="dtab" data-t="pt">';
-    html+=sec(L('🧩 PT 报名 · 按 RM/VM','🧩 PT por RM/VM'));
+    html+=sec(L('🧩 PT 报名 · 按渠道经理','🧩 PT por gerente'));
     if(ptOwnerRows.length){
       html+='<div style="background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:4px;overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:360px"><thead><tr style="color:var(--muted2)">'
-        +'<th style="text-align:left;padding:7px 9px">RM/VM</th><th style="padding:7px 9px;text-align:left">'+L('类型','Tipo')+'</th>'
+        +'<th style="text-align:left;padding:7px 9px">'+L('渠道经理','Gerente')+'</th>'
         +'<th style="text-align:right;padding:7px 9px">'+L('有PT的Vendor','Vendors c/PT')+'</th>'
         +'<th style="text-align:right;padding:7px 9px">'+L('PT骑手数','Riders PT')+'</th></tr></thead><tbody>'
-        +ptOwnerRows.map(function(r){return '<tr style="border-top:1px solid var(--border)"><td style="padding:7px 9px;font-weight:600">'+r.k+'</td><td style="padding:7px 9px">'+typeTag(r.type,r.isNew)+'</td><td style="text-align:right;padding:7px 9px">'+r.v+'</td><td style="text-align:right;padding:7px 9px;color:var(--didi);font-weight:700">'+fmtN(r.r)+'</td></tr>';}).join('')
-        +(function(){var tv=0,tr=0;ptOwnerRows.forEach(function(r){tv+=r.v;tr+=r.r;});return '<tr style="border-top:2px solid var(--didi);font-weight:700;background:var(--s3)"><td style="padding:8px 9px">'+L('总计','Total')+'</td><td></td><td style="text-align:right;padding:8px 9px">'+tv+'</td><td style="text-align:right;padding:8px 9px;color:var(--didi)">'+fmtN(tr)+'</td></tr>';})()
+        +ptOwnerRows.map(function(r){return '<tr style="border-top:1px solid var(--border)"><td style="padding:7px 9px;font-weight:600">'+r.k+'</td><td style="text-align:right;padding:7px 9px">'+r.v+'</td><td style="text-align:right;padding:7px 9px;color:var(--didi);font-weight:700">'+fmtN(r.r)+'</td></tr>';}).join('')
+        +(function(){var tv=0,tr=0;ptOwnerRows.forEach(function(r){tv+=r.v;tr+=r.r;});return '<tr style="border-top:2px solid var(--didi);font-weight:700;background:var(--s3)"><td style="padding:8px 9px">'+L('总计','Total')+'</td><td style="text-align:right;padding:8px 9px">'+tv+'</td><td style="text-align:right;padding:8px 9px;color:var(--didi)">'+fmtN(tr)+'</td></tr>';})()
         +'</tbody></table></div>';
     } else html+='<div style="font-size:12px;color:var(--muted2)">'+L('暂无 PT 报名','Sin registros PT')+'</div>';
 
     var ptVRows=Object.keys(ptByVc).map(function(vc){ var o=vendorOwner(vc); return {vc:vc,owner:o.label,type:o.type,isNew:o.isNew,r:ptByVc[vc]}; }).sort(function(a,b){return b.r-a.r;});
     html+=sec(L('🧩 PT 报名 · 按 Vendor','🧩 PT por Vendor'));
     if(ptVRows.length){
-      html+='<div style="background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:4px;max-height:360px;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:360px"><thead><tr style="color:var(--muted2)"><th style="text-align:left;padding:7px 9px">Vendor</th><th style="text-align:left;padding:7px 9px">RM/VM</th><th style="padding:7px 9px;text-align:left">'+L('类型','Tipo')+'</th><th style="text-align:right;padding:7px 9px">'+L('PT骑手数','Riders PT')+'</th></tr></thead><tbody>'
-        +ptVRows.map(function(r){return '<tr style="border-top:1px solid var(--border)"><td style="padding:7px 9px;font-weight:600">'+(typeof vendorName==='function'?vendorName(r.vc):r.vc)+'</td><td style="padding:7px 9px">'+r.owner+'</td><td style="padding:7px 9px">'+typeTag(r.type,r.isNew)+'</td><td style="text-align:right;padding:7px 9px;color:var(--didi);font-weight:700">'+fmtN(r.r)+'</td></tr>';}).join('')
-        +(function(){var tr=0;ptVRows.forEach(function(r){tr+=r.r;});return '<tr style="border-top:2px solid var(--didi);font-weight:700;background:var(--s3)"><td style="padding:8px 9px">'+L('总计','Total')+'</td><td></td><td></td><td style="text-align:right;padding:8px 9px;color:var(--didi)">'+fmtN(tr)+'</td></tr>';})()
+      html+='<div style="background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:4px;max-height:360px;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:360px"><thead><tr style="color:var(--muted2)"><th style="text-align:left;padding:7px 9px">Vendor</th><th style="text-align:left;padding:7px 9px">'+L('渠道经理','Gerente')+'</th><th style="text-align:right;padding:7px 9px">'+L('PT骑手数','Riders PT')+'</th></tr></thead><tbody>'
+        +ptVRows.map(function(r){return '<tr style="border-top:1px solid var(--border)"><td style="padding:7px 9px;font-weight:600">'+(typeof vendorName==='function'?vendorName(r.vc):r.vc)+'</td><td style="padding:7px 9px">'+r.owner+'</td><td style="text-align:right;padding:7px 9px;color:var(--didi);font-weight:700">'+fmtN(r.r)+'</td></tr>';}).join('')
+        +(function(){var tr=0;ptVRows.forEach(function(r){tr+=r.r;});return '<tr style="border-top:2px solid var(--didi);font-weight:700;background:var(--s3)"><td style="padding:8px 9px">'+L('总计','Total')+'</td><td></td><td style="text-align:right;padding:8px 9px;color:var(--didi)">'+fmtN(tr)+'</td></tr>';})()
         +'</tbody></table></div>';
     } else html+='<div style="font-size:12px;color:var(--muted2)">'+L('暂无 PT 报名','Sin registros PT')+'</div>';
 
@@ -2704,15 +2825,15 @@ function downloadPKByVendor(){
   if(!d||!d.rows||!d.rows.length){ alert(L('暂无数据','Sin datos','No data')); return; }
   _dashLangApply(); // 导出按看板语言（EN 时表头/文件名为英文）
   try{
-    var head=['Vendor','Vendor Code','RM/VM',L('类型','Tipo','Type'),L('是否参赛本场','Participa','Participated'),L('总骑手','Riders totales','Total riders'),L('参赛骑手','Riders participan','Participating riders'),L('骑手参赛率','Tasa riders','Rider rate')];
+    var head=['Vendor','Vendor Code',L('渠道经理','Gerente','Manager'),L('是否参赛本场','Participa','Participated'),L('总骑手','Riders totales','Total riders'),L('参赛骑手','Riders participan','Participating riders'),L('骑手参赛率','Tasa riders','Rider rate')];
     var rows=[head];
     d.rows.forEach(function(r){
       var rate=r.totR?(Math.round(r.regR/r.totR*1000)/10)+'%':'';
-      rows.push([(typeof vendorName==='function'?vendorName(r.vc):r.vc), r.vc, r.owner, r.type, (r.reg?L('是','Sí','Yes'):L('否','No','No')), r.totR||0, r.regR||0, rate]);
+      rows.push([(typeof vendorName==='function'?vendorName(r.vc):r.vc), r.vc, r.owner, (r.reg?L('是','Sí','Yes'):L('否','No','No')), r.totR||0, r.regR||0, rate]);
     });
     var wb=XLSX.utils.book_new();
     var ws=XLSX.utils.aoa_to_sheet(rows);
-    ws['!cols']=[{wch:22},{wch:26},{wch:14},{wch:8},{wch:12},{wch:10},{wch:10},{wch:12}];
+    ws['!cols']=[{wch:22},{wch:26},{wch:16},{wch:12},{wch:10},{wch:10},{wch:12}];
     XLSX.utils.book_append_sheet(wb, ws, 'PK by Vendor');
     XLSX.writeFile(wb, 'PK_'+L('按Vendor','porVendor','byVendor')+'_'+String(d.round||'').replace(/[^\w\u4e00-\u9fa5]+/g,'_')+'_'+mxDateStamp()+'.xlsx');
   }catch(e){ alert(L('下载失败：','Error: ','Error: ')+(e.message||e)); }
@@ -2747,7 +2868,7 @@ function exportDashboard(){
     try{
       var _today2=_dashDay(new Date().toISOString());
       var rmA={};
-      d.regs.forEach(function(r){ var vc=String(r.vendor_code||'').toUpperCase(); var rm=(VENDOR_RM&&VENDOR_RM[vc])?VENDOR_RM[vc]:L('（未分配 RM）','(Sin RM)'); if(!rmA[rm])rmA[rm]={v:{},e:0,et:0,vt:{}}; if(vc)rmA[rm].v[vc]=1; rmA[rm].e++; if(_dashDay(r.created_at)===_today2){rmA[rm].et++; if(vc)rmA[rm].vt[vc]=1;} });
+      d.regs.forEach(function(r){ var vc=String(r.vendor_code||'').toUpperCase(); var rm=(VENDOR_RM&&VENDOR_RM[vc])?VENDOR_RM[vc]:L('（未分配）','(Sin asignar)'); if(!rmA[rm])rmA[rm]={v:{},e:0,et:0,vt:{}}; if(vc)rmA[rm].v[vc]=1; rmA[rm].e++; if(_dashDay(r.created_at)===_today2){rmA[rm].et++; if(vc)rmA[rm].vt[vc]=1;} });
       var rmAoa=[[ 'RM', L('Vendor数累计','Vendors acum'), L('报名次数累计','Inscrip acum'), L('今日Vendor数','Vendors hoy'), L('今日报名次数','Inscrip hoy') ]];
       Object.keys(rmA).sort(function(a,b){return rmA[b].e-rmA[a].e;}).forEach(function(rm){ rmAoa.push([rm, Object.keys(rmA[rm].v).length, rmA[rm].e, Object.keys(rmA[rm].vt).length, rmA[rm].et]); });
       XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rmAoa),'RM');
@@ -3009,10 +3130,22 @@ let matchupAdminAuthed = false;
 // ══════════════════════════════════════════════════════════
 const SB_URL = 'https://llsvjqzhibcznzvnzpfy.supabase.co';
 const SB_KEY = 'sb_publishable_5pjGVLjgkSQFdXkT7H9m0A_JrjZ9CKi';
-const sb = (window.supabase && window.supabase.createClient)
+let sb = (window.supabase && window.supabase.createClient)
   ? window.supabase.createClient(SB_URL, SB_KEY)
   : null;
 if(!sb){ console.error('Supabase client failed to load — check internet / CDN.'); }
+// 手机 App 内嵌浏览器里 CDN 偶尔加载失败/超时：按需重试加载 SDK 并创建客户端
+function _loadScript(src){ return new Promise(function(res,rej){ var s=document.createElement('script'); s.src=src; s.onload=res; s.onerror=function(){rej(new Error('load fail '+src));}; document.head.appendChild(s); }); }
+async function ensureBackend(){
+  if(sb) return true;
+  var cdns=['https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2','https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js','https://esm.sh/@supabase/supabase-js@2'];
+  for(var i=0;i<cdns.length;i++){
+    if(window.supabase && window.supabase.createClient) break;
+    try{ await _loadScript(cdns[i]); }catch(e){}
+  }
+  if(window.supabase && window.supabase.createClient){ try{ sb=window.supabase.createClient(SB_URL, SB_KEY); }catch(e){} }
+  return !!sb;
+}
 
 let TEAMS = [];            // in-memory cache of registration rows (app shape)
 let OPERATOR = false;      // is the operator currently logged in?
@@ -3245,8 +3378,8 @@ async function loadSharedData(){
     MATCHUP_ARCHIVE[String(MATCHUP_DATA.matchId)]=MATCHUP_DATA;
   }
   if(d.vendor_list && Object.keys(d.vendor_list).length) VENDOR_LIST = d.vendor_list;
-  if(d.vendor_rm) VENDOR_RM = d.vendor_rm;
-  if(d.vendor_rmvm && typeof d.vendor_rmvm==='object') VENDOR_RMVM = d.vendor_rmvm;
+  if(d.vendor_rm && d.vendor_rmvm_version===RMVM_VERSION) VENDOR_RM = d.vendor_rm;
+  if(d.vendor_rmvm && typeof d.vendor_rmvm==='object' && Object.keys(d.vendor_rmvm).length && d.vendor_rmvm_version===RMVM_VERSION) VENDOR_RMVM = d.vendor_rmvm;
   if(d.vendor_roster && typeof d.vendor_roster==='object') VENDOR_ROSTER = d.vendor_roster;
   // 恢复已保存的骑手业绩数据（按当前版本），免去每次重新上传
   if(d.perf_store && typeof d.perf_store==='object'){
@@ -3488,11 +3621,18 @@ document.getElementById('editOverlay').addEventListener('click',function(e){if(e
 // ══════════════════════════════════
 function getTier(pts){return TIERS.find(t=>pts>=t.min&&pts<=t.max)||TIERS[TIERS.length-1]}
 
-function queryCurp(){
+async function queryCurp(){
   const curp=document.getElementById('curpIn').value.trim().toUpperCase();
   const err=document.getElementById('curpErr'),panel=document.getElementById('curpPanel');
   err.classList.remove('show');panel.classList.remove('show');
   if(curp.length<4){err.textContent=L('请输入骑手 ID 后6位（至少4个字符）','Ingresa los últimos 6 de tu Rider ID (mín. 4 caracteres)');err.classList.add('show');return}
+
+  // 手机 App webview 里数据可能还没加载完：先确保后端+数据就绪，再判断
+  if(!REAL_CURP_MAP[curp] && Object.keys(REAL_CURP_MAP).length===0){
+    err.textContent=L('正在加载数据，请稍候…','Cargando datos, espera…');err.classList.add('show');
+    try{ await ensureBackend(); await loadSharedData(); }catch(e){}
+    err.classList.remove('show');
+  }
 
   const data = REAL_CURP_MAP[curp];
   if(!data){
@@ -3577,6 +3717,10 @@ function openRedeemModal(prefill){
   async function doLookup(){
     var curp6=curpIn.value.trim().toUpperCase();
     if(curp6.length<4){ body.innerHTML='<div style="color:#FF3F5A;font-size:12px">'+L('请输入骑手 ID 后6位（至少4位）','Ingresa los últimos 6 del Rider ID (mín. 4)')+'</div>'; return; }
+    if(!REAL_CURP_MAP[curp6] && Object.keys(REAL_CURP_MAP).length===0){
+      body.innerHTML='<div style="font-size:12px;color:var(--muted)">'+L('正在加载数据，请稍候…','Cargando datos, espera…')+'</div>';
+      try{ await ensureBackend(); await loadSharedData(); }catch(e){}
+    }
     var data=REAL_CURP_MAP[curp6];
     if(!data){ body.innerHTML='<div style="color:#FF3F5A;font-size:12px">'+L('未找到该骑手 ID，请确认输入或联系运营团队','Rider ID no encontrado; verifica o contacta a operaciones')+'</div>'; return; }
     body.innerHTML='<div style="font-size:12px;color:var(--muted)">'+L('加载中…','Cargando…')+'</div>';
