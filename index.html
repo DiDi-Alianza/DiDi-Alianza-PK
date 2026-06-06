@@ -3335,6 +3335,12 @@ async function saveResults(){
   await dbSaveData('orders_archive', ORDERS_ARCHIVE);
 }
 async function saveMatchup(){ await dbSaveData('matchup_data', MATCHUP_DATA); await dbSaveData('matchup_archive', MATCHUP_ARCHIVE); await dbSaveData('matchup_vendor_map', MATCHUP_VENDOR_MAP); }
+// 配对发布即在数据库层锁定该场报名（即便前端状态过期也插不进去）
+async function sbLockMatch(matchId){
+  if(!sb) return;
+  try{ const { error } = await sb.rpc('lock_match', { p_match_id: parseInt(matchId) }); if(error) console.error('lock_match', error); }
+  catch(e){ console.error('lock_match', e); }
+}
 async function saveCurp(){ await dbSaveData('curp_map', REAL_CURP_MAP); }
 async function clearCurpData(){
   if(!(await requireOperator())) return;
@@ -3495,7 +3501,9 @@ async function submitReg(){
   const successCount=toInsert.length;
   if(toInsert.length){
     try{ await dbInsertTeams(toInsert); }
-    catch(err){ console.error(err); showAlert('regErr',L('提交失败，请稍后重试：','Error al enviar, intenta de nuevo: ')+(err.message||err)); return; }
+    catch(err){ console.error(err); var _em=(err&&err.message)||String(err);
+      if(/MATCH_LOCKED/i.test(_em)){ showAlert('regErr',L('❌ 所选场次中有配对已生成的场次，报名已截止。请刷新页面后改报后面的场次。','❌ Algún partido seleccionado ya fue emparejado (inscripción cerrada). Recarga la página y elige partidos posteriores.')); return; }
+      showAlert('regErr',L('提交失败，请稍后重试：','Error al enviar, intenta de nuevo: ')+_em); return; }
   }
   const msg = successCount>0 ? L(`✅ 报名成功！${tn} 已报名 ${successCount} 场${skipCount?'（'+skipCount+'场已存在跳过）':''}`,`✅ ¡Inscripción exitosa! ${tn} se inscribió en ${successCount} partido(s)${skipCount?' ('+skipCount+' ya existían, omitidos)':''}`) : L('所选场次均已报名，无需重复提交','Ya estás inscrito en todos los partidos seleccionados');
   showAlert('regOk', msg, successCount>0?'ok':'err');
@@ -4329,6 +4337,7 @@ function publishMatchups(){
   }catch(e){ console.error('update pair_priority',e); }
   initMatchupPage();
   saveMatchup();
+  sbLockMatch(matchId); // 数据库层锁定该场，杜绝过期前端绕过
   alert(L(`✅ 第${matchId}场配对结果已发布！骑手可在「配对结果」页面查看。`,`✅ ¡Emparejamientos del ${matchLabel(matchId)} publicados! Los riders pueden verlos en «Emparejamientos».`));
 }
 
@@ -6332,7 +6341,9 @@ function handleBulkUpload(file){
       var lockedNames=Object.keys(lockedHit).map(function(k){return matchLabel(parseInt(k));}).join(L('、',', '));
       if(toInsert.length){
         try{ await dbInsertTeams(toInsert); }
-        catch(err){ showAlert('bulkErr',L('上传失败：','Error al subir: ')+(err.message||err)); return; }
+        catch(err){ var _em=(err&&err.message)||String(err);
+          if(/MATCH_LOCKED/i.test(_em)){ showAlert('bulkErr',L('❌ 文件里包含配对已生成（报名已截止）的场次。请刷新页面后去掉这些场次再上传。','❌ El archivo incluye partidos ya emparejados (cerrados). Recarga la página, quítalos y vuelve a subir.')); return; }
+          showAlert('bulkErr',L('上传失败：','Error al subir: ')+_em); return; }
       }
       const msg=L('✅ 批量上传完成！新增 ','✅ ¡Carga masiva completada! Se agregaron ')+added+L(' 条报名记录',' inscripciones')+(skipped?L('，'+skipped+'条重复跳过',', '+skipped+' duplicadas omitidas'):'');
       var _warn=[];
