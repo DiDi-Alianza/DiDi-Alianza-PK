@@ -4740,11 +4740,31 @@ async function handleScoreUpload(file){
       // 把未组队的散户骑手并入（仅供积分查询，不影响排名/结果）
       Object.keys(UNGROUPED_RIDERS||{}).forEach(function(rid){ if(!RIDER_MAP[rid]) RIDER_MAP[rid]=UNGROUPED_RIDERS[rid]; });
 
-      initScorePage();
-      saveResults();
       var teamCount=Object.keys(teamMap).length;
       var scoredTeams=Object.values(teamMap).filter(function(t){return t.my_score>0;}).length;
+      var zeroTeams=teamCount-scoredTeams;
       var vendorCount=Object.keys(VENDOR_RIDER_MAP).length;
+      // —— 生成前确认：先给本场归属+摘要+TOP5预览，运营确认无误后再写入并保存 ——
+      var _allT=Object.values(teamMap);
+      var _played=_allT.filter(function(t){return (t.result==='胜'||t.result==='败')&&t.riders&&t.riders.length;});
+      var _rk=(_played.length?_played:_allT).slice().sort(function(a,b){return teamTotalScore(b)-teamTotalScore(a);}).slice(0,5);
+      var _top5=_rk.map(function(t,i){return '  '+(i+1)+'. '+t.name+' — '+teamTotalScore(t).toLocaleString()+(LANG==='es'?'':'分');}).join('\n')||'  —';
+      var _mid=SCORE_MATCH_ID||(MATCHUP_DATA&&MATCHUP_DATA.matchId)||_selId;
+      var _lbl=(typeof matchLabel==='function'&&_mid)?matchLabel(parseInt(_mid)):(_mid?(LANG==='es'?('Partido '+_mid):('第'+_mid+'场')):'—');
+      var _hi=_rk.length?teamTotalScore(_rk[0]):0;
+      var _confMsg2=L(
+        '请先核对，确认无误再生成并保存：\n\n本场归属：  '+_lbl+'\n解析记录：  '+rows.length.toLocaleString()+' 条骑手 · '+vendorCount+' 家供应商\n有积分队伍：'+scoredTeams+'/'+teamCount+' （其中 '+zeroTeams+' 支为 0 分）\n\nTOP5 预览（含 PK 奖励）：\n'+_top5+'\n\n'+(_hi>1000?'⚠️ 最高分偏高（'+_hi.toLocaleString()+'）——若本应是单场分，很可能选错了场次、或上传了「累计」积分文件。\n\n':'')+'点「确定」= 确认无误，生成并保存本场结果；\n点「取消」= 不保存，页面将刷新，便于你重新选择场次。',
+        'Revisa antes de generar y guardar:\n\nPartido:  '+_lbl+'\nRegistros:  '+rows.length.toLocaleString()+' riders · '+vendorCount+' vendors\nEquipos con puntos: '+scoredTeams+'/'+teamCount+' ('+zeroTeams+' en 0)\n\nTOP5 (con bono PK):\n'+_top5+'\n\n'+(_hi>1000?'⚠️ Puntaje máximo alto ('+_hi.toLocaleString()+'). Si debía ser de un solo partido, quizá elegiste el partido equivocado o subiste el archivo ACUMULADO.\n\n':'')+'«Aceptar» = generar y guardar; «Cancelar» = no guardar, la página se recargará.'
+      );
+      if(!confirm(_confMsg2)){
+        var _ce=document.getElementById('scoreUploadErr');
+        if(_ce){_ce.textContent=L('已取消，未保存。页面即将刷新，请重新选择正确的场次后再上传。','Cancelado, no se guardó. La página se recargará; elige el partido correcto y vuelve a subir.');_ce.className='alert a-err show';_ce.style.display='flex';}
+        setTimeout(function(){location.reload();},1400);
+        return;
+      }
+      // —— 确认通过 → 正式写入并保存 ——
+      initScorePage();
+      saveResults();
       var msg=L('✅ 积分文件已加载：','✅ Archivo de puntos cargado: ')+rows.length.toLocaleString()+L('条骑手记录 · ',' registros de riders · ')+vendorCount+L('家供应商 · ',' vendors · ')+scoredTeams+'/'+teamCount+L('支队伍有积分',' equipos con puntos');
       if(!MATCHUP_DATA)msg+=L(' · ⚠️ 请同时上传配对文件以显示胜负',' · ⚠️ Suba también el archivo de duelos para mostrar resultados');
       var errEl=document.getElementById('scoreUploadErr');
