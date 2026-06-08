@@ -4710,23 +4710,11 @@ async function handleScoreUpload(file){
           SCORE_DATA=teamMap; // temporarily assign so applyRegistrationMatching can use it
           applyRegistrationMatching();
         }
-        // Apply PK bonus using MATCHUP_DATA if available
+        // 先剔除：只保留"既在本场配对、又在本场报名"的队（孤儿队/非本场队一律不计入），再算PK
+        SCORE_DATA=teamMap;
+        restrictScoreToMatchup();
+        // Apply PK bonus（此时只剩合法队，PK只在合法队之间，不会输给被剔除的假队）
         applyPKBonus(teamMap);
-        // 只保留本场配对里的参赛队伍：其余报名队不计入结果（其骑手转入散户池，仍可个人查询）
-        if(MATCHUP_DATA && MATCHUP_DATA.pairs && MATCHUP_DATA.pairs.length){
-          var _partSet={};
-          MATCHUP_DATA.pairs.forEach(function(p){
-            if(p.a&&p.a.team)_partSet[String(p.a.team).trim().toLowerCase()]=1;
-            if(p.b&&p.b.team)_partSet[String(p.b.team).trim().toLowerCase()]=1;
-          });
-          Object.keys(teamMap).forEach(function(k){
-            var t=teamMap[k];
-            if(!_partSet[String(t.name).trim().toLowerCase()]){
-              (t.riders||[]).forEach(function(r){ if(!UNGROUPED_RIDERS[r.id]) UNGROUPED_RIDERS[r.id]=Object.assign({},r,{vendor:t.vendor,teamName:'',teamResult:'',opponent:'',oppScore:0,pk_bonus:0,pk_rank:null,pk_pct:null,final_total:r.normal_total}); });
-              delete teamMap[k];
-            }
-          });
-        }
       }
 
       SCORE_DATA=teamMap;
@@ -4752,9 +4740,12 @@ async function handleScoreUpload(file){
       var _mid=SCORE_MATCH_ID||(MATCHUP_DATA&&MATCHUP_DATA.matchId)||_selId;
       var _lbl=(typeof matchLabel==='function'&&_mid)?matchLabel(parseInt(_mid)):(_mid?(LANG==='es'?('Partido '+_mid):('第'+_mid+'场')):'—');
       var _hi=_rk.length?teamTotalScore(_rk[0]):0;
+      var _orph=(LAST_ORPHAN_TEAMS&&LAST_ORPHAN_TEAMS.length)?L(
+        '🧹 已自动剔除 '+LAST_ORPHAN_TEAMS.length+' 支「配对中但本场未报名」的队伍（不计入本场）：'+LAST_ORPHAN_TEAMS.slice(0,8).join('、')+(LAST_ORPHAN_TEAMS.length>8?' 等':'')+'\n\n',
+        '🧹 Se excluyeron '+LAST_ORPHAN_TEAMS.length+' equipos emparejados pero NO inscritos en este partido: '+LAST_ORPHAN_TEAMS.slice(0,8).join(', ')+(LAST_ORPHAN_TEAMS.length>8?'…':'')+'\n\n'):'';
       var _confMsg2=L(
-        '请先核对，确认无误再生成并保存：\n\n本场归属：  '+_lbl+'\n解析记录：  '+rows.length.toLocaleString()+' 条骑手 · '+vendorCount+' 家供应商\n有积分队伍：'+scoredTeams+'/'+teamCount+' （其中 '+zeroTeams+' 支为 0 分）\n\nTOP5 预览（含 PK 奖励）：\n'+_top5+'\n\n'+(_hi>1000?'⚠️ 最高分偏高（'+_hi.toLocaleString()+'）——若本应是单场分，很可能选错了场次、或上传了「累计」积分文件。\n\n':'')+'点「确定」= 确认无误，生成并保存本场结果；\n点「取消」= 不保存，页面将刷新，便于你重新选择场次。',
-        'Revisa antes de generar y guardar:\n\nPartido:  '+_lbl+'\nRegistros:  '+rows.length.toLocaleString()+' riders · '+vendorCount+' vendors\nEquipos con puntos: '+scoredTeams+'/'+teamCount+' ('+zeroTeams+' en 0)\n\nTOP5 (con bono PK):\n'+_top5+'\n\n'+(_hi>1000?'⚠️ Puntaje máximo alto ('+_hi.toLocaleString()+'). Si debía ser de un solo partido, quizá elegiste el partido equivocado o subiste el archivo ACUMULADO.\n\n':'')+'«Aceptar» = generar y guardar; «Cancelar» = no guardar, la página se recargará.'
+        '请先核对，确认无误再生成并保存：\n\n本场归属：  '+_lbl+'\n解析记录：  '+rows.length.toLocaleString()+' 条骑手 · '+vendorCount+' 家供应商\n有积分队伍：'+scoredTeams+'/'+teamCount+' （其中 '+zeroTeams+' 支为 0 分）\n\nTOP5 预览（含 PK 奖励）：\n'+_top5+'\n\n'+_orph+(_hi>1000?'⚠️ 最高分偏高（'+_hi.toLocaleString()+'）——若本应是单场分，很可能选错了场次、或上传了「累计」积分文件。\n\n':'')+'点「确定」= 确认无误，生成并保存本场结果；\n点「取消」= 不保存，页面将刷新，便于你重新选择场次。',
+        'Revisa antes de generar y guardar:\n\nPartido:  '+_lbl+'\nRegistros:  '+rows.length.toLocaleString()+' riders · '+vendorCount+' vendors\nEquipos con puntos: '+scoredTeams+'/'+teamCount+' ('+zeroTeams+' en 0)\n\nTOP5 (con bono PK):\n'+_top5+'\n\n'+_orph+(_hi>1000?'⚠️ Puntaje máximo alto ('+_hi.toLocaleString()+'). Si debía ser de un solo partido, quizá elegiste el partido equivocado o subiste el archivo ACUMULADO.\n\n':'')+'«Aceptar» = generar y guardar; «Cancelar» = no guardar, la página se recargará.'
       );
       if(!confirm(_confMsg2)){
         var _ce=document.getElementById('scoreUploadErr');
@@ -5885,20 +5876,37 @@ function applyPKBonus(teamMap){
 }
 // 只保留本场配对里的参赛队伍：其余报名队从 SCORE_DATA 移除（骑手转入散户池，仍可个人查询）。
 // 用于"后上传配对/重算"等路径，保证计数、Top10、下载三者一致。
+let LAST_ORPHAN_TEAMS=[]; // 上次算分被剔除的"配对中但本场未报名"的队，供确认弹窗提示
 function restrictScoreToMatchup(){
   if(!SCORE_DATA) return;
-  if(!(MATCHUP_DATA && MATCHUP_DATA.pairs && MATCHUP_DATA.pairs.length)) return;
-  var ps={};
-  MATCHUP_DATA.pairs.forEach(function(p){
-    if(p.a&&p.a.team)ps[String(p.a.team).trim().toLowerCase()]=1;
-    if(p.b&&p.b.team)ps[String(p.b.team).trim().toLowerCase()]=1;
-  });
+  LAST_ORPHAN_TEAMS=[];
+  // 本场配对队伍集合
+  var ps=null;
+  if(MATCHUP_DATA && MATCHUP_DATA.pairs && MATCHUP_DATA.pairs.length){
+    ps={};
+    MATCHUP_DATA.pairs.forEach(function(p){
+      if(p.a&&p.a.team)ps[String(p.a.team).trim().toLowerCase()]=1;
+      if(p.b&&p.b.team)ps[String(p.b.team).trim().toLowerCase()]=1;
+    });
+  }
+  // 本场报名队伍集合（权威来源：报名记录 TEAMS，按本场 matchId 过滤）
+  var reg={};
+  try{
+    (typeof TEAMS!=='undefined'?TEAMS:[]).forEach(function(t){
+      if(t&&t.teamName&&String(t.matchId)===String(SCORE_MATCH_ID)) reg[String(t.teamName).trim().toLowerCase()]=1;
+    });
+  }catch(e){}
+  var haveReg=Object.keys(reg).length>0;
+  if(!ps && !haveReg) return; // 既无配对也无报名约束 → 不动，避免误删
   Object.keys(SCORE_DATA).forEach(function(k){
     var t=SCORE_DATA[k];
-    if(!ps[String(t.name).trim().toLowerCase()]){
-      (t.riders||[]).forEach(function(r){ if(typeof UNGROUPED_RIDERS!=='undefined' && !UNGROUPED_RIDERS[r.id]) UNGROUPED_RIDERS[r.id]=Object.assign({},r,{vendor:t.vendor,teamName:'',teamResult:'',opponent:'',oppScore:0,pk_bonus:0,pk_rank:null,pk_pct:null,final_total:r.normal_total}); });
-      delete SCORE_DATA[k];
-    }
+    var nm=String(t.name).trim().toLowerCase();
+    var inPairs=ps?!!ps[nm]:true;     // 有配对就要求在配对里
+    var inReg=haveReg?!!reg[nm]:true;  // 有报名约束就要求本场已报名
+    if(inPairs && inReg) return;        // 合法 → 保留
+    if(ps && inPairs && haveReg && !inReg) LAST_ORPHAN_TEAMS.push(t.name); // 配对里有、本场没报名 = 孤儿队
+    (t.riders||[]).forEach(function(r){ if(typeof UNGROUPED_RIDERS!=='undefined' && !UNGROUPED_RIDERS[r.id]) UNGROUPED_RIDERS[r.id]=Object.assign({},r,{vendor:t.vendor,teamName:'',teamResult:'',opponent:'',oppScore:0,pk_bonus:0,pk_rank:null,pk_pct:null,final_total:r.normal_total}); });
+    delete SCORE_DATA[k];
   });
 }
 
