@@ -3429,6 +3429,16 @@ async function dbUpdateRedemption(id, status){
   const { error } = await sb.from('redemptions').update({status:status, processed_at:new Date().toISOString()}).eq('id',id);
   if(error) throw error;
 }
+async function dbUpdateRedemptionsBatch(ids, status){
+  if(!sb) throw new Error('no backend');
+  if(!ids||!ids.length) return;
+  const now=new Date().toISOString();
+  for(var i=0;i<ids.length;i+=200){
+    var chunk=ids.slice(i,i+200);
+    const { error } = await sb.from('redemptions').update({status:status, processed_at:now}).in('id',chunk);
+    if(error) throw error;
+  }
+}
 
 
 function switchReg(t){
@@ -3485,6 +3495,37 @@ async function submitReg(){
     });
   });
   if(_banMsgs.length){ showAlert('regErr','❌ '+_banMsgs.join('  '+L('；',' / ')+'  ')); return; }
+  // —— 同队不能有重复骑手 ——
+  var _normRiders=filled.map(normIdG);
+  var _dupInTeam=[...new Set(_normRiders.filter(function(r,i){return _normRiders.indexOf(r)!==i;}))];
+  if(_dupInTeam.length){
+    showAlert('regErr',L('❌ 同一支队伍里填了重复的骑手 ID：'+_dupInTeam.join('、')+'。一支队需要 5 名不同的骑手，请检查后重新提交。',
+      '❌ Hay Rider IDs repetidos en el mismo equipo: '+_dupInTeam.join(', ')+'. Un equipo necesita 5 riders distintos.'));
+    return;
+  }
+  // —— 同一场次，同一骑手不能同时出现在两支队伍（与本场已有报名比对）——
+  try{
+    var _allT=await dbLoadAllTeams();
+    var _rset={}; _normRiders.forEach(function(r){_rset[r]=1;});
+    var _seenC={}; var _cLines=[];
+    selectedMatchIds.forEach(function(mid){
+      var m=String(parseInt(mid));
+      _allT.forEach(function(t){
+        if(String(t.matchId)!==m) return;
+        if(String(t.vendorCode||'').toLowerCase()===vc.toLowerCase() && String(t.teamName||'').toLowerCase()===tn.toLowerCase()) return; // 排除本队自身
+        (t.riders||[]).forEach(function(rid){
+          var rn=normIdG(rid);
+          if(_rset[rn]){ var k=rn+'|'+m+'|'+(t.teamName||''); if(!_seenC[k]){ _seenC[k]=1;
+            _cLines.push(L('骑手 '+rn+'：在「'+matchLabel(parseInt(mid))+'」已被队伍「'+t.teamName+'」报名',
+                           'Rider '+rn+': ya está en «'+t.teamName+'» del partido «'+matchLabel(parseInt(mid))+'»')); } }
+        });
+      });
+    });
+    if(_cLines.length){
+      showAlert('regErr',L('❌ 同一场次，同一骑手不能同时出现在两支队伍。以下骑手已在本场其他队伍报名，本队无法报名：\n','❌ Un mismo rider no puede estar en dos equipos del mismo partido. Estos riders ya están en otro equipo de este partido, por lo que este equipo no se puede inscribir:\n')+_cLines.join('\n')+L('\n\n请更换这些骑手后再提交。','\n\nCambia esos riders y vuelve a enviar.'));
+      return;
+    }
+  }catch(_e){ console.error('rider conflict check', _e); }
   // cross-vendor name conflict: exists somewhere but not among this vendor's own teams
   const mine = await dbLoadVendorTeams(vc);
   const mineLower = mine.map(t=>t.teamName.toLowerCase());
@@ -3822,16 +3863,54 @@ async function renderRedemptionAdmin(){
   var pend=rows.filter(function(r){return r.status==='pending';}).length;
   var sum=document.createElement('div'); sum.style.cssText='font-size:11px;color:var(--muted2);margin-bottom:10px';
   sum.textContent=L('共 '+rows.length+' 笔 · 待处理 '+pend+' 笔','Total '+rows.length+' · pendientes '+pend); panel.appendChild(sum);
-  rows.forEach(function(r){
+  var _pendRows=rows.filter(function(r){return r.status==='pending';});
+  // 筛选 / 排序 / 搜索 控制条
+  var ctl=document.createElement('div');
+  ctl.style.cssText='display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px';
+  ctl.innerHTML=
+    '<select onchange="redeemSetCtl(\'filter\',this.value)" style="font-size:11px;padding:4px 6px;border-radius:6px;background:var(--s3);color:var(--text);border:1px solid var(--border)">'
+      +'<option value="pending"'+(REDEEM_FILTER==='pending'?' selected':'')+'>'+L('仅待处理','Solo pendientes')+'</option>'
+      +'<option value="completed"'+(REDEEM_FILTER==='completed'?' selected':'')+'>'+L('仅已完成','Solo completadas')+'</option>'
+      +'<option value="rejected"'+(REDEEM_FILTER==='rejected'?' selected':'')+'>'+L('仅已驳回','Solo rechazadas')+'</option>'
+      +'<option value="all"'+(REDEEM_FILTER==='all'?' selected':'')+'>'+L('全部','Todas')+'</option>'
+    +'</select>'
+    +'<select onchange="redeemSetCtl(\'sort\',this.value)" style="font-size:11px;padding:4px 6px;border-radius:6px;background:var(--s3);color:var(--text);border:1px solid var(--border)">'
+      +'<option value="cash_desc"'+(REDEEM_SORT==='cash_desc'?' selected':'')+'>'+L('金额 高→低','Monto ↓')+'</option>'
+      +'<option value="cash_asc"'+(REDEEM_SORT==='cash_asc'?' selected':'')+'>'+L('金额 低→高','Monto ↑')+'</option>'
+      +'<option value="new"'+(REDEEM_SORT==='new'?' selected':'')+'>'+L('时间 最新','Reciente')+'</option>'
+      +'<option value="old"'+(REDEEM_SORT==='old'?' selected':'')+'>'+L('时间 最早','Antiguo')+'</option>'
+    +'</select>'
+    +'<input id="redSearch" value="'+(REDEEM_SEARCH||'').replace(/"/g,'&quot;')+'" onkeydown="if(event.key===\'Enter\')redeemSetCtl(\'search\',this.value)" onchange="redeemSetCtl(\'search\',this.value)" placeholder="'+L('搜 CURP后6位 / Rider ID','Buscar CURP / Rider ID')+'" style="font-size:11px;padding:4px 8px;border-radius:6px;background:var(--s3);color:var(--text);border:1px solid var(--border);flex:1;min-width:140px">';
+  panel.appendChild(ctl);
+  // 应用筛选+搜索+排序，得到当前可见视图
+  var view=applyRedeemView(rows);
+  var _viewPend=view.filter(function(r){return r.status==='pending';});
+  if(_viewPend.length){
+    var bar=document.createElement('div');
+    bar.style.cssText='display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px;padding:8px 10px;border:1px dashed var(--border);border-radius:8px';
+    bar.innerHTML=
+      '<label style="font-size:11px;cursor:pointer;margin-right:4px"><input type="checkbox" id="redChkAll" onclick="redeemToggleAll(this)" style="vertical-align:middle;margin-right:4px">'+L('全选(当前)','Sel. visibles')+'</label>'
+     +'<span id="redSelCount" style="font-size:11px;color:var(--muted2);margin-right:6px">'+L('已选 0 笔','0 sel.')+'</span>'
+     +'<button class="btn btn-p btn-sm" style="font-size:10px" onclick="redeemBatch(\'completed\')">'+L('✅ 批量标记完成','✅ Completar sel.')+'</button>'
+     +'<button class="btn btn-d btn-sm" style="font-size:10px" onclick="redeemBatch(\'rejected\')">'+L('❌ 批量驳回','❌ Rechazar sel.')+'</button>'
+     +'<span style="flex:1"></span>'
+     +'<button class="btn btn-s btn-sm" style="font-size:10px" onclick="redeemAllPending()">'+L('⚡ 一键完成全部待处理 ('+pend+')','⚡ Completar TODOS ('+pend+')')+'</button>';
+    panel.appendChild(bar);
+  }
+  if(!view.length){ var _nm=document.createElement('div'); _nm.style.cssText='font-size:12px;color:var(--muted2);padding:10px 0'; _nm.textContent=L('没有匹配的记录','Sin coincidencias'); panel.appendChild(_nm); }
+  view.forEach(function(r){
     var st = r.status==='completed'?L('✅ 已完成','✅ Completado'):r.status==='rejected'?L('❌ 已驳回','❌ Rechazado'):L('⏳ 待处理','⏳ Pendiente');
     var card=document.createElement('div'); card.style.cssText='border:1px solid var(--border);border-radius:9px;padding:12px;margin-bottom:8px;font-size:12px';
     card.innerHTML='<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-family:monospace;letter-spacing:1px">CURP …'+r.curp6+(r.rider_id?' · '+r.rider_id:'')+'</span><span>'+st+'</span></div>'
       +'<div style="color:var(--muted2)">'+L('兑换 ','Canje ')+r.points.toLocaleString()+L(' 分 · ×',' pts · ×')+r.rate+L(' · 预计 ',' · aprox. ')+r.est_cash.toLocaleString()+L(' 比索',' pesos')+' · '+mxTime(r.created_at)+' CDMX'+'</div>';
     var act=document.createElement('div'); act.style.marginTop='8px';
     if(r.status==='pending'){
+      var lbl=document.createElement('label'); lbl.style.cssText='font-size:11px;margin-right:10px;cursor:pointer;color:var(--muted)';
+      var cb=document.createElement('input'); cb.type='checkbox'; cb.className='redChk'; cb.setAttribute('data-id',r.id); cb.setAttribute('data-cash',r.est_cash||0); cb.style.cssText='margin-right:4px;vertical-align:middle'; cb.onclick=redeemUpdateCount;
+      lbl.appendChild(cb); lbl.appendChild(document.createTextNode(L('选','Sel.')));
       var bc=document.createElement('button'); bc.className='btn btn-p btn-sm'; bc.style.cssText='font-size:10px;margin-right:6px'; bc.textContent=L('标记已完成','Completar'); bc.onclick=function(){setRedemption(r.id,'completed');};
       var br=document.createElement('button'); br.className='btn btn-d btn-sm'; br.style.fontSize='10px'; br.textContent=L('驳回','Rechazar'); br.onclick=function(){setRedemption(r.id,'rejected');};
-      act.appendChild(bc); act.appendChild(br);
+      act.appendChild(lbl); act.appendChild(bc); act.appendChild(br);
     } else {
       var bo=document.createElement('button'); bo.className='btn btn-s btn-sm'; bo.style.fontSize='10px'; bo.textContent=L('改回待处理','Reabrir'); bo.onclick=function(){setRedemption(r.id,'pending');};
       act.appendChild(bo);
@@ -3842,6 +3921,60 @@ async function renderRedemptionAdmin(){
 async function setRedemption(id,status){
   try{ await dbUpdateRedemption(id,status); }catch(e){ alert(L('操作失败：','Error: ')+(e.message||e)); return; }
   renderRedemptionAdmin();
+}
+function _redeemSelected(){
+  var panel=document.getElementById('redemptionAdminPanel'); if(!panel) return [];
+  return Array.prototype.slice.call(panel.querySelectorAll('input.redChk:checked'));
+}
+function redeemUpdateCount(){
+  var sel=_redeemSelected(); var c=document.getElementById('redSelCount');
+  if(c) c.textContent=L('已选 '+sel.length+' 笔','Sel. '+sel.length);
+}
+function redeemToggleAll(master){
+  var panel=document.getElementById('redemptionAdminPanel'); if(!panel) return;
+  panel.querySelectorAll('input.redChk').forEach(function(cb){ cb.checked=master.checked; });
+  redeemUpdateCount();
+}
+async function redeemBatch(status){
+  var sel=_redeemSelected();
+  if(!sel.length){ alert(L('请先勾选要处理的兑换申请。','Selecciona primero las solicitudes.')); return; }
+  var ids=sel.map(function(cb){return cb.getAttribute('data-id');});
+  var cash=sel.reduce(function(s,cb){return s+(parseFloat(cb.getAttribute('data-cash'))||0);},0);
+  var msg = status==='completed'
+    ? L('确认把所选 '+ids.length+' 笔标记为「已完成」？\n预计兑付合计：'+cash.toLocaleString()+' 比索。','¿Marcar '+ids.length+' como COMPLETADAS?\nTotal aprox.: '+cash.toLocaleString()+' pesos.')
+    : L('确认「驳回」所选 '+ids.length+' 笔？','¿RECHAZAR '+ids.length+' solicitudes?');
+  if(!confirm(msg)) return;
+  try{ await dbUpdateRedemptionsBatch(ids,status); }catch(e){ alert(L('批量操作失败：','Error: ')+(e.message||e)); return; }
+  renderRedemptionAdmin();
+}
+async function redeemAllPending(){
+  var rows=await dbGetAllRedemptions();
+  var pend=rows.filter(function(r){return r.status==='pending';});
+  if(!pend.length){ alert(L('没有待处理的申请。','No hay pendientes.')); return; }
+  var cash=pend.reduce(function(s,r){return s+(r.est_cash||0);},0);
+  if(!confirm(L('确认把【全部 '+pend.length+' 笔待处理】标记为「已完成」？\n预计兑付合计：'+cash.toLocaleString()+' 比索。\n\n操作量较大，确认无误再继续。','¿Completar TODAS las '+pend.length+' pendientes?\nTotal aprox.: '+cash.toLocaleString()+' pesos.'))) return;
+  var ids=pend.map(function(r){return r.id;});
+  try{ await dbUpdateRedemptionsBatch(ids,'completed'); }catch(e){ alert(L('操作失败：','Error: ')+(e.message||e)); return; }
+  renderRedemptionAdmin();
+}
+var REDEEM_FILTER='pending', REDEEM_SORT='cash_desc', REDEEM_SEARCH='';
+function redeemSetCtl(k,v){
+  if(k==='filter') REDEEM_FILTER=v;
+  else if(k==='sort') REDEEM_SORT=v;
+  else if(k==='search') REDEEM_SEARCH=(v||'').trim();
+  renderRedemptionAdmin();
+}
+function applyRedeemView(rows){
+  var v=rows.slice();
+  if(REDEEM_FILTER!=='all') v=v.filter(function(r){return r.status===REDEEM_FILTER;});
+  if(REDEEM_SEARCH){ var q=REDEEM_SEARCH.toLowerCase(); v=v.filter(function(r){ return (String(r.curp6||'').toLowerCase().indexOf(q)>=0) || (String(r.rider_id||'').toLowerCase().indexOf(q)>=0); }); }
+  v.sort(function(a,b){
+    if(REDEEM_SORT==='cash_desc') return (b.est_cash||0)-(a.est_cash||0);
+    if(REDEEM_SORT==='cash_asc') return (a.est_cash||0)-(b.est_cash||0);
+    if(REDEEM_SORT==='old') return new Date(a.created_at)-new Date(b.created_at);
+    return new Date(b.created_at)-new Date(a.created_at);
+  });
+  return v;
 }
 function downloadRedemptions(){
   dbGetAllRedemptions().then(function(rows){
@@ -6355,6 +6488,9 @@ function handleBulkUpload(file){
         if(!vc||!tn){errors.push(L('第','Fila ')+(idx+2)+L('行：vendor_code或team_name为空',': vendor_code o team_name vacío'));return}
         if(Object.keys(VENDOR_LIST).length>0&&!VENDOR_LIST[vc.toUpperCase()]){errors.push(L('第','Fila ')+(idx+2)+L('行：Vendor Code「'+vc+'」不在系统名单中',': el Vendor Code «'+vc+'» no está en la lista del sistema'));return}
         if(riders.filter(r=>r).length<5){errors.push(L('第','Fila ')+(idx+2)+L('行 '+tn+'：骑手ID不足5个',' '+tn+': faltan Rider IDs (se requieren 5)'));return}
+        var _nr=riders.filter(function(r){return r;}).map(normIdG);
+        var _dt=[...new Set(_nr.filter(function(r,i){return _nr.indexOf(r)!==i;}))];
+        if(_dt.length){errors.push(L('第','Fila ')+(idx+2)+L('行 '+tn+'：同队重复骑手 '+_dt.join('、')+'（已跳过该队）',' '+tn+': riders repetidos '+_dt.join(', ')+' (equipo omitido)'));return}
         matchIds.forEach(mid=>{
           // 已生成/发布配对的场次：报名已截止，拦截该场（其余场次照常报名）
           var lk=String(mid);
@@ -6378,6 +6514,43 @@ function handleBulkUpload(file){
           added++;
         });
       });
+      // —— 同一场次，同一骑手出现在≥2支队伍（本次批量 或 已有报名）→ 涉及的队伍都不报名 ——
+      var _riderConflicts=[];
+      try{
+        var _existing=await dbLoadAllTeams();
+        var perMatch={}; // mk -> {r:{riderNorm:{teamKey:1}}, disp:{teamKey:teamName}}
+        function _regC(mid,vc2,tn2,rds){
+          var mk=String(parseInt(mid)); if(isNaN(parseInt(mid)))return;
+          if(!perMatch[mk])perMatch[mk]={r:{},disp:{}};
+          var tk=String(vc2||'').toLowerCase()+'|'+String(tn2||'').toLowerCase();
+          perMatch[mk].disp[tk]=tn2;
+          (rds||[]).forEach(function(rid){var rn=normIdG(rid); if(!rn)return; if(!perMatch[mk].r[rn])perMatch[mk].r[rn]={}; perMatch[mk].r[rn][tk]=1;});
+        }
+        toInsert.forEach(function(it){ _regC(it.match_id,it.vendor_code,it.team_name,it.riders); });
+        _existing.forEach(function(t){ _regC(t.matchId,t.vendorCode,t.teamName,t.riders); });
+        var _badKeys={}; var _seenRC={};
+        Object.keys(perMatch).forEach(function(mk){
+          var R=perMatch[mk].r, disp=perMatch[mk].disp;
+          Object.keys(R).forEach(function(rn){
+            var tks=Object.keys(R[rn]);
+            if(tks.length>1){
+              tks.forEach(function(tk){ _badKeys[mk+'|'+tk]=1; });
+              var ck=mk+'|'+rn; if(!_seenRC[ck]){ _seenRC[ck]=1;
+                _riderConflicts.push(L('骑手 '+rn+' @'+matchLabel(parseInt(mk))+'：同时出现在 '+tks.map(function(x){return '「'+disp[x]+'」';}).join('、'),
+                                       'Rider '+rn+' @'+matchLabel(parseInt(mk))+': aparece en '+tks.map(function(x){return '«'+disp[x]+'»';}).join(', '))); }
+            }
+          });
+        });
+        if(Object.keys(_badKeys).length){
+          var _kept=[];
+          toInsert.forEach(function(it){
+            var k=String(parseInt(it.match_id))+'|'+String(it.vendor_code||'').toLowerCase()+'|'+String(it.team_name||'').toLowerCase();
+            if(!_badKeys[k]) _kept.push(it);
+          });
+          toInsert.length=0; Array.prototype.push.apply(toInsert,_kept);
+          added=toInsert.length;
+        }
+      }catch(_e){ console.error('bulk rider conflict', _e); }
       var lockedNames=Object.keys(lockedHit).map(function(k){return matchLabel(parseInt(k));}).join(L('、',', '));
       if(toInsert.length){
         try{ await dbInsertTeams(toInsert); }
@@ -6389,6 +6562,7 @@ function handleBulkUpload(file){
       var _warn=[];
       if(lockedNames)_warn.push(L('⚠️ 以下场次配对已生成、报名已截止，相关行未报名：','⚠️ Partidos ya emparejados (inscripción cerrada), no inscritos: ')+lockedNames);
       if(bannedHit.length)_warn.push(L('🚫 以下骑手上场参赛但未完成至少一单，本场禁止报名(整队该场未报名)：','🚫 Riders que jugaron pero sin completar 1 pedido, no inscritos: ')+bannedHit.join(L('；','; ')));
+      if(_riderConflicts.length)_warn.push(L('🚫 同一场次同一骑手不能在两支队伍，以下冲突队伍均未报名：','🚫 Un rider no puede estar en dos equipos del mismo partido; equipos en conflicto NO inscritos: ')+_riderConflicts.join(L('；','; ')));
       if(_warn.length){ showAlert('bulkErr',_warn.join('\n')); }
       else if(errors.length) showAlert('bulkErr',errors.join(' · '));
       showAlert('bulkOk',msg,'ok');
@@ -6445,5 +6619,6 @@ buildSchedule();
 buildSlots('riderSlots');
 initMatchupPage();
 </script>
+<div style="position:fixed;right:6px;bottom:4px;font-size:10px;color:#9090A8;opacity:.55;z-index:99999;font-family:monospace;pointer-events:none">v2026-06-07</div>
 </body>
 </html>
