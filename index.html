@@ -4871,13 +4871,25 @@ function applyRegistrationMatching(){
     fuzzyScoreMap[rid.slice(0,16)]=RIDER_SCORE_MAP[rid]; // fuzzy key
   });
 
-  // Group REG_RIDER_MAP by teamName
+  // 按"队伍→它本场报名的骑手"直接从报名记录(TEAMS)构建。
+  // 避免多支队共用同一批骑手时，"骑手→队伍"映射相互覆盖、导致某些队拿不到自己的人
+  // 而退化成整个 Vendor（曾出现 Seleccion Franciaa Global 被灌成整 Vendor 的问题）。
   var teamRiders={}; // teamName → [riderIds]
-  Object.entries(REG_RIDER_MAP).forEach(function(e){
-    var rid=e[0],tn=e[1];
-    if(!teamRiders[tn])teamRiders[tn]=[];
-    teamRiders[tn].push(rid);
-  });
+  try{
+    (typeof TEAMS!=='undefined'?TEAMS:[]).forEach(function(t){
+      if(!t||!t.teamName) return;
+      if(SCORE_MATCH_ID!=null && String(t.matchId)!==String(SCORE_MATCH_ID)) return;
+      if(!teamRiders[t.teamName]) teamRiders[t.teamName]=[];
+      (t.riders||[]).forEach(function(rid){ var n=normIdG(rid); if(n && teamRiders[t.teamName].indexOf(n)<0) teamRiders[t.teamName].push(n); });
+    });
+  }catch(e){}
+  if(!Object.keys(teamRiders).length){ // 兜底：报名记录不可用时退回旧的 rider→team 映射
+    Object.entries(REG_RIDER_MAP).forEach(function(e){
+      var rid=e[0],tn=e[1];
+      if(!teamRiders[tn])teamRiders[tn]=[];
+      teamRiders[tn].push(rid);
+    });
+  }
 
   var matched=0,noScore=0,noTeam=0;
 
