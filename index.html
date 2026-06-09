@@ -3269,7 +3269,14 @@ function updateOperatorBadge(){
 }
 async function requireOperator(){
   if(await refreshOperator()) return true;
-  return await operatorLoginModal();
+  var ok = await operatorLoginModal();
+  if(!ok) return false;
+  await refreshOperator();
+  if(OPERATOR) return true;
+  if(typeof VIEWER_ONLY!=='undefined' && VIEWER_ONLY){
+    alert(L('✅ 已登录（只读账号）。你可以查看和下载数据，但无法进入运营/上传/编辑功能。\n\n查看看板：在网址后加 #dashboard 打开。','✅ Sesión iniciada (solo lectura). Puedes ver y descargar datos, pero no editar ni subir.\n\nPara ver el panel: agrega #dashboard a la URL.'));
+  }
+  return false;
 }
 async function operatorLogout(){
   if(sb) await sb.auth.signOut();
