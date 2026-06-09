@@ -2406,9 +2406,9 @@ async function renderDashboard(){
       dbSelectAll('registrations','vendor_code,team_name,match_id,riders,created_at','match_id'),
       sb.from('redemptions').select('points,est_cash,status,curp6,created_at'),
       dbSelectAll('pt_riders','vendor_code,rider_id'),
-      sb.from('events').select('kind,created_at')
+      dbSelectAll('events','kind,created_at','created_at')
     ]);
-    var regs=(Array.isArray(R[0])?R[0]:(R[0].data||[])), reds=(R[1].data||[]), pts=(Array.isArray(R[2])?R[2]:(R[2].data||[])), evs=(R[3].data||[]);
+    var regs=(Array.isArray(R[0])?R[0]:(R[0].data||[])), reds=(R[1].data||[]), pts=(Array.isArray(R[2])?R[2]:(R[2].data||[])), evs=(Array.isArray(R[3])?R[3]:(R[3].data||[]));
     window._DASH={regs:regs,reds:reds,pts:pts,evs:evs};
 
     // ---- registrations metrics ----
