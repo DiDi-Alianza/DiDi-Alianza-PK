@@ -562,7 +562,7 @@ select.fi option{background:#18181E}
       <div style="background:var(--s2);border:1px solid var(--border);border-radius:11px;padding:18px;text-align:center"><div style="font-size:28px;margin-bottom:8px">📖</div><div style="font-weight:700;font-size:14px;margin-bottom:4px">1. 了解规则</div><div style="font-size:11px;color:var(--muted);line-height:1.7">查看活动规则，了解积分、PK赛和Vendor奖金池详细规则</div></div>
       <div style="background:var(--s2);border:1px solid var(--border);border-radius:11px;padding:18px;text-align:center"><div style="font-size:28px;margin-bottom:8px">📝</div><div style="font-weight:700;font-size:14px;margin-bottom:4px">2. 报名参赛</div><div style="font-size:11px;color:var(--muted);line-height:1.7">输入Vendor Code，创建队伍，填写5名骑手ID，选择比赛场次</div></div>
       <div style="background:var(--s2);border:1px solid var(--border);border-radius:11px;padding:18px;text-align:center"><div style="font-size:28px;margin-bottom:8px">🎯</div><div style="font-weight:700;font-size:14px;margin-bottom:4px">3. 等待配对</div><div style="font-size:11px;color:var(--muted);line-height:1.7">比赛前一天公布配对结果，系统按综合实力相近原则匹配</div></div>
-      <div style="background:var(--s2);border:1px solid var(--border);border-radius:11px;padding:18px;text-align:center"><div style="font-size:28px;margin-bottom:8px">🏆</div><div style="font-weight:700;font-size:14px;margin-bottom:4px">4. 查询结果</div><div style="font-size:11px;color:var(--muted);line-height:1.7">比赛结束T+2日，查询比赛结果和骑手个人积分</div></div>
+      <div style="background:var(--s2);border:1px solid var(--border);border-radius:11px;padding:18px;text-align:center"><div style="font-size:28px;margin-bottom:8px">🏆</div><div style="font-weight:700;font-size:14px;margin-bottom:4px">4. 查询结果</div><div style="font-size:11px;color:var(--muted);line-height:1.7">比赛结束T+1日，查询比赛结果和骑手个人积分</div></div>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
       <button class="btn btn-p" onclick="go(2)">📝 立即报名参赛</button>
@@ -628,7 +628,7 @@ select.fi option{background:#18181E}
       <div style="background:var(--s2);border:1px solid var(--border);border-radius:11px;padding:18px;text-align:center"><div style="font-size:28px;margin-bottom:8px">📖</div><div style="font-weight:700;font-size:14px;margin-bottom:4px">1. Conoce las reglas</div><div style="font-size:11px;color:var(--muted);line-height:1.7">Revisa las reglas del evento: puntos, PK y bolsa de premios para Vendors en detalle</div></div>
       <div style="background:var(--s2);border:1px solid var(--border);border-radius:11px;padding:18px;text-align:center"><div style="font-size:28px;margin-bottom:8px">📝</div><div style="font-weight:700;font-size:14px;margin-bottom:4px">2. Inscríbete</div><div style="font-size:11px;color:var(--muted);line-height:1.7">Ingresa tu Vendor Code, crea un equipo, registra 5 Rider IDs y elige los partidos</div></div>
       <div style="background:var(--s2);border:1px solid var(--border);border-radius:11px;padding:18px;text-align:center"><div style="font-size:28px;margin-bottom:8px">🎯</div><div style="font-weight:700;font-size:14px;margin-bottom:4px">3. Espera el emparejamiento</div><div style="font-size:11px;color:var(--muted);line-height:1.7">Los emparejamientos se publican el día anterior; el sistema empareja por nivel similar</div></div>
-      <div style="background:var(--s2);border:1px solid var(--border);border-radius:11px;padding:18px;text-align:center"><div style="font-size:28px;margin-bottom:8px">🏆</div><div style="font-weight:700;font-size:14px;margin-bottom:4px">4. Consulta resultados</div><div style="font-size:11px;color:var(--muted);line-height:1.7">T+2 días tras el partido, consulta el resultado y los puntos de cada rider</div></div>
+      <div style="background:var(--s2);border:1px solid var(--border);border-radius:11px;padding:18px;text-align:center"><div style="font-size:28px;margin-bottom:8px">🏆</div><div style="font-weight:700;font-size:14px;margin-bottom:4px">4. Consulta resultados</div><div style="font-size:11px;color:var(--muted);line-height:1.7">T+1 día tras el partido, consulta el resultado y los puntos de cada rider</div></div>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
       <button class="btn btn-p" onclick="go(2)">📝 Inscribirme ahora</button>
@@ -833,7 +833,7 @@ select.fi option{background:#18181E}
     <div class="faq-item"><div class="faq-q">Q: 骑手连续7天不上线会怎样？</div><div class="faq-a">A: 若骑手连续7天无在线记录且无完单，<strong>该骑手积分清零重计</strong>。请定期提醒骑手保持活跃。</div></div>
     <div class="faq-item"><div class="faq-q">Q: 报名后因单数无法配对怎么处理？</div><div class="faq-a">A: 落单队伍当日按<strong>普通工作日</strong>处理，骑手照常累积个人积分，该队伍在下一场PK赛中享有<strong>优先匹配权</strong>。</div></div>
     <div class="faq-item"><div class="faq-q">Q: 我们的队伍名字可以自己起吗？</div><div class="faq-a">A: <strong>可以自行命名</strong>。建议使用足球队名增加趣味感，如「阿根廷队」「巴西队」等，也可以自由发挥。队名在提交名单时一并填写。</div></div>
-    <div class="faq-item"><div class="faq-q">Q: PK赛结果什么时候可以查询？</div><div class="faq-a">A: PK赛结束后 <strong>T+2个工作日</strong>，骑手和Vendor可直接登录<strong>滴滴平台官方网站</strong>查询本场比赛结果及每位骑手的积分明细。</div></div>
+    <div class="faq-item"><div class="faq-q">Q: PK赛结果什么时候可以查询？</div><div class="faq-a">A: PK赛结束后 <strong>T+1个工作日</strong>，骑手和Vendor可直接登录<strong>滴滴平台官方网站</strong>查询本场比赛结果及每位骑手的积分明细。</div></div>
     <div class="faq-item"><div class="faq-q">Q: 骑手不参加PK赛，只正常送单，积分还算进我的奖金池吗？</div><div class="faq-a">A: <strong>普通工作日算，PK赛日不算</strong>。普通工作日所有骑手日常积分均计入Vendor综合积分。但PK赛日，只有获胜队伍所在Vendor的积分（10人全部积分）计入奖金池，未参赛或失败队伍的Vendor当日PK积分不计入。</div></div>
     <div class="faq-item"><div class="faq-q">Q: 奖金池每周一结算，具体什么时候能到账？</div><div class="faq-a">A: 每周一运营团队完成上周积分结算和奖金分配计算，具体到账时间（走账单流程）请与您的VM确认。骑手积分兑换的比索走同一渠道，您收到后转发给骑手。</div></div>
     <div class="faq-item"><div class="faq-q">Q: 发现虚假注册骑手会怎样？</div><div class="faq-a">A: 每发现1名虚假注册骑手，将从您的<strong>周综合积分中扣除50分</strong>，直接影响奖金池分配额度。请确保旗下骑手注册信息真实有效。</div></div>
@@ -1033,7 +1033,7 @@ select.fi option{background:#18181E}
     <div class="faq-item"><div class="faq-q">P: ¿Qué pasa si un rider no se conecta durante 7 días seguidos?</div><div class="faq-a">R: Si un rider no tiene registro en línea ni entregas durante 7 días seguidos, <strong>sus puntos se reinician</strong>. Recuérdale mantenerse activo con regularidad.</div></div>
     <div class="faq-item"><div class="faq-q">P: ¿Qué pasa si tras inscribirme no se puede emparejar por número impar?</div><div class="faq-a">R: El equipo sin pareja se trata ese día como <strong>día laboral normal</strong>: los riders acumulan sus puntos personales y el equipo tiene <strong>prioridad de emparejamiento</strong> en el siguiente PK.</div></div>
     <div class="faq-item"><div class="faq-q">P: ¿Podemos elegir el nombre de nuestro equipo?</div><div class="faq-a">R: <strong>Sí, pueden nombrarlo libremente</strong>. Sugerimos usar nombres de selecciones de fútbol para darle diversión, como «Argentina» o «Brasil», o lo que prefieran. El nombre se registra al enviar la lista.</div></div>
-    <div class="faq-item"><div class="faq-q">P: ¿Cuándo se pueden consultar los resultados del PK?</div><div class="faq-a">R: <strong>T+2 días hábiles</strong> después del PK, riders y Vendors pueden entrar al <strong>sitio web oficial de la plataforma DiDi</strong> para consultar el resultado del partido y el detalle de puntos de cada rider.</div></div>
+    <div class="faq-item"><div class="faq-q">P: ¿Cuándo se pueden consultar los resultados del PK?</div><div class="faq-a">R: <strong>T+1 día hábil</strong> después del PK, riders y Vendors pueden entrar al <strong>sitio web oficial de la plataforma DiDi</strong> para consultar el resultado del partido y el detalle de puntos de cada rider.</div></div>
     <div class="faq-item"><div class="faq-q">P: Si un rider no participa en el PK y solo reparte normal, ¿sus puntos cuentan para mi bolsa?</div><div class="faq-a">R: <strong>En día laboral normal sí, en día de PK no</strong>. En días normales todos los puntos diarios de los riders suman al puntaje del Vendor. Pero en día de PK, solo cuentan para la bolsa los puntos del Vendor del equipo ganador (los puntos de los 10 riders); los puntos de PK del Vendor de equipos que no participaron o perdieron no se cuentan ese día.</div></div>
     <div class="faq-item"><div class="faq-q">P: La bolsa se liquida cada lunes, ¿cuándo llega exactamente el dinero?</div><div class="faq-a">R: Cada lunes el equipo de operaciones completa la liquidación de puntos y el cálculo del reparto de la semana anterior. El tiempo exacto de depósito (proceso de facturación) confírmalo con tu VM. El canje de puntos de los riders a pesos va por el mismo canal; al recibirlo, lo reenvías a los riders.</div></div>
     <div class="faq-item"><div class="faq-q">P: ¿Qué pasa si se detectan riders registrados de forma falsa?</div><div class="faq-a">R: Por cada rider con registro falso detectado, se descuentan <strong>50 pts de tu puntaje semanal</strong>, lo que afecta directamente tu porción de la bolsa. Asegúrate de que la información de registro de tus riders sea real y válida.</div></div>
@@ -1237,10 +1237,15 @@ select.fi option{background:#18181E}
 
 <!-- ═══ PAGE 5: 比赛结果 ═══ -->
 <div class="page" id="p5">
-  <div class="slbl" data-i18n="sc_slbl">比赛结束 T+2 工作日公布</div>
+  <div class="slbl" data-i18n="sc_slbl">比赛结束 T+1 工作日公布</div>
   <div class="stitle" data-i18n="sc_title">🏆 比赛结果 & 积分查询</div>
-  <div class="ssub"><span class="lc-zh">比赛结束后 T+2 工作日公布，骑手可凭 Rider ID 查询个人积分和 PK 奖励</span><span class="lc-es">Se publica T+2 días hábiles tras el partido; los riders pueden consultar sus puntos y bono PK con su Rider ID</span></div>
-  <div id="scoreMatchLabel" style="display:none;margin-top:8px;font-size:13px;font-weight:700;color:var(--didi)"></div>
+  <div class="ssub"><span class="lc-zh">比赛结束后 T+1 工作日公布，骑手可凭 Rider ID 查询个人积分和 PK 奖励</span><span class="lc-es">Se publica T+1 día hábil tras el partido; los riders pueden consultar sus puntos y bono PK con su Rider ID</span></div>
+  <div id="scoreMatchLabel" style="display:none"></div>
+  <div id="scoreViewBar" style="display:none;margin-top:10px;flex-wrap:wrap;gap:8px;align-items:center">
+    <label style="font-size:13px;font-weight:700;color:var(--didi)"><span class="lc-zh">📌 查看场次：</span><span class="lc-es">📌 Ver partido: </span></label>
+    <select id="scoreViewMatchSel" class="fi" onchange="selectViewMatch(this.value)" style="width:auto;min-width:200px;max-width:100%;padding:7px 11px;font-size:12px;display:inline-block"></select>
+    <button class="btn btn-s btn-sm" onclick="downloadAllResults()" style="border-color:rgba(255,184,0,.45);color:#FFB800;font-size:11px"><span class="lc-zh">⬇️ 下载全部历史结果</span><span class="lc-es">⬇️ Descargar todo el historial</span></button>
+  </div>
 
   <!-- ── 运营入口（隐藏，需密码） ── -->
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
@@ -3015,7 +3020,7 @@ const I18N = {
     logo_sub:'PK 赛平台',
     reg_slbl:'供应商报名', reg_title:'📝 报名参赛',
     mu_slbl:'比赛前一天公布', mu_title:'🎯 配对结果',
-    sc_slbl:'比赛结束 T+2 工作日公布', sc_title:'🏆 比赛结果 & 积分查询',
+    sc_slbl:'比赛结束 T+1 工作日公布', sc_title:'🏆 比赛结果 & 积分查询',
     sc_top10_title:'🏆 Top 10 队伍排行',
     sc_top10_sub:'当场比赛综合积分最高的10支队伍（含 PK 奖励分）· 积分高者排前，胜负不影响排名',
     sc_query_title:'🔍 查询比赛结果',
@@ -3038,7 +3043,7 @@ const I18N = {
     logo_sub:'Plataforma PK',
     reg_slbl:'Registro de Proveedor', reg_title:'📝 Inscripción al Torneo',
     mu_slbl:'Publicado el día anterior', mu_title:'🎯 Emparejamientos',
-    sc_slbl:'Publicado T+2 días hábiles tras el partido', sc_title:'🏆 Resultados & Consulta de Puntos',
+    sc_slbl:'Publicado T+1 día hábil tras el partido', sc_title:'🏆 Resultados & Consulta de Puntos',
     sc_top10_title:'🏆 Top 10 Equipos',
     sc_top10_sub:'Los 10 equipos con mayor puntuación del partido (incluye bonos PK) · Ordenado por puntos, sin importar victoria o derrota',
     sc_query_title:'🔍 Consultar Resultados',
@@ -3809,8 +3814,8 @@ function renderRedeemForm(body, curp6, data, total, completed, pending, availabl
   var amt=body.querySelector('#_rdAmt'), calc=body.querySelector('#_rdCalc'), submit=body.querySelector('#_rdSubmit');
   function recompute(){
     var v=parseInt(amt.value)||0;
-    if(v>available){ v=available; amt.value=available; }
     if(v<=0){ calc.innerHTML=''; return; }
+    if(v>available){ calc.innerHTML='<div class="note n-lose" style="margin-top:0;font-size:12px;line-height:1.7">'+L('❌ 不能超过可兑换余额（最多 '+available.toLocaleString()+' 分）。<br>可兑换 = 累计 '+total.toLocaleString()+' − 已兑 '+completed.toLocaleString()+' − 处理中 '+pending.toLocaleString(),'❌ No puede superar tu saldo canjeable (máx. '+available.toLocaleString()+' pts).<br>Saldo = acumulado '+total.toLocaleString()+' − canjeado '+completed.toLocaleString()+' − en proceso '+pending.toLocaleString())+'</div>'; return; }
     var tier=getTier(v); var cash=Math.floor(v*tier.rate);
     var idx=TIERS.findIndex(function(t){return t===tier;}); var nt=TIERS[idx+1];
     var h='<div class="sc-row"><div class="sc-box p"><div class="sc-lbl">'+L('本次兑换档位','Nivel de esta vez')+'</div><div class="sc-val" style="font-size:22px">×'+tier.rate+'</div><div style="font-size:10px;color:var(--muted);margin-top:4px">'+tierLabel(tier)+'</div></div>'
@@ -3821,7 +3826,8 @@ function renderRedeemForm(body, curp6, data, total, completed, pending, availabl
   amt.addEventListener('input',recompute);
   submit.onclick=async function(){
     var v=parseInt(amt.value)||0;
-    if(v<=0||v>available){ alert(L('请输入有效的兑换分数','Ingresa una cantidad válida')); return; }
+    if(v<=0){ alert(L('请输入要兑换的积分','Ingresa los puntos a canjear')); return; }
+    if(v>available){ alert(L('❌ 兑换分数不能超过你的可兑换余额（最多 '+available.toLocaleString()+' 分）。\n可兑换 = 累计 '+total.toLocaleString()+' − 已兑 '+completed.toLocaleString()+' − 处理中 '+pending.toLocaleString()+'。','❌ No puede superar tu saldo canjeable (máx. '+available.toLocaleString()+' pts).\nSaldo = acumulado '+total.toLocaleString()+' − canjeado '+completed.toLocaleString()+' − en proceso '+pending.toLocaleString()+'.')); return; }
     var tier=getTier(v); var cash=Math.floor(v*tier.rate);
     if(!confirm(L('确认提交兑换 '+v.toLocaleString()+' 分的申请吗？预计 '+cash.toLocaleString()+' 比索。','¿Confirmar la solicitud de canje de '+v.toLocaleString()+' puntos? Aprox. '+cash.toLocaleString()+' pesos.'))) return;
     submit.disabled=true; submit.textContent=L('提交中…','Enviando…');
@@ -3829,6 +3835,8 @@ function renderRedeemForm(body, curp6, data, total, completed, pending, availabl
     submit.disabled=false; submit.textContent=L('提交兑换申请','Enviar solicitud de canje');
     if(res.ok){
       body.innerHTML='<div class="note n-win" style="margin-top:0;line-height:1.85">'+L('✅ <strong>申请已提交，等待平台核算</strong><br>本次申请兑换 <strong>'+v.toLocaleString()+' 分</strong>，预计 <strong>'+cash.toLocaleString()+' 比索</strong>。<br>核算完成后，金额将打入你所属<strong>供应商账户</strong>，请于下周向你的供应商领取。<br><span style="color:var(--muted2);font-size:11px">注：本平台仅记录申请，最终兑换金额以平台线下核算为准。</span>','✅ <strong>Solicitud enviada, en verificación</strong><br>Solicitaste canjear <strong>'+v.toLocaleString()+' pts</strong>, aprox. <strong>'+cash.toLocaleString()+' pesos</strong>.<br>Tras la verificación, el monto se depositará en la cuenta de tu <strong>proveedor</strong>; recógelo con él la próxima semana.<br><span style="color:var(--muted2);font-size:11px">Nota: la plataforma solo registra la solicitud; el monto final se confirma en la verificación.</span>')+'</div>';
+    } else if(res.reason==='over_limit'){
+      alert(L('❌ 兑换失败：超过可兑换余额'+(res.available!=null?('（最多 '+Number(res.available).toLocaleString()+' 分）'):'')+'。\n你的累计积分可能已更新，请关闭后重新查询。','❌ Error: supera el saldo canjeable'+(res.available!=null?(' (máx. '+Number(res.available).toLocaleString()+' pts)'):'')+'.\nTus puntos pueden haberse actualizado; vuelve a consultar.'));
     } else if(res.reason==='pending_exists'){
       body.innerHTML='<div class="note n-lose" style="margin-top:0">'+L('⏳ 你已有一笔兑换申请正在核算中，无法重复提交。','⏳ Ya tienes una solicitud de canje en proceso; no puedes enviar otra.')+'</div>';
     } else {
@@ -5436,10 +5444,10 @@ function queryVendorResults(){
   var vc=(document.getElementById('vendorQueryIn').value||'').trim().toUpperCase();
   var panel=document.getElementById('vendorResultPanel');
   if(!vc){panel.innerHTML='<div class="q-err show" style="display:block">'+L('请输入 Vendor Code','Ingresa el Vendor Code')+'</div>';return;}
-  if(!SCORE_DATA||!Object.keys(SCORE_DATA).length){panel.innerHTML='<div class="q-err show" style="display:block">'+L('数据尚未加载，请联系运营人员','Datos aún no cargados, contacta al equipo de operaciones')+'</div>';return;}
+  var _vt=getViewTeams(); if(!_vt.length){panel.innerHTML='<div class="q-err show" style="display:block">'+L('该场次暂无结果，请在上方切换场次或联系运营','Sin resultados para este partido; cambia de partido arriba o contacta a operaciones')+'</div>';return;}
   // Deduplicate by name, prefer highest-score entry
   var vcNameMap={};
-  Object.values(SCORE_DATA).forEach(function(t){
+  _vt.forEach(function(t){
     var v=(t.vendor||'').toUpperCase();
     if(v===vc||v.includes(vc)||vc.includes(v)){
       var n=t.name;
@@ -5510,12 +5518,12 @@ function queryTeamResults(){
   var name=(document.getElementById('teamQueryIn').value||'').trim();
   var panel=document.getElementById('teamResultPanel');
   if(!name){panel.innerHTML='<div class="q-err show" style="display:block">'+L('请输入队伍名称','Ingresa el nombre del equipo')+'</div>';return;}
-  if(!SCORE_DATA||!Object.keys(SCORE_DATA).length){panel.innerHTML='<div class="q-err show" style="display:block">'+L('数据尚未加载','Datos aún no cargados')+'</div>';return;}
+  var _vt=getViewTeams(); if(!_vt.length){panel.innerHTML='<div class="q-err show" style="display:block">'+L('该场次暂无结果，请在上方切换场次','Sin resultados para este partido; cambia de partido arriba')+'</div>';return;}
 
   // Find team - prefer highest-score entry when duplicates exist
-  var candidates=Object.values(SCORE_DATA).filter(function(t){return t.name===name;});
+  var candidates=_vt.filter(function(t){return t.name===name;});
   if(!candidates.length){
-    candidates=Object.values(SCORE_DATA).filter(function(t){return t.name.includes(name)||name.includes(t.name);});
+    candidates=_vt.filter(function(t){return t.name.includes(name)||name.includes(t.name);});
   }
   if(!candidates.length){panel.innerHTML='<div class="q-err show" style="display:block">'+L('未找到队伍：','Equipo no encontrado: ')+name+L('，请检查队伍名称',', verifica el nombre')+'</div>';return;}
   // Always use the highest-score entry (vendor fallback > registration duplicate)
@@ -5656,7 +5664,8 @@ function filterDisplayTeams(teams){
 }
 // Top10 场次下拉：列出已归档场次 + 当前场
 function populateTop10Sel(viewId){
-  var sel=document.getElementById('top10MatchSel'), wrap=document.getElementById('top10MatchSelWrap');
+  var wrap=document.getElementById('top10MatchSelWrap'); if(wrap) wrap.style.display='none'; return;
+  var sel=document.getElementById('top10MatchSel');
   if(!sel||!wrap)return;
   var ids={};
   Object.keys(SCORE_ARCHIVE||{}).forEach(function(k){ if((SCORE_ARCHIVE[k]||[]).length) ids[String(k)]=1; });
@@ -5671,6 +5680,41 @@ function populateTop10Sel(viewId){
   }).join('');
 }
 function selectTop10Match(id){ TOP10_VIEW_ID=id?String(id):null; renderTop10(); }
+// 当前所选"查看场次"对应的队伍数据：当前场用实时SCORE_DATA，历史场用归档SCORE_ARCHIVE
+function getViewTeams(){
+  var viewId=TOP10_VIEW_ID;
+  var hasLive=SCORE_DATA&&Object.keys(SCORE_DATA).length>0;
+  if(viewId==null) viewId=(SCORE_MATCH_ID!=null?String(SCORE_MATCH_ID):null);
+  if(viewId!=null && String(viewId)===String(SCORE_MATCH_ID) && hasLive) return Object.values(SCORE_DATA);
+  if(viewId!=null && SCORE_ARCHIVE && SCORE_ARCHIVE[viewId]) return SCORE_ARCHIVE[viewId];
+  return hasLive?Object.values(SCORE_DATA):[];
+}
+// 填充顶部"查看场次"下拉（来自所有有结果的场次：归档 + 当前实时）
+function populateScoreViewSel(){
+  var sel=document.getElementById('scoreViewMatchSel'), bar=document.getElementById('scoreViewBar');
+  if(!sel) return;
+  var idset={};
+  Object.keys(SCORE_ARCHIVE||{}).forEach(function(k){ if((SCORE_ARCHIVE[k]||[]).length) idset[String(k)]=1; });
+  var hasLive=SCORE_DATA&&Object.keys(SCORE_DATA).length>0;
+  if(hasLive && SCORE_MATCH_ID!=null) idset[String(SCORE_MATCH_ID)]=1;
+  var ids=Object.keys(idset).sort(function(a,b){return parseInt(a)-parseInt(b);});
+  if(!ids.length){ if(bar) bar.style.display='none'; return; }
+  if(TOP10_VIEW_ID==null || !idset[String(TOP10_VIEW_ID)]) TOP10_VIEW_ID=(SCORE_MATCH_ID!=null&&idset[String(SCORE_MATCH_ID)])?String(SCORE_MATCH_ID):ids[ids.length-1];
+  sel.innerHTML=ids.map(function(id){
+    var lbl=(typeof matchLabel==='function')?matchLabel(parseInt(id)):('第'+id+'场');
+    var ent=(typeof allScheduleEntry==='function')?allScheduleEntry(parseInt(id)):null;
+    var dt=ent?(' · '+(typeof sDate==='function'?sDate(ent):ent.date||'')+' '+(typeof sDay==='function'?sDay(ent):ent.day||'')):'';
+    return '<option value="'+id+'"'+(String(id)===String(TOP10_VIEW_ID)?' selected':'')+'>'+lbl+dt+'</option>';
+  }).join('');
+  if(bar) bar.style.display='flex';
+}
+// 切换查看场次：刷新TOP10，并重跑已打开的Vendor/队伍查询
+function selectViewMatch(id){
+  TOP10_VIEW_ID=id?String(id):null;
+  if(typeof renderTop10==='function') renderTop10();
+  try{ var vq=document.getElementById('vendorQueryIn'); var vp=document.getElementById('qtab-panel-vendor'); if(vq&&vq.value.trim()&&vp&&vp.style.display!=='none') queryVendorResults(); }catch(e){}
+  try{ var tq=document.getElementById('teamQueryIn'); var tp=document.getElementById('qtab-panel-team'); if(tq&&tq.value.trim()&&tp&&tp.style.display!=='none') queryTeamResults(); }catch(e){}
+}
 function renderTop10(){
   var el=document.getElementById('top10Table');
   if(!el)return;
@@ -5862,54 +5906,43 @@ function downloadVendorResults(vc,teams){
       });
     });
     XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(riderRows),L('骑手维度','Por rider'));
-    XLSX.writeFile(wb,vc+L('_比赛结果_','_Resultados_')+new Date().toISOString().slice(0,10)+'.xlsx');
+    var _ml=''; try{ if(TOP10_VIEW_ID!=null && typeof matchLabel==='function') _ml=matchLabel(parseInt(TOP10_VIEW_ID))+'_'; }catch(e){}
+    XLSX.writeFile(wb,vc+'_'+_ml+L('比赛结果_','Resultados_')+new Date().toISOString().slice(0,10)+'.xlsx');
   }catch(e){alert(L('下载失败：','Error al descargar: ')+e.message);}
 }
 
 
 function downloadAllResults(){
-  if(!SCORE_DATA||!Object.keys(SCORE_DATA).length){alert(L('请先上传比赛数据','Primero sube los datos del partido'));return;}
+  var matches={};
+  Object.keys(SCORE_ARCHIVE||{}).forEach(function(k){ if((SCORE_ARCHIVE[k]||[]).length) matches[String(k)]=SCORE_ARCHIVE[k]; });
+  if(SCORE_MATCH_ID!=null && SCORE_DATA && Object.keys(SCORE_DATA).length){
+    matches[String(SCORE_MATCH_ID)]=(typeof filterDisplayTeams==='function')?filterDisplayTeams(Object.values(SCORE_DATA)):Object.values(SCORE_DATA);
+  }
+  var ids=Object.keys(matches).sort(function(a,b){return parseInt(a)-parseInt(b);});
+  if(!ids.length){alert(L('暂无可下载的比赛结果','No hay resultados para descargar'));return;}
   try{
     var wb=XLSX.utils.book_new();
-    // 只导出真正参赛的队伍（有胜/败结果 且 人数≤8）；都没有时导出全部
-    var _played=Object.values(SCORE_DATA).filter(function(t){return (t.result==='胜'||t.result==='败') && t.riders && t.riders.length>0 && t.riders.length<=8;});
-    var _teams=_played.length?_played:Object.values(SCORE_DATA);
-    // Sheet 1: team dimension
-    var teamRows=[[L('队伍名称','Equipo'),'Vendor Code',L('比赛结果','Resultado'),L('骑手积分','Puntos riders'),L('PK赛积分','Puntos PK'),L('总积分','Total'),L('对手队伍','Equipo rival'),L('对手积分','Puntos rival'),L('在线积分','Puntos en línea'),L('完美单积分','Puntos perfectos'),L('周末加成','Bono fin de semana'),L('D责扣分','Desc. Resp. D'),L('排班扣分','Desc. turno')]];
-    _teams.slice().sort(function(a,b){return teamTotalScore(b)-teamTotalScore(a);}).forEach(function(t){
-      var d=t.my_details||{};
-      var fin=teamTotalScore(t);
-      var pk=(t.pk_total!=null?t.pk_total:(t.riders||[]).reduce(function(s,r){return s+Number(r.pk_bonus||0);},0));
-      teamRows.push([t.name,t.vendor,rTxt(t.result),t.my_score,pk,fin,t.opponent||'',(t.opp_final!=null?t.opp_final:t.opp_score)||0,
-        Math.round(d.slot23_pt||0),Math.round(d.perfect_pt||0),Math.round(d.weekend_perfect_bonus_pt||0),
-        Math.round(d.deduct_3r_pt||0),Math.round(d.deduct_no_order_pt||0)]);
-    });
-    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(teamRows),L('队伍维度','Por equipo'));
-    // Sheet 2: rider dimension
-    var riderRows=[[L('骑手ID','Rider ID'),L('所属队伍','Equipo'),'Vendor',L('队伍胜负','Resultado equipo'),L('正常积分','Puntos normales'),L('PK奖励','Bono PK'),L('最终积分','Puntos finales'),L('队内排名','Rango interno'),L('在线','En línea'),L('完美单','Perfectos'),L('周末加成','Bono fin de semana'),L('D责','Resp. D'),L('排班扣','Desc. turno'),L('完单数','Pedidos')]];
-    _teams.forEach(function(t){
-      (t.riders||[]).forEach(function(r){
-        riderRows.push([r.id,t.name,t.vendor,rTxt(t.result),r.normal_total,r.pk_bonus||0,r.final_total,r.rank||'',
-          r.slot23_pt||0,r.perfect_pt||0,r.weekend_perfect_bonus_pt||0,r.deduct_3r_pt||0,r.deduct_no_order_pt||0,r.complete_orders||0]);
+    var mInfo=function(id){ var l=(typeof matchLabel==='function')?matchLabel(parseInt(id)):('第'+id+'场'); var e=(typeof allScheduleEntry==='function')?allScheduleEntry(parseInt(id)):null; var d=e?(typeof sDate==='function'?sDate(e):e.date||''):''; return {l:l,d:d}; };
+    var teamRows=[[L('场次','Partido'),L('日期','Fecha'),L('队伍名称','Equipo'),'Vendor',L('比赛结果','Resultado'),L('骑手积分','Puntos riders'),L('PK赛积分','Puntos PK'),L('总积分','Total'),L('对手队伍','Equipo rival'),L('对手积分','Puntos rival'),L('在线积分','Puntos en línea'),L('完美单积分','Puntos perfectos'),L('周末加成','Bono fin de semana'),L('D责扣分','Desc. Resp. D'),L('排班扣分','Desc. turno')]];
+    var riderRows=[[L('场次','Partido'),L('日期','Fecha'),L('骑手ID','Rider ID'),L('所属队伍','Equipo'),'Vendor',L('队伍胜负','Resultado equipo'),L('正常积分','Puntos normales'),L('PK奖励','Bono PK'),L('最终积分','Puntos finales'),L('队内排名','Rango interno'),L('在线','En línea'),L('完美单','Perfectos'),L('周末加成','Bono fin de semana'),L('D责','Resp. D'),L('排班扣','Desc. turno'),L('完单数','Pedidos')]];
+    ids.forEach(function(id){
+      var info=mInfo(id);
+      var teams=(typeof filterDisplayTeams==='function')?filterDisplayTeams(matches[id].slice()):matches[id];
+      teams.slice().sort(function(a,b){return teamTotalScore(b)-teamTotalScore(a);}).forEach(function(t){
+        var d=t.my_details||{};
+        var fin=teamTotalScore(t);
+        var pk=(t.pk_total!=null?t.pk_total:(t.riders||[]).reduce(function(s,r){return s+Number(r.pk_bonus||0);},0));
+        teamRows.push([info.l,info.d,t.name,t.vendor,rTxt(t.result),t.my_score,pk,fin,t.opponent||'',(t.opp_final!=null?t.opp_final:t.opp_score)||0,
+          Math.round(d.slot23_pt||0),Math.round(d.perfect_pt||0),Math.round(d.weekend_perfect_bonus_pt||0),Math.round(d.deduct_3r_pt||0),Math.round(d.deduct_no_order_pt||0)]);
+        (t.riders||[]).forEach(function(r){
+          riderRows.push([info.l,info.d,r.id,t.name,t.vendor,rTxt(t.result),r.normal_total,r.pk_bonus||0,r.final_total,r.rank||'',
+            r.slot23_pt||0,r.perfect_pt||0,r.weekend_perfect_bonus_pt||0,r.deduct_3r_pt||0,r.deduct_no_order_pt||0,r.complete_orders||0]);
+        });
       });
     });
-    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(riderRows),L('骑手维度','Por rider'));
-    // Sheet 3: Vendor维度
-    var vcMap={};
-    _teams.forEach(function(t){
-      var vc=(t.vendor||L('未知','Desconocido')).toUpperCase();
-      if(!vcMap[vc])vcMap[vc]={vc:vc,teams:0,wins:0,losses:0,totalScore:0};
-      vcMap[vc].teams++;
-      if(t.result==='胜')vcMap[vc].wins++;
-      else if(t.result==='败')vcMap[vc].losses++;
-      vcMap[vc].totalScore+=teamTotalScore(t);
-    });
-    var vcRows=[['Vendor Code',L('队伍数','# Equipos'),L('胜场','Victorias'),L('负场','Derrotas'),L('总积分','Puntos totales')]];
-    Object.values(vcMap).sort(function(a,b){return b.totalScore-a.totalScore;}).forEach(function(v){
-      vcRows.push([v.vc,v.teams,v.wins,v.losses,v.totalScore]);
-    });
-    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(vcRows),L('Vendor维度','Por Vendor'));
-    XLSX.writeFile(wb,L('比赛结果_','Resultados_')+new Date().toISOString().slice(0,10)+'.xlsx');
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(teamRows),L('全部队伍','Equipos'));
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(riderRows),L('全部骑手','Riders'));
+    XLSX.writeFile(wb,L('全部比赛结果_','Resultados_historial_')+new Date().toISOString().slice(0,10)+'.xlsx');
   }catch(e){alert(L('下载失败：','Error al descargar: ')+e.message);}
 }
 
@@ -6077,20 +6110,8 @@ function initScorePage(){
       }
     }
   }catch(e){}
-  // 渲染"本场结果对应：第X场·日期"（公开可见）
-  try{
-    var lblEl=document.getElementById('scoreMatchLabel');
-    if(lblEl){
-      var mid=SCORE_MATCH_ID||(MATCHUP_DATA&&MATCHUP_DATA.matchId);
-      if(has&&mid){
-        var lbl2=(typeof matchLabel==='function')?matchLabel(parseInt(mid)):('第'+mid+'场');
-        var ent2=(typeof allScheduleEntry==='function')?allScheduleEntry(parseInt(mid)):null;
-        var dt2=ent2?(' · '+(typeof sDate==='function'?sDate(ent2):ent2.date||'')+' '+(typeof sDay==='function'?sDay(ent2):ent2.day||'')):'';
-        lblEl.textContent=L('📌 本场结果对应：','📌 Resultados de: ')+lbl2+dt2;
-        lblEl.style.display='block';
-      } else { lblEl.style.display='none'; }
-    }
-  }catch(e){}
+  // 顶部"查看场次"下拉（公开可见，统一控制 TOP10 / 查询 / 下载）
+  try{ populateScoreViewSel(); }catch(e){}
   // Show/hide results area
   const scoreContent=document.getElementById('scoreContent');
   if(scoreContent)scoreContent.style.display=has?'block':'none';
@@ -6619,6 +6640,6 @@ buildSchedule();
 buildSlots('riderSlots');
 initMatchupPage();
 </script>
-<div style="position:fixed;right:6px;bottom:4px;font-size:10px;color:#9090A8;opacity:.55;z-index:99999;font-family:monospace;pointer-events:none">v2026-06-07</div>
+<div style="position:fixed;right:6px;bottom:4px;font-size:10px;color:#9090A8;opacity:.55;z-index:99999;font-family:monospace;pointer-events:none">v2026-06-08</div>
 </body>
 </html>
