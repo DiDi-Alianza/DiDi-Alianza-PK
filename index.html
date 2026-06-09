@@ -1055,7 +1055,7 @@ select.fi option{background:#18181E}
       <span class="lc-zh">📥 上传供应商名单</span><span class="lc-es">📥 Subir lista de proveedores</span>
       <input type="file" id="vendorFileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleVendorUpload(this.files[0]);this.value='';">
     </label>
-    <span style="font-size:10px;color:var(--muted);flex-basis:100%;margin-top:2px"><span class="lc-zh">列：vendor_code、vendor_name、rm（可选，RM 负责人；仅运营导出/看板可见，Vendor 看不到）</span><span class="lc-es">Columnas: vendor_code, vendor_name, rm (opcional; solo visible para operaciones, no para vendors)</span></span>
+    <span style="font-size:10px;color:var(--muted);flex-basis:100%;margin-top:2px"><span class="lc-zh">列：vendor_code、vendor_name、city（CDMX/MTY，用于积分榜分城市）、rm（可选）</span><span class="lc-es">Columnas: vendor_code, vendor_name, city (CDMX/MTY, para separar el ranking), rm (opcional)</span></span>
   </div>
   <div class="itabs">
     <button class="itab active" onclick="switchReg('new')"><span class="lc-zh">➕ 新建 / 报名</span><span class="lc-es">➕ Nuevo / Inscribir</span></button>
@@ -1610,11 +1610,9 @@ select.fi option{background:#18181E}
       </div>
     </div>
     <div id="dashUploadBar" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0 4px">
-      <div style="background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:10px 12px">
-        <div style="font-size:12px;font-weight:700;margin-bottom:4px"><span class="lc-zh">🗂️ Vendor ↔ 渠道经理 清单</span><span class="lc-es">🗂️ Lista Vendor ↔ Gerente</span></div>
-        <div style="font-size:10px;color:var(--muted2);margin-bottom:6px"><span class="lc-zh">列：RM（渠道经理）、VENDOR Code · 已内置最新清单，可上传覆盖</span><span class="lc-es">Columnas: RM (gerente), VENDOR Code · lista precargada; sube para reemplazar</span></div>
-        <input type="file" accept=".xlsx,.xls" onchange="handleVendorRMVMUpload(this.files[0]);this.value=''" style="font-size:11px">
-        <div id="dashUploadMsg" style="font-size:11px;margin-top:5px;color:var(--muted2)"></div>
+      <div style="background:var(--s2);border:1px dashed var(--border);border-radius:10px;padding:10px 12px">
+        <div style="font-size:12px;font-weight:700;margin-bottom:4px"><span class="lc-zh">🗂️ Vendor 清单（含名称 / 城市 / 经理）</span><span class="lc-es">🗂️ Lista de Vendors (nombre / ciudad / gerente)</span></div>
+        <div style="font-size:11px;color:var(--muted2);line-height:1.7"><span class="lc-zh">👉 已统一到「报名参赛」页的 <b>📥 上传供应商名单</b>，请到那里上传（列：vendor_code、vendor_name、city、rm）。</span><span class="lc-es">👉 Unificado en la página «Inscripción» → <b>📥 Subir lista de proveedores</b> (columnas: vendor_code, vendor_name, city, rm).</span></div>
       </div>
       <div style="background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:10px 12px">
         <div style="font-size:12px;font-weight:700;margin-bottom:4px"><span class="lc-zh">🛵 骑手名册（每 Vendor 骑手数）</span><span class="lc-es">🛵 Roster de riders</span></div>
@@ -3383,7 +3381,7 @@ function updateVendorListStatus(){
     el.style.color='var(--muted2)';
   }
 }
-async function saveVendorList(){ await dbSaveData('vendor_list', VENDOR_LIST); await dbSaveData('vendor_rm', VENDOR_RM); }
+async function saveVendorList(){ await dbSaveData('vendor_list', VENDOR_LIST); await dbSaveData('vendor_rm', VENDOR_RM); await dbSaveData('vendor_city', VENDOR_CITY); }
 // Load shared data on startup so public/rider queries work on any device
 async function loadSharedData(){
   const d = await dbLoadAllData();
@@ -3591,17 +3589,20 @@ function handleVendorUpload(file){
       var nk=function(k){return String(k).replace(/[^ -~一-鿿]/g,'').replace(/\s+/g,'').trim().toLowerCase();};
       var rows=rawObjs.map(function(raw){var o={};Object.keys(raw).forEach(function(k){o[nk(k)]=raw[k];});return o;});
       var gc=function(r,cands){for(var i=0;i<cands.length;i++){var v=r[cands[i]];if(v!==undefined&&v!=='')return String(v).trim();}return '';};
-      VENDOR_LIST={}; VENDOR_RM={};
+      VENDOR_LIST={}; VENDOR_RM={}; VENDOR_CITY={};
       var count=0;
       rows.forEach(function(r){
         var vc=gc(r,['vendor_code','vendor code','vendorcode','供应商代码','vendor']).toUpperCase();
         var name=gc(r,['vendor_name','name','供应商名称','名称','company']);
         var rm=gc(r,['rm','rm_name','rmname','rm名字','rm负责人','负责人','负责rm','responsable','manager','负责人rm']);
-        if(vc){VENDOR_LIST[vc]=name||vc; if(rm) VENDOR_RM[vc]=rm; count++;}
+        var city=gc(r,['city','ciudad','城市']).toUpperCase();
+        if(!city){ if(vc.indexOf('CDMX')>=0)city='CDMX'; else if(vc.indexOf('MTY')>=0)city='MTY'; }
+        if(vc){VENDOR_LIST[vc]=name||vc; if(rm) VENDOR_RM[vc]=rm; if(city)VENDOR_CITY[vc]=city; count++;}
       });
       if(count===0)throw new Error(L('未找到 vendor_code 列，请确认文件格式','No se encontró la columna vendor_code; verifica el formato del archivo'));
       var rmCount=Object.keys(VENDOR_RM).length;
-      if(statusEl)statusEl.textContent=L('✓ 已加载 '+count+' 家供应商（含 RM '+rmCount+' 家）（报名时将校验 Vendor Code）','✓ '+count+' proveedores cargados ('+rmCount+' con RM) (se validará el Vendor Code al inscribir)');
+      var cityCount=Object.keys(VENDOR_CITY).length;
+      if(statusEl)statusEl.textContent=L('✓ 已加载 '+count+' 家供应商（含 RM '+rmCount+' 家 · 城市 '+cityCount+' 家）','✓ '+count+' proveedores ('+rmCount+' con RM · '+cityCount+' con ciudad)');
       if(statusEl)statusEl.style.color='var(--win)';
       saveVendorList();
     }catch(err){
