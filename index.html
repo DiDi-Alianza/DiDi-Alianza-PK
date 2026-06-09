@@ -1783,6 +1783,7 @@ async function autoBuildRegMap(matchId){
 let RIDER_SCORE_MAP = {}; // riderId → score entry, populated from score file // riderId → teamName (from registration file)
 const REAL_CURP_MAP = {}; // Historical data cleared for v28
 let VENDOR_LIST = {};
+let VENDOR_CITY = {};   // {vendor_code: "CDMX"|"MTY"} 来自上传清单，缺失则从 code 推断
 // 内置 Vendor↔渠道经理 清单（2026-06-05 更新；不再区分 RM/VM，统一为「渠道经理」）
 const RMVM_VERSION = '2026-06-05';
 const BUILTIN_MGR = {
@@ -2214,21 +2215,31 @@ function handleVendorRMVMUpload(file){
       if(!rows.length)throw new Error(L('文件为空','Archivo vacío'));
       var nk=function(k){return String(k).replace(/\s+/g,'').toLowerCase();};
       var gc=function(r,cands){for(var i=0;i<cands.length;i++){for(var k in r){if(nk(k)===cands[i]){var v=r[k];if(v!==undefined&&v!=='')return String(v).trim();}}}return '';};
-      var map={},n=0;
+      var map={},nameMap={},cityMap={},n=0,nCity=0;
       rows.forEach(function(r){
         var vc=gc(r,['vendorcode','vendor_code','code']).toUpperCase();
         var mgr=gc(r,['rm','manager','经理','渠道经理','gerente','vm']);
+        var vname=gc(r,['vendor_name','vendorname','名称','nombre']);
+        var city=gc(r,['city','ciudad','城市']).toUpperCase();
         if(!vc)return;
-        map[vc]=mgr; n++;
+        map[vc]=mgr;
+        if(vname)nameMap[vc]=vname;
+        if(!city){ if(vc.indexOf('CDMX')>=0)city='CDMX'; else if(vc.indexOf('MTY')>=0)city='MTY'; }
+        if(city){cityMap[vc]=city;nCity++;}
+        n++;
       });
       if(!n)throw new Error(L('没找到 VENDOR Code 列','No se encontró columna VENDOR Code'));
       VENDOR_RMVM=map;
       // 同步 VENDOR_RM（渠道经理），保持业绩追踪看板兼容
       VENDOR_RM={}; Object.keys(map).forEach(function(vc){ if(map[vc])VENDOR_RM[vc]=map[vc]; });
+      if(Object.keys(nameMap).length) VENDOR_LIST=nameMap;   // code -> 干净的 Vendor 名
+      VENDOR_CITY=cityMap;                                    // code -> 城市
       await dbSaveData('vendor_rmvm', VENDOR_RMVM);
       await dbSaveData('vendor_rmvm_version', RMVM_VERSION);
       await dbSaveData('vendor_rm', VENDOR_RM);
-      if(st){st.style.color='var(--win)';st.textContent=L('✅ Vendor–渠道经理 清单已更新：'+n+' 个 Vendor','✅ Lista Vendor–Gerente actualizada: '+n+' vendors');}
+      if(Object.keys(nameMap).length) await dbSaveData('vendor_list', VENDOR_LIST);
+      await dbSaveData('vendor_city', VENDOR_CITY);
+      if(st){st.style.color='var(--win)';st.textContent=L('✅ Vendor 清单已更新：'+n+' 个 Vendor（其中识别城市 '+nCity+' 个）','✅ Lista actualizada: '+n+' vendors ('+nCity+' con ciudad)');}
       renderDashboard();
     }catch(err){ if(st){st.style.color='var(--lose)';st.textContent=L('❌ 解析失败：','❌ Error: ')+(err.message||err);} }
   };
@@ -3389,6 +3400,7 @@ async function loadSharedData(){
     MATCHUP_ARCHIVE[String(MATCHUP_DATA.matchId)]=MATCHUP_DATA;
   }
   if(d.vendor_list && Object.keys(d.vendor_list).length) VENDOR_LIST = d.vendor_list;
+  if(d.vendor_city && Object.keys(d.vendor_city).length) VENDOR_CITY = d.vendor_city;
   if(d.vendor_rm && d.vendor_rmvm_version===RMVM_VERSION) VENDOR_RM = d.vendor_rm;
   if(d.vendor_rmvm && typeof d.vendor_rmvm==='object' && Object.keys(d.vendor_rmvm).length && d.vendor_rmvm_version===RMVM_VERSION) VENDOR_RMVM = d.vendor_rmvm;
   if(d.vendor_roster && typeof d.vendor_roster==='object') VENDOR_ROSTER = d.vendor_roster;
@@ -4003,7 +4015,18 @@ function vendorName(code){
   var nm=(typeof VENDOR_LIST!=='undefined'&&VENDOR_LIST[u])?String(VENDOR_LIST[u]):'';
   if(nm && nm.toUpperCase()!==u) return nm; // real custom name from the vendor list
   var idx=u.indexOf('DIDI');
-  return idx>0 ? c.slice(0,idx) : c; // e.g. FAGOAGADIDICDMX2603286 -> FAGOAGA
+  if(idx>0) return c.slice(0,idx); // e.g. FAGOAGADIDICDMX2603286 -> FAGOAGA
+  var cIdx=u.indexOf('CDMX'); if(cIdx<0) cIdx=u.indexOf('MTY');
+  return cIdx>0 ? c.slice(0,cIdx) : c; // 无 DIDI 时用城市标记切，如 KARLACAZANDRAMTY2604229 -> KARLACAZANDRA
+}
+// 城市：优先用上传清单 VENDOR_CITY，缺失则从 code 里的 CDMX/MTY 推断
+function vendorCity(code){
+  if(!code) return '';
+  var u=String(code).toUpperCase();
+  if(typeof VENDOR_CITY!=='undefined' && VENDOR_CITY[u]) return String(VENDOR_CITY[u]).toUpperCase();
+  if(u.indexOf('CDMX')>=0) return 'CDMX';
+  if(u.indexOf('MTY')>=0) return 'MTY';
+  return '';
 }
 function allScheduleEntry(id){
   var all=(typeof PRE_SCHEDULE!=='undefined'?PRE_SCHEDULE:[]).concat(typeof SCHEDULE!=='undefined'?SCHEDULE:[]);
@@ -5776,46 +5799,57 @@ function renderTop10(){
     return;
   }
   var medals=['🥇','🥈','🥉'];
-  var table=document.createElement('table');
-  table.style.cssText='width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed';
-  // Define column widths so score column is always the same width
-  var colgroup=document.createElement('colgroup');
-  [60,160,null,120,70].forEach(function(w){
-    var col=document.createElement('col');
-    if(w)col.style.width=w+'px';
-    colgroup.appendChild(col);
-  });
-  table.appendChild(colgroup);
-  var hdr=table.insertRow();
-  hdr.style.cssText='color:var(--muted2);border-bottom:1px solid var(--border)';
-  [L('名次','Pos.'),L('队伍名称','Equipo'),'Vendor',L('积分（含PK奖励）','Puntos (con bono PK)'),L('胜负','Resultado')].forEach(function(h,i){
-    var th=document.createElement('th');
-    th.style.cssText='padding:6px 8px;text-align:'+(i>=3?'center':'left')+';font-weight:600;font-size:11px;color:var(--muted2)';
-    th.textContent=h;hdr.appendChild(th);
-  });
-  top10.forEach(function(t,i){
-    var row=table.insertRow();
-    row.style.borderBottom='1px solid var(--border2)';
-    var isWin=t.result==='胜';
-    if(isWin)row.style.background='rgba(16,185,129,.04)';
-    var vc=(typeof vendorName==='function'?vendorName(t.vendor||'—'):(t.vendor||'—')).toUpperCase();
-    var cells=[medals[i]||(i+1)+(LANG==='es'?' lugar':'位'), t.name, vc, tScore(t).toLocaleString(), isWin?L('🏆 胜','🏆 Victoria'):L('❌ 负','❌ Derrota')];
-    cells.forEach(function(val,ci){
-      var td=row.insertCell();
-      if(ci===0) td.style.cssText='padding:8px 6px;font-weight:700;color:var(--didi);font-size:13px';
-      else if(ci===1) td.style.cssText='padding:8px 6px;font-weight:700;font-size:13px';
-      else if(ci===2) td.style.cssText='padding:8px 6px;font-size:11px;color:var(--muted2)';
-      else if(ci===3){
-        // Scale font size inversely with number length so all scores look visually equal
-        var scoreStr=String(val);
-        var scoreFontSize=scoreStr.length<=3?22:scoreStr.length<=4?20:scoreStr.length<=5?18:16;
-        td.style.cssText='padding:8px;text-align:center;font-weight:900;font-size:'+scoreFontSize+'px;color:#10b981;font-variant-numeric:tabular-nums;white-space:nowrap;width:120px';
-      }
-      else if(ci===4) td.style.cssText='padding:8px 6px;text-align:center;font-weight:700;font-size:13px;color:'+(isWin?'var(--win)':'var(--lose)');
-      td.textContent=val;
+  function makeTop10Table(rowsArr){
+    var table=document.createElement('table');
+    table.style.cssText='width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed';
+    var colgroup=document.createElement('colgroup');
+    [40,null,80,76,46].forEach(function(w){ var col=document.createElement('col'); if(w)col.style.width=w+'px'; colgroup.appendChild(col); });
+    table.appendChild(colgroup);
+    var hdr=table.insertRow();
+    hdr.style.cssText='color:var(--muted2);border-bottom:1px solid var(--border)';
+    [L('名次','Pos.'),L('队伍名称','Equipo'),'Vendor',L('积分','Puntos'),L('胜负','Result.')].forEach(function(h,i){
+      var th=document.createElement('th');
+      th.style.cssText='padding:6px 4px;text-align:'+(i>=3?'center':'left')+';font-weight:600;font-size:11px;color:var(--muted2)';
+      th.textContent=h;hdr.appendChild(th);
     });
-  });
-  el.innerHTML='';el.appendChild(table);
+    rowsArr.forEach(function(t,i){
+      var row=table.insertRow();
+      row.style.borderBottom='1px solid var(--border2)';
+      var isWin=t.result==='胜';
+      if(isWin)row.style.background='rgba(16,185,129,.04)';
+      var vc=(typeof vendorName==='function'?vendorName(t.vendor||'—'):(t.vendor||'—')).toUpperCase();
+      var cells=[medals[i]||(i+1)+(LANG==='es'?'':'位'), t.name, vc, tScore(t).toLocaleString(), isWin?L('🏆 胜','🏆'):L('❌ 负','❌')];
+      cells.forEach(function(val,ci){
+        var td=row.insertCell();
+        if(ci===0) td.style.cssText='padding:8px 4px;font-weight:700;color:var(--didi);font-size:13px';
+        else if(ci===1) td.style.cssText='padding:8px 4px;font-weight:700;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+        else if(ci===2) td.style.cssText='padding:8px 4px;font-size:10px;color:var(--muted2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+        else if(ci===3){ var s=String(val); var fs=s.length<=3?18:s.length<=4?16:s.length<=5?15:13; td.style.cssText='padding:8px 4px;text-align:center;font-weight:900;font-size:'+fs+'px;color:#10b981;font-variant-numeric:tabular-nums;white-space:nowrap'; }
+        else if(ci===4) td.style.cssText='padding:8px 4px;text-align:center;font-weight:700;font-size:12px;color:'+(isWin?'var(--win)':'var(--lose)');
+        td.textContent=val;
+      });
+    });
+    return table;
+  }
+  function makeCityCol(title, teams){
+    var wrap=document.createElement('div'); wrap.style.cssText='flex:1;min-width:300px';
+    var h=document.createElement('div'); h.style.cssText='font-weight:800;font-size:14px;color:var(--didi);margin:0 0 8px;padding:6px 12px;background:var(--s3);border-radius:8px;display:inline-block';
+    h.textContent=title+' · TOP'+Math.min(10,teams.length);
+    wrap.appendChild(h);
+    if(teams.length) wrap.appendChild(makeTop10Table(teams));
+    else { var e=document.createElement('div'); e.style.cssText='color:var(--muted2);font-size:12px;padding:16px 0'; e.textContent=L('本场该城市暂无队伍','Sin equipos de esta ciudad'); wrap.appendChild(e); }
+    return wrap;
+  }
+  var cityOf=function(t){ return (typeof vendorCity==='function'?vendorCity(t.vendor):'')||''; };
+  var cdmx=allTeams.filter(function(t){return cityOf(t)==='CDMX';}).slice(0,10);
+  var mty=allTeams.filter(function(t){return cityOf(t)==='MTY';}).slice(0,10);
+  var other=allTeams.filter(function(t){var c=cityOf(t);return c!=='CDMX'&&c!=='MTY';});
+  el.innerHTML='';
+  var split=document.createElement('div'); split.style.cssText='display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start';
+  split.appendChild(makeCityCol('🏙️ CDMX', cdmx));
+  split.appendChild(makeCityCol('🏙️ MTY', mty));
+  el.appendChild(split);
+  if(other.length){ var note=document.createElement('div'); note.style.cssText='margin-top:12px;font-size:11px;color:var(--muted2)'; note.textContent=L('注：'+other.length+' 支队伍城市未识别（不在已上传清单、code 也无 CDMX/MTY），未计入两栏。','Nota: '+other.length+' equipos sin ciudad identificada.'); el.appendChild(note); }
 }
 
 function downloadVendorResults(vc, teams){
@@ -6693,6 +6727,6 @@ buildSchedule();
 buildSlots('riderSlots');
 initMatchupPage();
 </script>
-<div style="position:fixed;right:6px;bottom:4px;font-size:10px;color:#9090A8;opacity:.55;z-index:99999;font-family:monospace;pointer-events:none">v2026-06-08</div>
+<div style="position:fixed;right:6px;bottom:4px;font-size:10px;color:#9090A8;opacity:.55;z-index:99999;font-family:monospace;pointer-events:none">v2026-06-09</div>
 </body>
 </html>
