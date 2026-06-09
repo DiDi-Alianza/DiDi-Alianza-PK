@@ -1244,7 +1244,7 @@ select.fi option{background:#18181E}
   <div id="scoreViewBar" style="display:none;margin-top:10px;flex-wrap:wrap;gap:8px;align-items:center">
     <label style="font-size:13px;font-weight:700;color:var(--didi)"><span class="lc-zh">📌 查看场次：</span><span class="lc-es">📌 Ver partido: </span></label>
     <select id="scoreViewMatchSel" class="fi" onchange="selectViewMatch(this.value)" style="width:auto;min-width:200px;max-width:100%;padding:7px 11px;font-size:12px;display:inline-block"></select>
-    <button class="btn btn-s btn-sm" onclick="downloadAllResults()" style="border-color:rgba(255,184,0,.45);color:#FFB800;font-size:11px"><span class="lc-zh">⬇️ 下载全部历史结果</span><span class="lc-es">⬇️ Descargar todo el historial</span></button>
+    <span style="font-size:11px;color:var(--muted2)"><span class="lc-zh">下载结果请在下方「按 Vendor 查询」输入你的 Vendor Code</span><span class="lc-es">Para descargar, ingresa tu Vendor Code en «Consultar por Vendor» abajo</span></span>
   </div>
 
   <!-- ── 运营入口（隐藏，需密码） ── -->
@@ -5467,12 +5467,19 @@ function queryVendorResults(){
   var summary=document.createElement('div');
   summary.style.cssText='font-size:11px;color:var(--muted2)';
   summary.textContent=L('找到 ','Se encontraron ')+teams.length+L(' 支队伍（Vendor: ',' equipos (Vendor: ')+vc+'）';
+  var dlWrap=document.createElement('div'); dlWrap.style.cssText='display:flex;gap:6px;flex-wrap:wrap';
   var dlBtn=document.createElement('button');
   dlBtn.className='btn btn-s btn-sm';
   dlBtn.style.cssText='border-color:rgba(255,184,0,.5);color:#FFB800;font-size:11px';
-  dlBtn.textContent=L('⬇️ 下载本 Vendor 结果','⬇️ Descargar resultados del Vendor');
+  dlBtn.textContent=L('⬇️ 下载本场结果','⬇️ Descargar este partido');
   dlBtn.onclick=function(){downloadVendorResults(vc,teams);};
-  hdrRow.appendChild(summary);hdrRow.appendChild(dlBtn);
+  var dlAllBtn=document.createElement('button');
+  dlAllBtn.className='btn btn-s btn-sm';
+  dlAllBtn.style.cssText='border-color:rgba(255,184,0,.5);color:#FFB800;font-size:11px';
+  dlAllBtn.textContent=L('⬇️ 下载本 Vendor 全部历史','⬇️ Todo el historial del Vendor');
+  dlAllBtn.onclick=function(){downloadVendorAllHistory(vc);};
+  dlWrap.appendChild(dlBtn); dlWrap.appendChild(dlAllBtn);
+  hdrRow.appendChild(summary);hdrRow.appendChild(dlWrap);
   panel.appendChild(hdrRow);
   teams.forEach(function(t){
     var isWin=t.result==='胜';
@@ -5912,6 +5919,52 @@ function downloadVendorResults(vc,teams){
 }
 
 
+function downloadVendorAllHistory(vc){
+  vc=(vc||'').trim().toUpperCase();
+  if(!vc){ alert(L('请先输入 Vendor Code','Ingresa el Vendor Code')); return; }
+  var matches={};
+  Object.keys(SCORE_ARCHIVE||{}).forEach(function(k){ if((SCORE_ARCHIVE[k]||[]).length) matches[String(k)]=SCORE_ARCHIVE[k]; });
+  if(SCORE_MATCH_ID!=null && SCORE_DATA && Object.keys(SCORE_DATA).length){
+    matches[String(SCORE_MATCH_ID)]=(typeof filterDisplayTeams==='function')?filterDisplayTeams(Object.values(SCORE_DATA)):Object.values(SCORE_DATA);
+  }
+  var ids=Object.keys(matches).sort(function(a,b){return parseInt(a)-parseInt(b);});
+  var pickVendor=function(teams){
+    var m={};
+    teams.forEach(function(t){
+      var v=(t.vendor||'').toUpperCase();
+      if(v===vc||v.indexOf(vc)>=0||vc.indexOf(v)>=0){ if(!m[t.name]||t.my_score>m[t.name].my_score) m[t.name]=t; }
+    });
+    var arr=Object.values(m);
+    return (typeof filterDisplayTeams==='function')?filterDisplayTeams(arr):arr;
+  };
+  try{
+    var mInfo=function(id){ var l=(typeof matchLabel==='function')?matchLabel(parseInt(id)):('第'+id+'场'); var e=(typeof allScheduleEntry==='function')?allScheduleEntry(parseInt(id)):null; var d=e?(typeof sDate==='function'?sDate(e):e.date||''):''; return {l:l,d:d}; };
+    var teamRows=[[L('场次','Partido'),L('日期','Fecha'),L('队伍名称','Equipo'),'Vendor',L('比赛结果','Resultado'),L('骑手积分','Puntos riders'),L('PK赛积分','Puntos PK'),L('总积分','Total'),L('对手队伍','Equipo rival'),L('对手积分','Puntos rival'),L('在线积分','Puntos en línea'),L('完美单积分','Puntos perfectos'),L('周末加成','Bono fin de semana'),L('D责扣分','Desc. Resp. D'),L('排班扣分','Desc. turno')]];
+    var riderRows=[[L('场次','Partido'),L('日期','Fecha'),L('骑手ID','Rider ID'),L('所属队伍','Equipo'),'Vendor',L('队伍胜负','Resultado equipo'),L('正常积分','Puntos normales'),L('PK奖励','Bono PK'),L('最终积分','Puntos finales'),L('队内排名','Rango interno'),L('在线','En línea'),L('完美单','Perfectos'),L('周末加成','Bono fin de semana'),L('D责','Resp. D'),L('排班扣','Desc. turno'),L('完单数','Pedidos')]];
+    var found=0;
+    ids.forEach(function(id){
+      var info=mInfo(id);
+      var teams=pickVendor(matches[id]);
+      teams.slice().sort(function(a,b){return teamTotalScore(b)-teamTotalScore(a);}).forEach(function(t){
+        found++;
+        var d=t.my_details||{};
+        var fin=teamTotalScore(t);
+        var pk=(t.pk_total!=null?t.pk_total:(t.riders||[]).reduce(function(s,r){return s+Number(r.pk_bonus||0);},0));
+        teamRows.push([info.l,info.d,t.name,t.vendor,rTxt(t.result),t.my_score,pk,fin,t.opponent||'',(t.opp_final!=null?t.opp_final:t.opp_score)||0,
+          Math.round(d.slot23_pt||0),Math.round(d.perfect_pt||0),Math.round(d.weekend_perfect_bonus_pt||0),Math.round(d.deduct_3r_pt||0),Math.round(d.deduct_no_order_pt||0)]);
+        (t.riders||[]).forEach(function(r){
+          riderRows.push([info.l,info.d,r.id,t.name,t.vendor,rTxt(t.result),r.normal_total,r.pk_bonus||0,r.final_total,r.rank||'',
+            r.slot23_pt||0,r.perfect_pt||0,r.weekend_perfect_bonus_pt||0,r.deduct_3r_pt||0,r.deduct_no_order_pt||0,r.complete_orders||0]);
+        });
+      });
+    });
+    if(!found){ alert(L('未找到该 Vendor 的历史比赛结果，请确认 Vendor Code','No se encontró historial para este Vendor; verifica el Vendor Code')); return; }
+    var wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(teamRows),L('队伍维度','Por equipo'));
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(riderRows),L('骑手维度','Por rider'));
+    XLSX.writeFile(wb,vc+L('_全部历史结果_','_Historial_')+new Date().toISOString().slice(0,10)+'.xlsx');
+  }catch(e){alert(L('下载失败：','Error al descargar: ')+e.message);}
+}
 function downloadAllResults(){
   var matches={};
   Object.keys(SCORE_ARCHIVE||{}).forEach(function(k){ if((SCORE_ARCHIVE[k]||[]).length) matches[String(k)]=SCORE_ARCHIVE[k]; });
