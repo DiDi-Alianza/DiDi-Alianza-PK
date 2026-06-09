@@ -2183,14 +2183,13 @@ var DASH_VIEW_PASS = 'DiDiViewandDownload2030';   // ← 给同事的只读密�
 var DASH_VIEWER = false;               // 当前是否以只读访客身份进入
 async function openDashboard(){
   var op=false; try{ op=await refreshOperator(); }catch(e){}
-  if(!op){
-    if(!DASH_VIEWER){
-      var pw=prompt(L('请输入看板访问密码（只读）：','Ingresa la contraseña del panel (solo lectura):','Enter dashboard access password (read-only):'));
-      if(pw==null) return;
-      if(String(pw)!==DASH_VIEW_PASS){ alert(L('密码错误','Contraseña incorrecta','Wrong password')); return; }
-      DASH_VIEWER=true;
-    }
-  } else { DASH_VIEWER=false; }
+  var _authed = op || (typeof VIEWER_ONLY!=='undefined' && VIEWER_ONLY);
+  if(!_authed){
+    alert(L('看板仅限登录账号访问。请先用运营或只读账号登录后再打开看板。','El panel es solo para cuentas con sesión. Inicia sesión (operaciones o solo lectura) y vuelve a abrirlo.'));
+    if(location.hash==='#dashboard'){ history.replaceState(null,'',location.pathname+location.search); }
+    return;
+  }
+  DASH_VIEWER=false;
   var d=document.getElementById('pDash'); if(!d) return;
   d.style.display='block';
   document.body.style.overflow='hidden';
@@ -3163,6 +3162,9 @@ async function ensureBackend(){
 
 let TEAMS = [];            // in-memory cache of registration rows (app shape)
 let OPERATOR = false;      // is the operator currently logged in?
+// 只读访客名单：这些邮箱登录后只能查看/下载，所有上传/编辑入口隐藏
+const VIEWER_EMAILS = ['luislujiujun@didiglobal.com'];
+let VIEWER_ONLY = false;
 
 function rowToTeam(r){
   return {
@@ -3241,7 +3243,10 @@ async function refreshOperator(){
   if(!sb){ OPERATOR=false; }
   else {
     const { data } = await sb.auth.getSession();
-    OPERATOR = !!(data && data.session);
+    var _sess = data && data.session;
+    var _email = (_sess && _sess.user && _sess.user.email) ? String(_sess.user.email).trim().toLowerCase() : '';
+    if(_sess && VIEWER_EMAILS.indexOf(_email) >= 0){ OPERATOR = false; VIEWER_ONLY = true; }   // 只读访客：已登录但不给编辑/上传权限
+    else { OPERATOR = !!_sess; VIEWER_ONLY = false; }
   }
   adminAuthed = OPERATOR; matchupAdminAuthed = OPERATOR; adminPageAuthed = OPERATOR;
   window._scoreAdminAuthed = OPERATOR; window._curpAdminAuthed = OPERATOR;
