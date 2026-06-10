@@ -6849,6 +6849,28 @@ initMatchupPage();
     reader.readAsArrayBuffer(file);
   };
 
+  // ⬇️ 导出全部骑手明细 (累计/已兑/处理中/可兑余额/现金/分项) — 取当前线上已公布数据 + 全部兑换记录
+  window.rb_exportAll=async function(){
+    if(typeof requireOperator==='function'){if(!(await requireOperator()))return;}
+    if(typeof XLSX==='undefined'){alert('XLSX 未加载');return;}
+    if(typeof REAL_CURP_MAP==='undefined'||!Object.keys(REAL_CURP_MAP).length){alert(tL('暂无骑手数据','Sin datos'));return;}
+    st(tL('⏳ 正在汇总…','⏳ Generando…'));
+    var reds=[];try{if(typeof dbGetAllRedemptions==='function')reds=await dbGetAllRedemptions();}catch(e){console.error(e);}
+    var comp={},pend={};(reds||[]).forEach(function(r){var k=String(r.curp6||'').toUpperCase(),p=Number(r.points||0);if(r.status==='completed')comp[k]=(comp[k]||0)+p;else if(r.status==='pending')pend[k]=(pend[k]||0)+p;});
+    var rows=[['后8位','Rider ID','累计积分','已兑换','处理中','可兑换余额','预估现金(比索)','兑换率','档位','Slot23在线','Perfect完单','周末加成','PK奖励','扣分','在线时长(h)','完单数','活跃天数']];
+    var keys=Object.keys(REAL_CURP_MAP).sort(function(a,b){return Number(REAL_CURP_MAP[b].cumulative_pts||0)-Number(REAL_CURP_MAP[a].cumulative_pts||0);});
+    keys.forEach(function(k){
+      var e=REAL_CURP_MAP[k];if(!e||typeof e!=='object')return;
+      var cum=Number(e.cumulative_pts||0),c=Number(comp[k]||0),p=Number(pend[k]||0),avail=Math.max(0,cum-c-p);
+      var rate=tierRate(avail),label=rate>=1?'冲刺最高档':rate>=0.7?'高级档':rate>=0.6?'进阶档':'入门档';
+      rows.push([k,String(e.rider_id||''),cum,c,p,avail,Math.round(avail*rate*10)/10,rate,label,Number(e.slot23_pt||0),Number(e.perfect_pt||0),Number(e.weekend_bonus_pt||0),Number(e.pk_pt||0),Number(e.deduct_pt||0),Number(e.total_online_hr||0),Number(e.total_complete_orders||0),Number(e.online_days||0)]);
+    });
+    var ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=rows[0].map(function(_,i){return{wch:i<2?18:11};});
+    var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'骑手积分明细');
+    XLSX.writeFile(wb,'骑手积分明细_'+new Date().toISOString().slice(0,10)+'.xlsx');
+    st(tL('✅ 已导出 '+(rows.length-1)+' 名骑手明细。','✅ Exportado: '+(rows.length-1)+' riders.'),true);
+  };
+
   // ---------- 单一运营 hub (仅运营可见) ----------
   function btn(txt,fn,style){return '<button onclick="('+fn+')()" style="width:100%;margin-bottom:6px;padding:8px;border-radius:7px;cursor:pointer;font-weight:600;font-size:12px;'+(style||'border:1px solid #ccc;background:#f5f5f7')+'">'+txt+'</button>';}
   function buildHub(){
@@ -6861,6 +6883,7 @@ initMatchupPage();
       +'<div style="font-size:10px;color:#999;font-weight:700;margin:2px 0 6px">数据管理</div>'
       +'<button id="rbBtnCurp" style="width:100%;margin-bottom:6px;padding:8px;border-radius:7px;cursor:pointer;font-weight:600;font-size:12px;border:1px solid #FF7A00;background:#FFF3E8;color:#C45A00">📥 累计积分上传 / 清空</button>'
       +'<button id="rbBtnRed" style="width:100%;margin-bottom:6px;padding:8px;border-radius:7px;cursor:pointer;font-weight:600;font-size:12px;border:1px solid #ccc;background:#f5f5f7">🧾 兑换申请管理</button>'
+      +'<button id="rbBtnExport" style="width:100%;margin-bottom:6px;padding:8px;border-radius:7px;cursor:pointer;font-weight:600;font-size:12px;border:1px solid #2D7DD2;background:#EAF3FC;color:#1A5FA8">⬇️ 导出全部骑手明细（累计/已兑/余额）</button>'
       +'<div style="font-size:10px;color:#999;font-weight:700;margin:10px 0 6px">每日余额滚动</div>'
       +btn('① 设为期初基准（首次一次）','rb_setOpening','border:1px solid #FF7A00;background:#FFF3E8;color:#C45A00')
       +'<label style="display:block;margin-bottom:6px;padding:8px;border:1px solid #13151B;background:#13151B;color:#fff;border-radius:7px;cursor:pointer;font-weight:600;text-align:center;font-size:12px">② 上传每日骑手积分（草稿）<input id="rbFile" type="file" accept=".xlsx,.xls,.csv" style="display:none"></label>'
@@ -6878,6 +6901,7 @@ initMatchupPage();
     document.getElementById('rbHubClose').onclick=function(){box.style.display='none';L1.style.display='flex';};
     document.getElementById('rbBtnCurp').onclick=function(){if(typeof openCurpAdminPanel==='function')openCurpAdminPanel();};
     document.getElementById('rbBtnRed').onclick=function(){if(typeof openRedemptionAdmin==='function')openRedemptionAdmin();};
+    document.getElementById('rbBtnExport').onclick=function(){window.rb_exportAll();};
     document.getElementById('rbFile').onchange=function(){var f=this.files[0];this.value='';window.rb_uploadDaily(f);};
   }
   function injectCSS(){ if(document.getElementById('rbCSS'))return; var s=document.createElement('style'); s.id='rbCSS';
