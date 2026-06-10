@@ -6867,6 +6867,30 @@ initMatchupPage();
     });
     var ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=rows[0].map(function(_,i){return{wch:i<2?18:11};});
     var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'骑手积分明细');
+
+    // ===== sheet2: 累计拆解 (4-5月 + 每周 日常/PK) =====
+    function parseCN(d){var m=String(d||'').match(/(\d+)月(\d+)日/);return m?{mo:+m[1],dy:+m[2]}:null;}
+    function juneWeek(mo,dy){return mo===6?('W'+(Math.floor((dy-1)/7)+1)):'M45';}
+    var matchWeek={};
+    try{var sched=[].concat(typeof SCHEDULE!=='undefined'?SCHEDULE:[],typeof PRE_SCHEDULE!=='undefined'?PRE_SCHEDULE:[]);
+      sched.forEach(function(s){var p=parseCN(s.date);matchWeek[String(s.id)]=p?juneWeek(p.mo,p.dy):'M45';});}catch(e){}
+    function dateWeek(iso){var m=String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})/);return m?juneWeek(+m[2],+m[3]):'M45';}
+    var perR={};
+    Object.keys(REAL_CURP_MAP).forEach(function(k){var e=REAL_CURP_MAP[k];if(!e||typeof e!=='object')return;var hasOpen=e._open!==undefined,hasDay=e._day&&Object.keys(e._day).length;if(!hasOpen&&!hasDay)return;var o={open:Number(hasOpen?e._open:(e.cumulative_pts||0)),daily:{},pk:{}};if(e._day)Object.keys(e._day).forEach(function(d){var w=dateWeek(d);o.daily[w]=(o.daily[w]||0)+Number(e._day[d]||0);});perR[k]=o;});
+    try{var A=(typeof SCORE_ARCHIVE!=='undefined'&&SCORE_ARCHIVE)?SCORE_ARCHIVE:{};Object.keys(A).forEach(function(mid){var w=matchWeek[String(mid)]||'M45';(A[mid]||[]).forEach(function(t){((t&&t.riders)||[]).forEach(function(r){if(!r||r.id==null)return;var b=Number(r.pk_bonus||0);if(!b)return;var k=c6(r.id);if(!perR[k])perR[k]={open:Number((REAL_CURP_MAP[k]&&REAL_CURP_MAP[k]._open)||0),daily:{},pk:{}};perR[k].pk[w]=(perR[k].pk[w]||0)+b;});});});}catch(e){}
+    var wkset={};Object.keys(perR).forEach(function(k){Object.keys(perR[k].daily).forEach(function(w){if(w!=='M45')wkset[w]=1;});Object.keys(perR[k].pk).forEach(function(w){if(w!=='M45')wkset[w]=1;});});
+    var weeks=Object.keys(wkset).sort(function(a,b){return(+a.slice(1))-(+b.slice(1));});
+    function wkRange(w){var n=+w.slice(1),s=(n-1)*7+1,e=Math.min(n*7,30);return'6/'+s+'-6/'+e;}
+    var h2=['后8位','Rider ID','4-5月积分'];weeks.forEach(function(w){h2.push('第'+w.slice(1)+'周日常('+wkRange(w)+')');h2.push('第'+w.slice(1)+'周PK');});h2.push('累计合计');
+    var r2=[h2];
+    Object.keys(perR).sort(function(a,b){return Number((REAL_CURP_MAP[b]||{}).cumulative_pts||0)-Number((REAL_CURP_MAP[a]||{}).cumulative_pts||0);}).forEach(function(k){
+      var o=perR[k],m45=o.open+(o.daily['M45']||0)+(o.pk['M45']||0),tot=m45,row=[k,String((REAL_CURP_MAP[k]||{}).rider_id||''),Math.round(m45)];
+      weeks.forEach(function(w){var dd=Math.round(o.daily[w]||0),pp=Math.round(o.pk[w]||0);row.push(dd);row.push(pp);tot+=dd+pp;});
+      row.push(Math.round(tot));r2.push(row);
+    });
+    var ws2=XLSX.utils.aoa_to_sheet(r2);ws2['!cols']=h2.map(function(_,i){return{wch:i<2?18:14};});
+    XLSX.utils.book_append_sheet(wb,ws2,'累计拆解');
+
     XLSX.writeFile(wb,'骑手积分明细_'+new Date().toISOString().slice(0,10)+'.xlsx');
     st(tL('✅ 已导出 '+(rows.length-1)+' 名骑手明细。','✅ Exportado: '+(rows.length-1)+' riders.'),true);
   };
@@ -6899,8 +6923,8 @@ initMatchupPage();
     L1.onclick=function(){box.style.display='block';L1.style.display='none';};
     document.body.appendChild(L1);
     document.getElementById('rbHubClose').onclick=function(){box.style.display='none';L1.style.display='flex';};
-    document.getElementById('rbBtnCurp').onclick=function(){if(typeof openCurpAdminPanel==='function')openCurpAdminPanel();};
-    document.getElementById('rbBtnRed').onclick=function(){if(typeof openRedemptionAdmin==='function')openRedemptionAdmin();};
+    document.getElementById('rbBtnCurp').onclick=function(){try{if(typeof go==='function')go(6);}catch(e){}setTimeout(function(){if(typeof openCurpAdminPanel==='function')openCurpAdminPanel();},60);};
+    document.getElementById('rbBtnRed').onclick=function(){try{if(typeof go==='function')go(6);}catch(e){}setTimeout(function(){if(typeof openRedemptionAdmin==='function')openRedemptionAdmin();},60);};
     document.getElementById('rbBtnExport').onclick=function(){window.rb_exportAll();};
     document.getElementById('rbFile').onchange=function(){var f=this.files[0];this.value='';window.rb_uploadDaily(f);};
   }
