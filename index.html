@@ -672,7 +672,7 @@ select.fi option{background:#18181E}
     <h3>二、骑手积分规则</h3>
     <div style="background:linear-gradient(135deg,#054828,#0A6638);border-radius:9px;padding:13px 18px;margin-bottom:14px;display:flex;align-items:center;gap:14px">
       <div style="font-size:26px;flex-shrink:0">🔒</div>
-      <div><div style="font-size:12px;font-weight:700;color:#70DDA0;margin-bottom:3px">积分始终属于骑手本人</div><div style="font-size:11px;color:rgba(255,255,255,.7);line-height:1.65">无论骑手是否更换 Vendor，所有已累积的个人积分<strong style="color:#fff">始终跟随骑手</strong>，不会因更换供应商而丢失或被扣除。</div></div>
+      <div><div style="font-size:12px;font-weight:700;color:#70DDA0;margin-bottom:3px">积分永远属于骑手本人</div><div style="font-size:11px;color:rgba(255,255,255,.7);line-height:1.65">无论骑手是否更换 Vendor，所有已累积的个人积分<strong style="color:#fff">始终跟随骑手</strong>，不会因更换供应商而丢失或被扣除。</div></div>
     </div>
     <div style="font-size:12px;color:var(--muted2);margin-bottom:12px;font-weight:500">⚡ 积分规则（适用于所有日期：周中、周末、赛事日，以及 Vendor 奖金池核算）</div>
     <table class="pts-tbl" style="width:100%;table-layout:fixed;border-collapse:collapse">
@@ -1413,7 +1413,7 @@ select.fi option{background:#18181E}
 <div class="page" id="p6">
   <div class="slbl" data-i18n="curp_slbl">骑手专属</div>
   <div class="stitle"><span class="lc-zh">🏍️ 骑手积分查询</span><span class="lc-es">🏍️ Consulta de puntos del rider</span></div>
-  <div class="ssub"><span class="lc-zh">输入骑手 ID 后8位查询你的累计积分与可兑换余额。活动积分保留至 7月15日，逾期清零</span><span class="lc-es">Ingresa los últimos 8 dígitos de tu Rider ID para consultar tus puntos y saldo canjeable. Los puntos del evento se conservan hasta el 15 de julio; después se reinician</span></div>
+  <div class="ssub"><span class="lc-zh">输入骑手 ID 后6位查询你的累计积分，了解可兑换金额，积分永久保留</span><span class="lc-es">Ingresa los últimos 6 dígitos de tu Rider ID para consultar tus puntos acumulados y el monto canjeable; los puntos se conservan permanentemente</span></div>
 
   <!-- 运营入口 -->
   <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
@@ -1426,13 +1426,13 @@ select.fi option{background:#18181E}
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
       <div>
         <div style="font-weight:700;color:var(--didi);font-size:14px"><span class="lc-zh">⚙️ 骑手累计积分数据上传</span><span class="lc-es">⚙️ Subir datos de puntos acumulados de riders</span></div>
-        <div style="font-size:11px;color:var(--muted2);margin-top:4px"><span class="lc-zh">上传后骑手可用骑手 ID 后8位查询累计积分和预估兑换金额</span><span class="lc-es">Tras subirlo, los riders pueden consultar sus puntos acumulados y el monto estimado con los últimos 8 de su Rider ID</span></div>
+        <div style="font-size:11px;color:var(--muted2);margin-top:4px"><span class="lc-zh">上传后骑手可用骑手 ID 后6位查询累计积分和预估兑换金额</span><span class="lc-es">Tras subirlo, los riders pueden consultar sus puntos acumulados y el monto estimado con los últimos 6 de su Rider ID</span></div>
       </div>
       <button onclick="document.getElementById('curpAdminPanel').style.display='none'" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:20px;line-height:1">✕</button>
     </div>
     <div style="background:var(--s3);border:1px solid var(--border2);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:11px;color:var(--muted2);line-height:1.8">
       <strong style="color:var(--text)"><span class="lc-zh">支持的文件格式（.xlsx/.xls/.csv）：</span><span class="lc-es">Formatos admitidos (.xlsx/.xls/.csv):</span></strong><br>
-      <span class="lc-zh">必须包含列：</span><span class="lc-es">Columnas obligatorias: </span><code style="background:var(--s2);padding:1px 5px;border-radius:3px">curp_last6</code> <span class="lc-zh">或</span><span class="lc-es">o</span> <code style="background:var(--s2);padding:1px 5px;border-radius:3px">rider_id</code><span class="lc-zh">（取后8位）</span><span class="lc-es"> (se toman los últimos 8)</span>&nbsp;+&nbsp;<code style="background:var(--s2);padding:1px 5px;border-radius:3px">cumulative_pts</code><span class="lc-zh">（累计积分）</span><span class="lc-es"> (puntos acumulados)</span><br>
+      <span class="lc-zh">必须包含列：</span><span class="lc-es">Columnas obligatorias: </span><code style="background:var(--s2);padding:1px 5px;border-radius:3px">curp_last6</code> <span class="lc-zh">或</span><span class="lc-es">o</span> <code style="background:var(--s2);padding:1px 5px;border-radius:3px">rider_id</code><span class="lc-zh">（取后6位）</span><span class="lc-es"> (se toman los últimos 6)</span>&nbsp;+&nbsp;<code style="background:var(--s2);padding:1px 5px;border-radius:3px">cumulative_pts</code><span class="lc-zh">（累计积分）</span><span class="lc-es"> (puntos acumulados)</span><br>
       <span class="lc-zh">可选列：rank（排名）、coeff（兑换系数）、estimated_cash（预估金额）、<strong>PK_pt（PK赛积分）</strong>、slot23_pt、perfect_pt、weekend_bonus_pt、deduct_pt、online_days、total_online_hr、total_complete_orders</span><span class="lc-es">Columnas opcionales: rank (rango), coeff (coeficiente de canje), estimated_cash (monto estimado), <strong>PK_pt (puntos PK)</strong>, slot23_pt, perfect_pt, weekend_bonus_pt, deduct_pt, online_days, total_online_hr, total_complete_orders</span>
     </div>
     <!-- Upload zone -->
@@ -1455,18 +1455,18 @@ select.fi option{background:#18181E}
   </div>
 
   <div class="points-pledge">
-    <div class="pledge-title"><span class="lc-zh">🔒 积分保障与兑换截止</span><span class="lc-es">🔒 Protección de puntos y fecha de canje</span></div>
+    <div class="pledge-title"><span class="lc-zh">🔒 积分永久保障承诺</span><span class="lc-es">🔒 Compromiso de protección permanente de puntos</span></div>
     <div class="pledge-item"><span class="lc-zh"><strong>积分属于骑手本人，不属于Vendor</strong> — 无论你在哪个供应商旗下工作，积分都是你自己的</span><span class="lc-es"><strong>Los puntos son del rider, no del Vendor</strong> — sin importar bajo qué proveedor trabajes, los puntos son tuyos</span></div>
-    <div class="pledge-item"><span class="lc-zh"><strong>换Vendor不清零</strong> — 只要仍在 DiDi Alianza 平台工作，活动期间的积分保留</span><span class="lc-es"><strong>Cambiar de Vendor no reinicia tus puntos</strong> — mientras sigas trabajando en la plataforma DiDi Alianza, tus puntos del evento se conservan</span></div>
-    <div class="pledge-item"><span class="lc-zh"><strong>⏰ 兑换截止 7月15日</strong> — 世界杯活动积分保留至 7月15日，当天为最后兑换截止日，逾期清零；之后将开启新活动</span><span class="lc-es"><strong>⏰ Canje hasta el 15 de julio</strong> — los puntos del Mundial se conservan hasta el 15 de julio; ese día es la fecha límite de canje y después se reinician; luego comenzará un nuevo evento</span></div>
+    <div class="pledge-item"><span class="lc-zh"><strong>换Vendor不清零</strong> — 只要仍在 DiDi Alianza 平台工作，历史积分永远保留</span><span class="lc-es"><strong>Cambiar de Vendor no reinicia tus puntos</strong> — mientras sigas trabajando en la plataforma DiDi Alianza, tu historial se conserva</span></div>
+    <div class="pledge-item"><span class="lc-zh"><strong>积分可累计，长期有效</strong> — 世界杯活动期间所有场次积分（含PK奖励）全部叠加</span><span class="lc-es"><strong>Los puntos se acumulan y son válidos a largo plazo</strong> — todos los puntos de todos los partidos del Mundial (incluido el bono PK) se suman</span></div>
     <div class="pledge-item"><span class="lc-zh"><strong>唯一例外</strong> — 连续7天无在线记录且无完单，积分清零重计。保持活跃即可避免</span><span class="lc-es"><strong>Única excepción</strong> — 7 días seguidos sin conexión ni entregas reinician los puntos. Mantente activo para evitarlo</span></div>
   </div>
 
   <div class="card">
-    <div class="card-t" id="curpInputTitle" data-i18n="curp_input_title">🔍 输入骑手 ID 后8位查询积分</div>
-    <div style="font-size:12px;color:var(--muted2);margin-bottom:14px;line-height:1.7"><span class="lc-zh">请输入你的<strong style="color:var(--text)">骑手 ID 最后8位</strong>进行查询。</span><span class="lc-es">Ingresa los <strong style="color:var(--text)">últimos 8 dígitos de tu Rider ID</strong> para consultar.</span></div>
+    <div class="card-t" id="curpInputTitle" data-i18n="curp_input_title">🔍 输入骑手 ID 后6位查询积分</div>
+    <div style="font-size:12px;color:var(--muted2);margin-bottom:14px;line-height:1.7"><span class="lc-zh">请输入你的<strong style="color:var(--text)">骑手 ID 最后6位</strong>进行查询。</span><span class="lc-es">Ingresa los <strong style="color:var(--text)">últimos 6 dígitos de tu Rider ID</strong> para consultar.</span></div>
     <div class="curp-search">
-      <input class="curp-in" id="curpIn" type="text" placeholder="输入骑手 ID 后 8 位" maxlength="8">
+      <input class="curp-in" id="curpIn" type="text" placeholder="输入骑手 ID 后 6 位" maxlength="6">
       <button class="btn btn-p" id="curpQueryBtn" onclick="queryCurp()" data-i18n="curp_btn">查询积分</button>
     </div>
     <div class="q-err" id="curpErr"></div>
@@ -1475,7 +1475,7 @@ select.fi option{background:#18181E}
 
   <div class="card">
     <div class="card-t"><span class="lc-zh">💱 申请积分兑换</span><span class="lc-es">💱 Solicitar canje de puntos</span></div>
-    <div style="font-size:12px;color:var(--muted2);margin-bottom:14px;line-height:1.7"><span class="lc-zh">输入骑手 ID 后8位即可申请兑换。兑换金额由平台核算后<strong style="color:var(--text)">打入你所属供应商的账户</strong>，请于下周向你的供应商领取。</span><span class="lc-es">Ingresa los últimos 8 de tu Rider ID para solicitar el canje. El monto, tras el cálculo de la plataforma, se <strong style="color:var(--text)">deposita en la cuenta de tu proveedor</strong>; recógelo con él la próxima semana.</span></div>
+    <div style="font-size:12px;color:var(--muted2);margin-bottom:14px;line-height:1.7"><span class="lc-zh">输入骑手 ID 后6位即可申请兑换。兑换金额由平台核算后<strong style="color:var(--text)">打入你所属供应商的账户</strong>，请于下周向你的供应商领取。</span><span class="lc-es">Ingresa los últimos 6 de tu Rider ID para solicitar el canje. El monto, tras el cálculo de la plataforma, se <strong style="color:var(--text)">deposita en la cuenta de tu proveedor</strong>; recógelo con él la próxima semana.</span></div>
     <button class="btn btn-p" onclick="openRedeemModal((document.getElementById('curpIn')||{}).value)"><span class="lc-zh">💱 申请兑换</span><span class="lc-es">💱 Solicitar canje</span></button>
   </div>
 
@@ -3037,7 +3037,7 @@ const I18N = {
     sc_team_placeholder:'输入队伍名称（如 骑士011）',
     sc_rider_placeholder:'输入骑手 Rider ID（数字）',
     sc_query_btn:'查询',
-    curp_slbl:'骑手专属', curp_input_title:'🔍 输入骑手 ID 后8位查询积分', curp_btn:'查询积分',
+    curp_slbl:'骑手专属', curp_input_title:'🔍 输入骑手 ID 后6位查询积分', curp_btn:'查询积分',
     mu_search_vc:'输入 Vendor Code 查看自己的对阵',
     reg_vcode_ph:'例：V001234',
     reg_tname_ph:'为队伍取个独特名字，例：阿根廷雄鹰',
@@ -3060,7 +3060,7 @@ const I18N = {
     sc_team_placeholder:'Ingresa el nombre del equipo (ej. Equipo01)',
     sc_rider_placeholder:'Ingresa el Rider ID (número)',
     sc_query_btn:'Consultar',
-    curp_slbl:'Exclusivo Riders', curp_input_title:'🔍 Ingresa los últimos 8 dígitos de tu Rider ID', curp_btn:'Consultar Puntos',
+    curp_slbl:'Exclusivo Riders', curp_input_title:'🔍 Ingresa los últimos 6 dígitos de tu Rider ID', curp_btn:'Consultar Puntos',
     mu_search_vc:'Ingresa tu Vendor Code para ver tus emparejamientos',
     reg_vcode_ph:'Ej.: V001234',
     reg_tname_ph:'Ponle un nombre único a tu equipo, ej.: Águilas Argentinas',
@@ -3096,7 +3096,7 @@ function applyLang(){
   document.title = L('DiDi Alianza · 骑手PK赛平台','DiDi Alianza · Plataforma PK');
   // points query input placeholder (special-cased)
   var cin = document.getElementById('curpIn');
-  if(cin) cin.placeholder = LANG === 'es' ? 'Últimos 8 de tu Rider ID' : '输入骑手 ID 后 8 位';
+  if(cin) cin.placeholder = LANG === 'es' ? 'Últimos 6 de tu Rider ID' : '输入骑手 ID 后 6 位';
   // Re-render any dynamic content so it picks up the new language
   refreshDynamic();
 }
@@ -3704,7 +3704,7 @@ async function queryCurp(){
   const curp=document.getElementById('curpIn').value.trim().toUpperCase();
   const err=document.getElementById('curpErr'),panel=document.getElementById('curpPanel');
   err.classList.remove('show');panel.classList.remove('show');
-  if(curp.length<4){err.textContent=L('请输入骑手 ID 后8位（至少4个字符）','Ingresa los últimos 8 de tu Rider ID (mín. 4 caracteres)');err.classList.add('show');return}
+  if(curp.length<4){err.textContent=L('请输入骑手 ID 后6位（至少4个字符）','Ingresa los últimos 6 de tu Rider ID (mín. 4 caracteres)');err.classList.add('show');return}
 
   // 手机 App webview 里数据可能还没加载完：先确保后端+数据就绪，再判断
   if(!REAL_CURP_MAP[curp] && Object.keys(REAL_CURP_MAP).length===0){
@@ -3715,22 +3715,19 @@ async function queryCurp(){
 
   const data = REAL_CURP_MAP[curp];
   if(!data){
-    err.textContent=L(`未找到骑手 ID 后8位「${curp}」，请确认输入是否正确，或联系运营团队查询`,`No se encontró el Rider ID «${curp}». Verifica que sea correcto o contacta a operaciones.`);
+    err.textContent=L(`未找到骑手 ID 后6位「${curp}」，请确认输入是否正确，或联系运营团队查询`,`No se encontró el Rider ID «${curp}». Verifica que sea correcto o contacta a operaciones.`);
     err.classList.add('show');return;
   }
   try{ logEvent('curp_query'); }catch(e){}
 
-  let _completed=0,_pending=0;
-  try{ const _my=await dbGetMyRedemptions(curp); if(Array.isArray(_my)){ _completed=_my.filter(r=>r.status==='completed').reduce((s,r)=>s+(Number(r.points)||0),0); _pending=_my.filter(r=>r.status==='pending').reduce((s,r)=>s+(Number(r.points)||0),0);} }catch(e){ console.error('query redemptions',e); }
   const pts = data.cumulative_pts;
-  const _available = Math.max(0, pts - _completed - _pending);
-  const tier = getTier(_available);
+  const tier = getTier(pts);
   const nextTierIdx = TIERS.findIndex(t=>t===tier);
   const nextTier = TIERS[nextTierIdx+1];
-  const ptsToNext = nextTier ? nextTier.min - _available : 0;
-  const tierPct = nextTier ? Math.min(100,Math.round(((_available - tier.min) / (nextTier.min - tier.min)) * 100)) : 100;
-  // 兑换率按"可兑换余额"定档(若一次性兑完可兑余额)；现金 = 可兑余额 × 该档率
-  const currentCash = Math.floor(_available * tier.rate);
+  const ptsToNext = nextTier ? nextTier.min - pts : 0;
+  const tierPct = nextTier ? Math.min(100,Math.round(((pts - tier.min) / (nextTier.min - tier.min)) * 100)) : 100;
+  // Current cash = current cumulative pts × current tier rate
+  const currentCash = Math.floor(pts * tier.rate);
   // Projected cash = estimated end-of-campaign pts × tier rate (from data)
   const estCash = data.estimated_cash || currentCash;
   const estTotal = data.estimated_total_pts || pts;
@@ -3739,16 +3736,16 @@ async function queryCurp(){
   panel.innerHTML=`
     <div style="margin-top:14px">
       ${warn7d ? '<div class="note n-lose" style="margin-bottom:12px">⚠️ <strong>'+L('警告：','Aviso: ')+'</strong>'+L('检测到该骑手有连续7天未在线记录，积分存在清零风险！请尽快保持活跃。','Se detectaron 7 días seguidos sin conexión. ¡Tus puntos corren riesgo de resetearse! Mantente activo.')+'</div>' : ''}
-      <div style="font-size:11px;color:var(--muted);margin-bottom:12px">${L('骑手 ID 后8位：','Últimos 8 del Rider ID: ')}<strong style="color:var(--text);font-family:monospace;letter-spacing:2px">${curp}</strong>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:12px">${L('骑手 ID 后6位：','Últimos 6 del Rider ID: ')}<strong style="color:var(--text);font-family:monospace;letter-spacing:2px">${curp}</strong>
         <span style="margin-left:12px;background:var(--s2);border-radius:5px;padding:2px 8px;font-size:10px">Rider ID: ${data.rider_id}</span>
       </div>
-      <div style="display:flex;flex-direction:row;align-items:stretch;gap:6px;margin-bottom:12px;overflow-x:auto">
-        <div style="flex:1 1 0;min-width:0;background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:10px 12px"><div style="font-size:9px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px">${L('当前累计积分','Acumulado')}</div><div style="font-family:'Bebas Neue',sans-serif;font-size:30px;line-height:1;letter-spacing:1px;color:var(--blue)">${pts.toLocaleString()}</div><div style="font-size:9px;color:var(--muted);margin-top:3px;white-space:nowrap">${L('历史累计','Histórico')} · #${data.rank||'—'}</div></div>
-        <div style="display:flex;align-items:center;font-size:20px;font-weight:700;color:var(--muted);flex:0 0 auto">−</div>
-        <div style="flex:1 1 0;min-width:0;background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:10px 12px"><div style="font-size:9px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px">${L('已兑换积分','Canjeado')}</div><div style="font-family:'Bebas Neue',sans-serif;font-size:30px;line-height:1;letter-spacing:1px;color:var(--lose)">${_completed.toLocaleString()}</div><div style="font-size:9px;color:var(--muted);margin-top:3px">${L('已完成','Completado')}</div></div>
-        ${_pending>0?'<div style="display:flex;align-items:center;font-size:20px;font-weight:700;color:var(--muted);flex:0 0 auto">−</div><div style="flex:1 1 0;min-width:0;background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:10px 12px"><div style="font-size:9px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px">'+L('处理中','En proceso')+'</div><div style="font-family:\'Bebas Neue\',sans-serif;font-size:30px;line-height:1;letter-spacing:1px;color:#FFB800">'+_pending.toLocaleString()+'</div><div style="font-size:9px;color:var(--muted);margin-top:3px">'+L('待核算','Pendiente')+'</div></div>':''}
-        <div style="display:flex;align-items:center;font-size:20px;font-weight:700;color:var(--didi);flex:0 0 auto">=</div>
-        <div style="flex:1.25 1 0;min-width:0;background:linear-gradient(135deg,rgba(255,107,0,.10),var(--s2));border:1px solid var(--didi);border-radius:10px;padding:10px 12px"><div style="font-size:9px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px">${L('可兑换余额','Saldo canjeable')}</div><div style="font-family:'Bebas Neue',sans-serif;font-size:34px;line-height:1;letter-spacing:1px;color:var(--didi)">${_available.toLocaleString()}</div><div style="font-size:9px;color:var(--muted);margin-top:3px;white-space:nowrap">≈${currentCash.toLocaleString()}${L('比索','MXN')} · ×${tier.rate} · ${tierLabel(tier)}</div></div>
+      <div class="sc-row" style="margin-bottom:12px">
+        <div class="sc-box n"><div class="sc-lbl">${L('当前累计积分','Puntos acumulados')}</div><div class="sc-val">${pts.toLocaleString()}</div><div style="font-size:10px;color:var(--muted);margin-top:4px">${tierLabel(tier)} · Rank #${data.rank||'—'}</div></div>
+        <div class="sc-box p"><div class="sc-lbl">${L('按当前积分可兑换','Canje con puntos actuales')}</div><div class="sc-val">${currentCash.toLocaleString()}</div><div style="font-size:10px;color:var(--muted);margin-top:4px">${L('比索','Pesos')} = ${pts.toLocaleString()} × ${tier.rate}</div></div>
+        <div class="sc-box t" style="flex-direction:column;align-items:flex-start;gap:6px">
+          <div><div class="sc-lbl">${L('当前兑换率','Tasa de canje actual')}</div><div class="sc-val" style="font-size:36px">×${tier.rate}</div></div>
+          <div style="font-size:10px;color:var(--muted)">${L('1分','1 pt')} = ${tier.rate} ${L('比索','pesos')} · ${tierLabel(tier)}</div>
+        </div>
       </div>
       ${estTotal > pts ? '<div style="background:rgba(240,192,64,.08);border:1px solid rgba(240,192,64,.25);border-radius:9px;padding:10px 16px;margin-bottom:12px;font-size:12px;color:var(--gold)">📈 <strong>'+L('预估活动结束积分：'+estTotal.toLocaleString()+'分','Puntos estimados al cierre: '+estTotal.toLocaleString())+'</strong>'+L('（按当前速率×70天），预估可兑换 ',' (al ritmo actual × 70 días), canje estimado ')+'<strong>'+estCash.toLocaleString()+L(' 比索',' pesos')+'</strong></div>' : ""}
       <div class="bdown" style="margin-bottom:12px">
@@ -3758,9 +3755,6 @@ async function queryCurp(){
         ${(data.pk_pt||0)!==0 ? '<div class="br"><span class="bl" style="color:#FFB800">'+L('🏅 PK赛积分','🏅 Puntos PK')+'</span><span class="bv" style="color:#FFB800">+'+(data.pk_pt||0).toLocaleString()+'</span></div>' : ''}
         <div class="br"><span class="bl" style="color:var(--lose)">${L('扣分项','Descuentos')}</span><span class="bv" style="color:var(--lose)">${(data.deduct_pt||0).toLocaleString()}</span></div>
         <div class="br tot"><span class="bl">${L('当前累计总分','Total acumulado')}</span><span class="bv">${pts.toLocaleString()}</span></div>
-        <div class="br"><span class="bl" style="color:var(--lose)">${L('已兑换（已完成）','Canjeado')}</span><span class="bv" style="color:var(--lose)">−${_completed.toLocaleString()}</span></div>
-        ${_pending>0?'<div class="br"><span class="bl" style="color:#FFB800">'+L('待核算（处理中）','En proceso')+'</span><span class="bv" style="color:#FFB800">−'+_pending.toLocaleString()+'</span></div>':''}
-        <div class="br tot"><span class="bl" style="color:var(--didi)">${L('可兑换余额','Saldo canjeable')}</span><span class="bv" style="color:var(--didi)">${_available.toLocaleString()}</span></div>
         <div class="br"><span class="bl">${L('活跃天数','Días activos')}</span><span class="bv">${data.online_days||0}${L('天','d')} / ${data.days||70}${L('天','d')}</span></div>
         <div class="br"><span class="bl">${L('累计在线时长','Horas en línea')}</span><span class="bv">${(data.total_online_hr||0).toLocaleString()} ${L('小时','h')}</span></div>
         <div class="br"><span class="bl">${L('累计完单数','Entregas completadas')}</span><span class="bv">${(data.total_complete_orders||0).toLocaleString()} ${L('单','')}</span></div>
@@ -3787,8 +3781,8 @@ function openRedeemModal(prefill){
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow:auto';
   ov.innerHTML='<div style="background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:460px;width:100%;font-family:inherit">'
     +'<div style="font-weight:700;font-size:18px;margin-bottom:4px;color:var(--text)">'+L('💱 申请积分兑换','💱 Solicitar canje de puntos')+'</div>'
-    +'<div style="font-size:12px;color:var(--muted2);margin-bottom:16px;line-height:1.6">'+L('输入你的骑手 ID 后8位查询并申请兑换','Ingresa los últimos 8 de tu Rider ID para consultar y solicitar el canje')+'</div>'
-    +'<input id="_rdCurp" maxlength="8" placeholder="'+L('骑手 ID 后8位','Últimos 8 del Rider ID')+'" style="width:100%;box-sizing:border-box;padding:11px 13px;margin-bottom:10px;border-radius:9px;border:1px solid var(--border);background:var(--s2);color:var(--text);font-size:15px;letter-spacing:3px;text-transform:uppercase;font-family:monospace">'
+    +'<div style="font-size:12px;color:var(--muted2);margin-bottom:16px;line-height:1.6">'+L('输入你的骑手 ID 后6位查询并申请兑换','Ingresa los últimos 6 de tu Rider ID para consultar y solicitar el canje')+'</div>'
+    +'<input id="_rdCurp" maxlength="6" placeholder="'+L('骑手 ID 后6位','Últimos 6 del Rider ID')+'" style="width:100%;box-sizing:border-box;padding:11px 13px;margin-bottom:10px;border-radius:9px;border:1px solid var(--border);background:var(--s2);color:var(--text);font-size:15px;letter-spacing:3px;text-transform:uppercase;font-family:monospace">'
     +'<button id="_rdLookup" style="width:100%;padding:10px;border-radius:9px;border:none;background:var(--didi);color:#fff;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:14px">'+L('查询','Consultar')+'</button>'
     +'<div id="_rdBody"></div>'
     +'<div style="display:flex;justify-content:flex-end;margin-top:16px"><button id="_rdClose" style="padding:9px 16px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);font-weight:700;cursor:pointer;font-family:inherit">'+L('关闭','Cerrar')+'</button></div>'
@@ -3801,7 +3795,7 @@ function openRedeemModal(prefill){
   curpIn.focus();
   async function doLookup(){
     var curp6=curpIn.value.trim().toUpperCase();
-    if(curp6.length<4){ body.innerHTML='<div style="color:#FF3F5A;font-size:12px">'+L('请输入骑手 ID 后8位（至少4位）','Ingresa los últimos 8 del Rider ID (mín. 4)')+'</div>'; return; }
+    if(curp6.length<4){ body.innerHTML='<div style="color:#FF3F5A;font-size:12px">'+L('请输入骑手 ID 后6位（至少4位）','Ingresa los últimos 6 del Rider ID (mín. 4)')+'</div>'; return; }
     if(!REAL_CURP_MAP[curp6] && Object.keys(REAL_CURP_MAP).length===0){
       body.innerHTML='<div style="font-size:12px;color:var(--muted)">'+L('正在加载数据，请稍候…','Cargando datos, espera…')+'</div>';
       try{ await ensureBackend(); await loadSharedData(); }catch(e){}
@@ -3919,7 +3913,7 @@ async function renderRedemptionAdmin(){
       +'<option value="new"'+(REDEEM_SORT==='new'?' selected':'')+'>'+L('时间 最新','Reciente')+'</option>'
       +'<option value="old"'+(REDEEM_SORT==='old'?' selected':'')+'>'+L('时间 最早','Antiguo')+'</option>'
     +'</select>'
-    +'<input id="redSearch" value="'+(REDEEM_SEARCH||'').replace(/"/g,'&quot;')+'" onkeydown="if(event.key===\'Enter\')redeemSetCtl(\'search\',this.value)" onchange="redeemSetCtl(\'search\',this.value)" placeholder="'+L('搜 CURP后8位 / Rider ID','Buscar CURP / Rider ID')+'" style="font-size:11px;padding:4px 8px;border-radius:6px;background:var(--s3);color:var(--text);border:1px solid var(--border);flex:1;min-width:140px">';
+    +'<input id="redSearch" value="'+(REDEEM_SEARCH||'').replace(/"/g,'&quot;')+'" onkeydown="if(event.key===\'Enter\')redeemSetCtl(\'search\',this.value)" onchange="redeemSetCtl(\'search\',this.value)" placeholder="'+L('搜 CURP后6位 / Rider ID','Buscar CURP / Rider ID')+'" style="font-size:11px;padding:4px 8px;border-radius:6px;background:var(--s3);color:var(--text);border:1px solid var(--border);flex:1;min-width:140px">';
   panel.appendChild(ctl);
   // 应用筛选+搜索+排序，得到当前可见视图
   var view=applyRedeemView(rows);
@@ -4239,6 +4233,18 @@ function handlePerfFile(file){
     try{
       const wb=XLSX.read(e.target.result,{type:'array'});
       const ws=wb.Sheets[wb.SheetNames[0]];
+      // 有些导出文件的范围标记(!ref/dimension)是坏的（如只声明了 A1:A...），
+      // 会导致只读到第一列、其余列全丢。这里按实际单元格重算真实范围，绕过坏标记。
+      try{
+        var _rng={s:{r:Infinity,c:Infinity},e:{r:0,c:0}}, _has=false;
+        Object.keys(ws).forEach(function(k){
+          if(k[0]==='!')return;
+          var cc=XLSX.utils.decode_cell(k); _has=true;
+          if(cc.r<_rng.s.r)_rng.s.r=cc.r; if(cc.c<_rng.s.c)_rng.s.c=cc.c;
+          if(cc.r>_rng.e.r)_rng.e.r=cc.r; if(cc.c>_rng.e.c)_rng.e.c=cc.c;
+        });
+        if(_has) ws['!ref']=XLSX.utils.encode_range(_rng);
+      }catch(_e){}
       // Use header:1 (array mode) to bypass Excel !ref range issues
       // This ensures ALL columns are read regardless of sheet range metadata
       const rawArrays=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''});
@@ -5397,11 +5403,12 @@ function handleCurpDataUpload(file){
 
       rows.forEach(function(r){
         // Get CURP key: prefer explicit curp_last6, else derive from rider_id
-        var rid=String(gc(r,['rider_id','骑手id'])||'').trim().replace(/\.0+$/,'');
-        if(/e/i.test(rid)){var n=parseFloat(rid);if(!isNaN(n))rid=Math.round(n).toString();}
-        var curpKey='';
-        if(rid.length>=8){ curpKey=rid.slice(-8).toUpperCase(); }              // 优先 rider_id 后8位(根治后6位碰撞)
-        else { curpKey=String(gc(r,['curp_last8','curp_last6','curp_6','curp'])||'').trim().toUpperCase(); }
+        var curpKey=String(gc(r,['curp_last6','curp后6位','curp_6','curp'])||'').trim().toUpperCase();
+        if(!curpKey){
+          var rid=String(gc(r,['rider_id','骑手id'])||'').trim().replace(/\.0+$/,'');
+          if(/e/i.test(rid)){var n=parseFloat(rid);if(!isNaN(n))rid=Math.round(n).toString();}
+          if(rid.length>=6)curpKey=rid.slice(-6).toUpperCase();
+        }
         if(!curpKey||curpKey.length<4){skipped++;return;}
 
         var pts=Number(gc(r,['cumulative_pts','累计积分','total_pts','total_points','points','积分'])||0);
@@ -5452,7 +5459,7 @@ function handleCurpDataUpload(file){
       if(msgEl){msgEl.textContent=msg;msgEl.className='alert a-ok show';msgEl.style.display='flex';}
       if(statusEl){
         statusEl.style.display='block';
-        statusEl.textContent=L('✓ 当前已加载 ','✓ ')+Object.keys(REAL_CURP_MAP).length+L(' 名骑手积分数据，骑手可通过 CURP 后8位查询',' riders cargados; los riders pueden consultar con los últimos 8 dígitos de su CURP');
+        statusEl.textContent=L('✓ 当前已加载 ','✓ ')+Object.keys(REAL_CURP_MAP).length+L(' 名骑手积分数据，骑手可通过 CURP 后6位查询',' riders cargados; los riders pueden consultar con los últimos 6 dígitos de su CURP');
       }
     }catch(err){
       if(msgEl){msgEl.textContent=L('❌ 文件解析失败：','❌ Error al procesar el archivo: ')+err.message;msgEl.className='alert a-err show';msgEl.style.display='flex';}
@@ -6377,7 +6384,7 @@ function renderMatchResult(key){
     const riderRows=sorted.map(function(r,i){
       const rank=r.pk_rank||i+1;
       const pct=r.pk_pct!=null?r.pk_pct:PK_PCTS[rank-1]||0;
-      const bonus=r.pk_bonus!=null?r.pk_bonus:Math.round(Math.max(oppTotal,0)*pct);
+      const bonus=r.pk_bonus!=null?r.pk_bonus:Math.round(oppTotal*pct);
       const final=r.final_total!=null?r.final_total:r.normal_total+bonus;
       const bonusCell=r.complete_orders===0
         ?`<td><span class="pk-zero">${L('0 (当日无完单)','0 (sin pedidos hoy)')}</span></td>`
@@ -6746,206 +6753,5 @@ buildSlots('riderSlots');
 initMatchupPage();
 </script>
 <div style="position:fixed;right:6px;bottom:4px;font-size:10px;color:#9090A8;opacity:.55;z-index:99999;font-family:monospace;pointer-events:none">v2026-06-09</div>
-
-<!-- ===== 骑手积分余额滚动模块 v3 ===== -->
-<script>
-/* ===== DiDi Alianza · 骑手积分余额滚动模块 v3 (附加式) =====
-   - 余额 = 期初(_open) + Σ每日(_day) + Σ PK奖励(SCORE_ARCHIVE.pk_bonus)
-   - 同时累计: 在线时长(_dhr)/完单数(_dord)/活跃天数; 写入查询页字段
-   - 草稿→公布闸门: 公布后骑手才查得到
-   - 单一运营入口(浮动 hub), 仅运营登录后可见; 合并: 累计上传/清空 + 兑换申请 + 余额滚动①②③④
-   - 复用 REAL_CURP_MAP/saveCurp/SCORE_ARCHIVE/OPERATOR/requireOperator/openCurpAdminPanel/openRedemptionAdmin */
-(function(){
-  'use strict';
-  var RB_KEYLEN=8;
-  function c6(rid){var s=String(rid==null?'':rid).trim().replace(/\.0+$/,'');if(/e/i.test(s)){var n=parseFloat(s);if(!isNaN(n))s=Math.round(n).toString();}return s.length>=RB_KEYLEN?s.slice(-RB_KEYLEN).toUpperCase():s.toUpperCase();}
-  function dk(v){if(v instanceof Date&&!isNaN(v))return v.getFullYear()+'-'+('0'+(v.getMonth()+1)).slice(-2)+'-'+('0'+v.getDate()).slice(-2);var s=String(v==null?'':v).trim();if(!s)return '';s=s.split(' ')[0].split('T')[0];var m=s.match(/(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);if(m)return m[1]+'-'+('0'+(+m[2])).slice(-2)+'-'+('0'+(+m[3])).slice(-2);var n=Number(s);if(!isNaN(n)&&n>20000&&n<60000){var d=new Date(Date.UTC(1899,11,30)+n*86400000);return d.getUTCFullYear()+'-'+('0'+(d.getUTCMonth()+1)).slice(-2)+'-'+('0'+d.getUTCDate()).slice(-2);}return s;}
-  function tierRate(p){return p>8000?1.0:p>6000?0.7:p>4000?0.6:0.5;}
-  function tL(zh,es){try{return (typeof L==='function')?L(zh,es):zh;}catch(e){return zh;}}
-  function st(msg,ok){var el=document.getElementById('rbStatus');if(el){el.textContent=msg;el.style.color=(ok===false)?'#C0392B':'#0A6638';}}
-
-  function pkByCurp(){var pk={};try{var A=(typeof SCORE_ARCHIVE!=='undefined'&&SCORE_ARCHIVE)?SCORE_ARCHIVE:{};Object.keys(A).forEach(function(mid){(A[mid]||[]).forEach(function(t){((t&&t.riders)||[]).forEach(function(r){if(!r||r.id==null)return;var b=Number(r.pk_bonus||0);if(b){var k=c6(r.id);pk[k]=(pk[k]||0)+b;}});});});}catch(e){console.error(e);}return pk;}
-
-  function calc(){
-    var pk=pkByCurp(),out={},n=0,tot=0,neg=0;
-    if(typeof REAL_CURP_MAP==='undefined')return{map:out,riders:0,total:0,neg:0};
-    Object.keys(REAL_CURP_MAP).forEach(function(k){
-      var e=REAL_CURP_MAP[k];if(!e||typeof e!=='object')return;
-      var hasOpen=(e._open!==undefined),hasDay=(e._day&&Object.keys(e._day).length>0);
-      if(!hasOpen&&!hasDay)return;
-      var open=Number(hasOpen?e._open:(e.cumulative_pts||0)),dsum=0;
-      if(e._day)Object.keys(e._day).forEach(function(d){dsum+=Number(e._day[d]||0);});
-      var hr=Number(e._open_hr||0),ord=Number(e._open_ord||0),days=Number(e._open_days||0);
-      if(e._dhr)Object.keys(e._dhr).forEach(function(d){hr+=Number(e._dhr[d]||0);});
-      if(e._dord)Object.keys(e._dord).forEach(function(d){ord+=Number(e._dord[d]||0);if(Number(e._dord[d]||0)>0)days+=1;});
-      var cum=Math.round(open+dsum+Number(pk[k]||0));
-      out[k]={cum:cum,pk:Math.round(Number(pk[k]||0)),hr:Math.round(hr*10)/10,ord:Math.round(ord),days:days};
-      n++;tot+=cum;if(cum<0)neg++;
-    });
-    return{map:out,riders:n,total:tot,neg:neg};
-  }
-
-  window.rb_preview=function(){var d=calc();st(tL('🔎 待公布草稿：'+d.riders+' 名骑手，累计合计 '+d.total.toLocaleString()+'（含负 '+d.neg+' 名）。核对后点④公布。','🔎 Borrador: '+d.riders+' riders, total '+d.total.toLocaleString()),true);return d;};
-  window.rb_recompute=function(){return window.rb_preview();};
-
-  window.rb_publish=async function(){
-    if(typeof requireOperator==='function'){if(!(await requireOperator()))return;}
-    var d=calc();
-    if(!d.riders){st(tL('没有可公布的滚动数据。请先①设期初并②上传每日积分。','Sin datos.'),false);return;}
-    if(!confirm(tL('确认公布？将更新 '+d.riders+' 名骑手的可查余额（累计合计 '+d.total.toLocaleString()+'）。公布后骑手立即可查。','¿Publicar '+d.riders+' riders?')))return;
-    Object.keys(d.map).forEach(function(k){var e=REAL_CURP_MAP[k];if(!e)return;var m=d.map[k];e.cumulative_pts=m.cum;e.pk_pt=m.pk;var c=tierRate(m.cum);e.coeff=c;e.estimated_cash=Math.round(m.cum*c*10)/10;e.total_online_hr=m.hr;e.total_complete_orders=m.ord;e.online_days=m.days;e._published_at=Date.now();});
-    try{if(typeof saveCurp==='function')await saveCurp();}catch(e){console.error(e);}
-    st(tL('✅ 已公布！'+d.riders+' 名骑手余额已更新，骑手现在可查询。','✅ Publicado: '+d.riders+' riders.'),true);
-  };
-
-  window.rb_setOpening=async function(){
-    if(typeof requireOperator==='function'){if(!(await requireOperator()))return;}
-    if(typeof REAL_CURP_MAP==='undefined'||!Object.keys(REAL_CURP_MAP).length){alert(tL('请先上传 4.27–5.31 历史累计积分','Sube primero el acumulado'));return;}
-    if(!confirm(tL('将把当前每位骑手的累计设为「期初基准」（含在线时长/完单数/活跃天数），并清空已记录的每日累加。仅首次或需重置时执行一次。继续？','¿Fijar saldo inicial y limpiar diarios?')))return;
-    var n=0;Object.keys(REAL_CURP_MAP).forEach(function(k){var e=REAL_CURP_MAP[k];if(e&&typeof e==='object'){e._open=Number(e.cumulative_pts||0);e._open_hr=Number(e.total_online_hr||0);e._open_ord=Number(e.total_complete_orders||0);e._open_days=Number(e.online_days||0);e._day={};e._dhr={};e._dord={};n++;}});
-    try{if(typeof saveCurp==='function')await saveCurp();}catch(e){}
-    st(tL('✅ 已将 '+n+' 名骑手设为期初基准。现在可每天上传当日积分（先进草稿）。','✅ Saldo inicial: '+n+' riders.'),true);
-  };
-
-  window.rb_uploadDaily=async function(file){
-    if(!file)return;
-    if(typeof requireOperator==='function'){if(!(await requireOperator()))return;}
-    if(typeof XLSX==='undefined'){alert('XLSX 未加载');return;}
-    st(tL('⏳ 解析中…','⏳ Procesando…'));
-    var reader=new FileReader();
-    reader.onload=function(ev){
-      try{
-        var wb=XLSX.read(new Uint8Array(ev.target.result),{type:'array',cellDates:true});
-        var rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{raw:true,defval:'',blankrows:false});
-        if(!rows.length)throw new Error(tL('文件为空','Vacío'));
-        var nk=function(k){return String(k).replace(/[^ -~一-鿿]/g,'').replace(/\s+/g,'').trim().toLowerCase();};
-        var gc=function(r,cs){for(var i=0;i<cs.length;i++){var v=r[cs[i]];if(v!==undefined&&v!=='')return v;}return '';};
-        var pp={},dates={};
-        rows.forEach(function(raw){
-          var r={};Object.keys(raw).forEach(function(k){r[nk(k)]=raw[k];});
-          var rid=gc(r,['rider_id','riderid','骑手id']);if(rid==='')return;
-          var k=c6(rid),d=dk(gc(r,['dt','date','日期','fecha','day']));if(!d)d='_nd';
-          if(!pp[k])pp[k]={};
-          pp[k][d]={p:Number(gc(r,['points','积分','point','当日积分'])||0),hr:Number(gc(r,['total_online_hr','在线时长','slot23_online_hr','online_hr'])||0),o:Number(gc(r,['complete_orders','完单数','完成订单','orders'])||0)};
-          dates[d]=1;
-        });
-        var dl=Object.keys(dates).filter(function(d){return d!=='_nd';}).sort(),nR=0;
-        Object.keys(pp).forEach(function(k){
-          var e=REAL_CURP_MAP[k];
-          if(!e){e={rider_id:'',cumulative_pts:0,rank:'—',_open:0,_open_hr:0,_open_ord:0,_open_days:0,_day:{},_dhr:{},_dord:{}};REAL_CURP_MAP[k]=e;}
-          if(!e._day)e._day={};if(!e._dhr)e._dhr={};if(!e._dord)e._dord={};
-          if(e._open===undefined)e._open=Number(e.cumulative_pts||0);
-          if(e._open_hr===undefined)e._open_hr=Number(e.total_online_hr||0);
-          if(e._open_ord===undefined)e._open_ord=Number(e.total_complete_orders||0);
-          if(e._open_days===undefined)e._open_days=Number(e.online_days||0);
-          Object.keys(pp[k]).forEach(function(d){e._day[d]=pp[k][d].p;e._dhr[d]=pp[k][d].hr;e._dord[d]=pp[k][d].o;});
-          nR++;
-        });
-        try{if(typeof saveCurp==='function')saveCurp();}catch(e){}
-        var d=calc();
-        st(tL('✅ 已并入 ['+dl.join(', ')+']，更新 '+nR+' 名 → 草稿。待公布累计合计 '+d.total.toLocaleString()+'。核对后点④公布。','✅ Fechas aplicadas a '+nR+' riders (borrador). Total '+d.total.toLocaleString()),true);
-      }catch(err){st(tL('❌ 失败：','❌ Error: ')+err.message,false);console.error(err);}
-    };
-    reader.readAsArrayBuffer(file);
-  };
-
-  // ⬇️ 导出全部骑手明细 (累计/已兑/处理中/可兑余额/现金/分项) — 取当前线上已公布数据 + 全部兑换记录
-  window.rb_exportAll=async function(){
-    if(typeof requireOperator==='function'){if(!(await requireOperator()))return;}
-    if(typeof XLSX==='undefined'){alert('XLSX 未加载');return;}
-    if(typeof REAL_CURP_MAP==='undefined'||!Object.keys(REAL_CURP_MAP).length){alert(tL('暂无骑手数据','Sin datos'));return;}
-    st(tL('⏳ 正在汇总…','⏳ Generando…'));
-    var reds=[];try{if(typeof dbGetAllRedemptions==='function')reds=await dbGetAllRedemptions();}catch(e){console.error(e);}
-    var comp={},pend={};(reds||[]).forEach(function(r){var k=String(r.curp6||'').toUpperCase(),p=Number(r.points||0);if(r.status==='completed')comp[k]=(comp[k]||0)+p;else if(r.status==='pending')pend[k]=(pend[k]||0)+p;});
-    var rows=[['后8位','Rider ID','累计积分','已兑换','处理中','可兑换余额','预估现金(比索)','兑换率','档位','Slot23在线','Perfect完单','周末加成','PK奖励','扣分','在线时长(h)','完单数','活跃天数']];
-    var keys=Object.keys(REAL_CURP_MAP).sort(function(a,b){return Number(REAL_CURP_MAP[b].cumulative_pts||0)-Number(REAL_CURP_MAP[a].cumulative_pts||0);});
-    keys.forEach(function(k){
-      var e=REAL_CURP_MAP[k];if(!e||typeof e!=='object')return;
-      var cum=Number(e.cumulative_pts||0),c=Number(comp[k]||0),p=Number(pend[k]||0),avail=Math.max(0,cum-c-p);
-      var rate=tierRate(avail),label=rate>=1?'冲刺最高档':rate>=0.7?'高级档':rate>=0.6?'进阶档':'入门档';
-      rows.push([k,String(e.rider_id||''),cum,c,p,avail,Math.round(avail*rate*10)/10,rate,label,Number(e.slot23_pt||0),Number(e.perfect_pt||0),Number(e.weekend_bonus_pt||0),Number(e.pk_pt||0),Number(e.deduct_pt||0),Number(e.total_online_hr||0),Number(e.total_complete_orders||0),Number(e.online_days||0)]);
-    });
-    var ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=rows[0].map(function(_,i){return{wch:i<2?18:11};});
-    var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'骑手积分明细');
-
-    // ===== sheet2: 累计拆解 (4-5月 + 每周 日常/PK) =====
-    function parseCN(d){var m=String(d||'').match(/(\d+)月(\d+)日/);return m?{mo:+m[1],dy:+m[2]}:null;}
-    function juneWeek(mo,dy){return mo===6?('W'+(Math.floor((dy-1)/7)+1)):'M45';}
-    var matchWeek={};
-    try{var sched=[].concat(typeof SCHEDULE!=='undefined'?SCHEDULE:[],typeof PRE_SCHEDULE!=='undefined'?PRE_SCHEDULE:[]);
-      sched.forEach(function(s){var p=parseCN(s.date);matchWeek[String(s.id)]=p?juneWeek(p.mo,p.dy):'M45';});}catch(e){}
-    function dateWeek(iso){var m=String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})/);return m?juneWeek(+m[2],+m[3]):'M45';}
-    var perR={};
-    Object.keys(REAL_CURP_MAP).forEach(function(k){var e=REAL_CURP_MAP[k];if(!e||typeof e!=='object')return;var hasOpen=e._open!==undefined,hasDay=e._day&&Object.keys(e._day).length;if(!hasOpen&&!hasDay)return;var o={open:Number(hasOpen?e._open:(e.cumulative_pts||0)),daily:{},pk:{}};if(e._day)Object.keys(e._day).forEach(function(d){var w=dateWeek(d);o.daily[w]=(o.daily[w]||0)+Number(e._day[d]||0);});perR[k]=o;});
-    try{var A=(typeof SCORE_ARCHIVE!=='undefined'&&SCORE_ARCHIVE)?SCORE_ARCHIVE:{};Object.keys(A).forEach(function(mid){var w=matchWeek[String(mid)]||'M45';(A[mid]||[]).forEach(function(t){((t&&t.riders)||[]).forEach(function(r){if(!r||r.id==null)return;var b=Number(r.pk_bonus||0);if(!b)return;var k=c6(r.id);if(!perR[k])perR[k]={open:Number((REAL_CURP_MAP[k]&&REAL_CURP_MAP[k]._open)||0),daily:{},pk:{}};perR[k].pk[w]=(perR[k].pk[w]||0)+b;});});});}catch(e){}
-    var wkset={};Object.keys(perR).forEach(function(k){Object.keys(perR[k].daily).forEach(function(w){if(w!=='M45')wkset[w]=1;});Object.keys(perR[k].pk).forEach(function(w){if(w!=='M45')wkset[w]=1;});});
-    var weeks=Object.keys(wkset).sort(function(a,b){return(+a.slice(1))-(+b.slice(1));});
-    function wkRange(w){var n=+w.slice(1),s=(n-1)*7+1,e=Math.min(n*7,30);return'6/'+s+'-6/'+e;}
-    var h2=['后8位','Rider ID','4-5月积分'];weeks.forEach(function(w){h2.push('第'+w.slice(1)+'周日常('+wkRange(w)+')');h2.push('第'+w.slice(1)+'周PK');});h2.push('累计合计');
-    var r2=[h2];
-    Object.keys(perR).sort(function(a,b){return Number((REAL_CURP_MAP[b]||{}).cumulative_pts||0)-Number((REAL_CURP_MAP[a]||{}).cumulative_pts||0);}).forEach(function(k){
-      var o=perR[k],m45=o.open+(o.daily['M45']||0)+(o.pk['M45']||0),tot=m45,row=[k,String((REAL_CURP_MAP[k]||{}).rider_id||''),Math.round(m45)];
-      weeks.forEach(function(w){var dd=Math.round(o.daily[w]||0),pp=Math.round(o.pk[w]||0);row.push(dd);row.push(pp);tot+=dd+pp;});
-      row.push(Math.round(tot));r2.push(row);
-    });
-    var ws2=XLSX.utils.aoa_to_sheet(r2);ws2['!cols']=h2.map(function(_,i){return{wch:i<2?18:14};});
-    XLSX.utils.book_append_sheet(wb,ws2,'累计拆解');
-
-    XLSX.writeFile(wb,'骑手积分明细_'+new Date().toISOString().slice(0,10)+'.xlsx');
-    st(tL('✅ 已导出 '+(rows.length-1)+' 名骑手明细。','✅ Exportado: '+(rows.length-1)+' riders.'),true);
-  };
-
-  // ---------- 单一运营 hub (仅运营可见) ----------
-  function btn(txt,fn,style){return '<button onclick="('+fn+')()" style="width:100%;margin-bottom:6px;padding:8px;border-radius:7px;cursor:pointer;font-weight:600;font-size:12px;'+(style||'border:1px solid #ccc;background:#f5f5f7')+'">'+txt+'</button>';}
-  function buildHub(){
-    if(document.getElementById('rbHub'))return;
-    var box=document.createElement('div');box.id='rbHub';
-    box.style.cssText='position:fixed;right:16px;bottom:16px;z-index:99999;width:300px;background:#fff;border:1px solid #e2e2ea;border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.18);font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#1b1b22;overflow:hidden;display:none';
-    box.innerHTML=
-      '<div style="background:#13151B;color:#fff;font-weight:700;padding:9px 12px;display:flex;justify-content:space-between;align-items:center"><span>🛠️ 运营控制台</span><span id="rbHubClose" style="cursor:pointer">✕</span></div>'
-      +'<div style="padding:11px 12px">'
-      +'<div style="font-size:10px;color:#999;font-weight:700;margin:2px 0 6px">数据管理</div>'
-      +'<button id="rbBtnCurp" style="width:100%;margin-bottom:6px;padding:8px;border-radius:7px;cursor:pointer;font-weight:600;font-size:12px;border:1px solid #FF7A00;background:#FFF3E8;color:#C45A00">📥 累计积分上传 / 清空</button>'
-      +'<button id="rbBtnRed" style="width:100%;margin-bottom:6px;padding:8px;border-radius:7px;cursor:pointer;font-weight:600;font-size:12px;border:1px solid #ccc;background:#f5f5f7">🧾 兑换申请管理</button>'
-      +'<button id="rbBtnExport" style="width:100%;margin-bottom:6px;padding:8px;border-radius:7px;cursor:pointer;font-weight:600;font-size:12px;border:1px solid #2D7DD2;background:#EAF3FC;color:#1A5FA8">⬇️ 导出全部骑手明细（累计/已兑/余额）</button>'
-      +'<div style="font-size:10px;color:#999;font-weight:700;margin:10px 0 6px">每日余额滚动</div>'
-      +btn('① 设为期初基准（首次一次）','rb_setOpening','border:1px solid #FF7A00;background:#FFF3E8;color:#C45A00')
-      +'<label style="display:block;margin-bottom:6px;padding:8px;border:1px solid #13151B;background:#13151B;color:#fff;border-radius:7px;cursor:pointer;font-weight:600;text-align:center;font-size:12px">② 上传每日骑手积分（草稿）<input id="rbFile" type="file" accept=".xlsx,.xls,.csv" style="display:none"></label>'
-      +btn('③ 预览待公布余额','rb_preview')
-      +btn('④ 公布（骑手可查）','rb_publish','border:none;background:#0A8A4A;color:#fff')
-      +'<div id="rbStatus" style="font-size:11px;min-height:16px;color:#0A6638;margin-top:4px"></div>'
-      +'<div style="border-top:1px solid #eee;margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;align-items:center">'
-      +'<span style="font-size:10px;color:#aaa">余额=期初+Σ每日+Σ PK；可兑=累计−已兑−处理中</span>'
-      +'<button onclick="(rb_logout)()" style="font-size:10px;border:none;background:none;color:#C0392B;cursor:pointer;text-decoration:underline">登出</button>'
-      +'</div></div>';
-    document.body.appendChild(box);
-    var L1=document.createElement('div');L1.id='rbLauncher';L1.title='运营控制台';L1.style.cssText='position:fixed;right:16px;bottom:16px;z-index:99998;width:46px;height:46px;border-radius:50%;background:#13151B;color:#fff;display:none;align-items:center;justify-content:center;font-size:20px;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.22)';L1.textContent='🛠️';
-    L1.onclick=function(){box.style.display='block';L1.style.display='none';};
-    document.body.appendChild(L1);
-    document.getElementById('rbHubClose').onclick=function(){box.style.display='none';L1.style.display='flex';};
-    document.getElementById('rbBtnCurp').onclick=function(){try{if(typeof go==='function')go(6);}catch(e){}setTimeout(function(){if(typeof openCurpAdminPanel==='function')openCurpAdminPanel();},60);};
-    document.getElementById('rbBtnRed').onclick=function(){try{if(typeof go==='function')go(6);}catch(e){}setTimeout(function(){if(typeof openRedemptionAdmin==='function')openRedemptionAdmin();},60);};
-    document.getElementById('rbBtnExport').onclick=function(){window.rb_exportAll();};
-    document.getElementById('rbFile').onchange=function(){var f=this.files[0];this.value='';window.rb_uploadDaily(f);};
-  }
-  function injectCSS(){ if(document.getElementById('rbCSS'))return; var s=document.createElement('style'); s.id='rbCSS';
-    s.textContent='[onclick*="openCurpAdminPanel"],[onclick*="openRedemptionAdmin"]{display:none!important}'  /* 已并入控制台: 始终隐藏原生入口 */
-      +'body:not(.rb-op) [onclick*="openAdminScorePanel"]{display:none!important}';                          /* 比赛结果运营入口: 仅运营登录后可见 */
-    (document.head||document.documentElement).appendChild(s);
-  }
-  function showLauncher(show){var l=document.getElementById('rbLauncher'),b=document.getElementById('rbHub');if(l)l.style.display=show?'flex':'none';if(!show&&b)b.style.display='none';}
-  window.rb_logout=async function(){try{if(typeof operatorLogout==='function')await operatorLogout();}catch(e){}showLauncher(false);};
-  async function refresh(){var op=false;try{if(typeof refreshOperator==='function')op=await refreshOperator();else op=(typeof OPERATOR!=='undefined'&&OPERATOR);}catch(e){}try{document.body.classList.toggle('rb-op',!!op);}catch(e){}showLauncher(!!op);return op;}
-  async function init(){
-    injectCSS();buildHub();
-    await refresh();
-    // 隐藏入口的登录通道: 访问 #ops 触发登录并显示控制台
-    async function checkHash(){ if((location.hash||'').toLowerCase().indexOf('ops')>=0){ if(typeof requireOperator==='function'){ var ok=await requireOperator(); if(ok){ showLauncher(true); var b=document.getElementById('rbHub'),l=document.getElementById('rbLauncher'); if(b){b.style.display='block';} if(l)l.style.display='none'; } } } }
-    window.addEventListener('hashchange',checkHash); checkHash();
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
-})();
-
-</script>
 </body>
 </html>
