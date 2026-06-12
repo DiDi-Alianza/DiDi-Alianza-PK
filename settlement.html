@@ -41,7 +41,8 @@ a{color:inherit}
 .seg{height:100%;display:flex;align-items:center;padding:0 10px;font-size:11px;font-family:var(--mono);white-space:nowrap;overflow:hidden}
 .seg.v{background:linear-gradient(90deg,#FF7A00,#FF9A3D);color:#1a1100;font-weight:600}
 .seg.vrest{background:repeating-linear-gradient(45deg,#3a2a14,#3a2a14 6px,#332512 6px,#332512 12px);color:#d8b483}
-.seg.ex{background:repeating-linear-gradient(45deg,#16202e,#16202e 6px,#141d29 6px,#141d29 12px);color:#7fa9e8}
+.seg.ex{background:linear-gradient(90deg,#2f6fb0,#5a9bd8);color:#04111f;font-weight:600}
+.seg.exrest{background:repeating-linear-gradient(45deg,#16202e,#16202e 6px,#141d29 6px,#141d29 12px);color:#7fa9e8}
 .hero-legend{display:flex;gap:20px;flex-wrap:wrap;margin-top:12px;font-size:12px;color:var(--mut)}
 .hero-legend b{color:var(--txt);font-family:var(--mono)}
 .dot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;vertical-align:middle}
@@ -122,7 +123,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
  <div class="hero-legend">
   <span><i class="dot" style="background:#FF7A00"></i>Vendor池 已发 <b id="lgVspent">—</b></span>
   <span><i class="dot" style="background:#3a2a14"></i>Vendor池 待发(后4周) <b id="lgVrest">—</b></span>
-  <span><i class="dot" style="background:#16202e"></i>骑手兑换池 <b id="lgEx">—</b> <span style="color:var(--amber)">待数据</span></span>
+  <span><i class="dot" style="background:#16202e"></i>骑手兑换池 已兑付 <b id="lgEx">—</b> <span id="lgExRest" style="color:var(--muted2)"></span></span>
  </div>
 </div>
 
@@ -215,6 +216,9 @@ async function fetchBlocks(){
   const { data, error } = await sb.from('app_data').select('key,value').in('key', keys);
   if(error) throw error;
   RAW = {}; (data||[]).forEach(r=>{ RAW[r.key] = r.value; });
+  // 兑换池汇总：调用只返回总额的安全函数（不暴露个人兑换明细），匿名可调
+  try{ const rp = await sb.rpc('get_exchange_summary'); RAW._exchange = (rp && !rp.error && rp.data) ? rp.data : null; }
+  catch(e){ RAW._exchange = null; }
   return RAW;
 }
 
@@ -367,12 +371,26 @@ function buildM(weekKey){
   const negative = by_vendor.filter(v=>v.total<0).length;
   const unmapped_rm = by_vendor.filter(v=>!v.mgr||v.mgr==='未分配').length;
 
+  // 兑换池：用安全汇总函数的结果（比索，累计口径）；函数没建/没授权时标记为待接入
+  const ex = RAW._exchange;
+  const exchange = ex ? {
+      pool: BUDGET.exchange, available:true,
+      paid: Math.round(+ex.paid||0), pending: Math.round(+ex.pending||0),
+      remaining: Math.round(BUDGET.exchange-(+ex.paid||0)),
+      redeemed_pts: Math.round(+ex.redeemed_pts||0), pending_pts: Math.round(+ex.pending_pts||0),
+      redeemers: +ex.redeemers||0
+    } : {
+      pool: BUDGET.exchange, available:false,
+      paid:0, pending:0, remaining:BUDGET.exchange, redeemed_pts:0, pending_pts:0, redeemers:0
+    };
+  const exPaid = exchange.paid;
+
   return {
     week: weekKey, label: W.label, unsettled: !!W.unsettled,
     dates: dates.map(d=>d.slice(5).replace('-','/')),
     generated: new Date().toISOString().slice(0,19), points_basis:'points',
-    budget: BUDGET,
-    cost: { vendor_pool_spent: POOL_PER_WEEK, exchange_spent:null, pt_spent:null, total_spent: POOL_PER_WEEK },
+    budget: BUDGET, exchange,
+    cost: { vendor_pool_spent: POOL_PER_WEEK, exchange_spent: Math.round(exPaid), pt_spent:null, total_spent: POOL_PER_WEEK + Math.round(exPaid) },
     vendor_pool: { amount: POOL_PER_WEEK, distributed: Object.values(alloc).reduce((a,b)=>a+b,0),
       vendors: merged, total_points: Math.round(grand), by_vendor, by_day },
     rm, riders: riders, pk: pkAgg,
@@ -391,11 +409,13 @@ function render(M){
  const spent=M.cost.total_spent, left=b.total-spent;
  $('heroSpent').innerHTML=peso(spent)+'<small> 已发 · <span>'+pct(spent/b.total)+'</span></small>';
  $('heroLeft').textContent=peso(left);
- const vSpent=M.cost.vendor_pool_spent, vRest=b.vendor_pool-vSpent, ex=b.exchange;
+ const vSpent=M.cost.vendor_pool_spent, vRest=b.vendor_pool-vSpent;
+ const exPaid=(M.cost.exchange_spent||0), exRest=b.exchange-exPaid;
  const bar=$('budgetBar'); bar.innerHTML='';
- const segs=[['v',vSpent,'Vendor已发 '+peso(vSpent)],['vrest',vRest,'Vendor待发 '+peso(vRest)],['ex',ex,'兑换池 '+peso(ex)]];
+ const segs=[['v',vSpent,'Vendor已发 '+peso(vSpent)],['vrest',vRest,'Vendor待发 '+peso(vRest)],['ex',exPaid,'兑换已发 '+peso(exPaid)],['exrest',exRest,'兑换剩余 '+peso(exRest)]];
  segs.forEach(([c,val,txt])=>{const d=document.createElement('div');d.className='seg '+c;d.style.width=(val/b.total*100)+'%';d.textContent=(val/b.total>0.06?txt:'');bar.appendChild(d);});
- $('lgVspent').textContent=peso(vSpent);$('lgVrest').textContent=peso(vRest);$('lgEx').textContent=peso(ex);
+ $('lgVspent').textContent=peso(vSpent);$('lgVrest').textContent=peso(vRest);$('lgEx').textContent=peso(exPaid);
+ var _lr=$('lgExRest'); if(_lr) _lr.textContent=(M.exchange&&M.exchange.available)?('/ 剩余 '+peso(exRest)+(M.exchange.pending?(' · 处理中 '+peso(M.exchange.pending)):'')):' (待授权)';
  // kpi
  $('kOrders').textContent=peso(r.total_orders);
  $('kOrdersS').textContent='在线 '+peso(r.total_online_hr)+' 小时';
@@ -432,7 +452,7 @@ $('pkPart').textContent=pct(pk.participation_rate);
   <div class="card done"><div class="h">✅ Vendor奖金池 · 已结算</div><div class="b">${vp.vendors}家 · 分配${peso(vp.distributed)} · 原始${dq.raw_vendor_codes}个code归并(${dq.dup_groups}组重复·去重音大小写)</div></div>
   <div class="card done"><div class="h">✅ 负分兜底 · ${dq.negative_vendors}家</div><div class="b">周总分为负已兜底为0,不倒扣</div></div>
   <div class="card"><div class="h">⏳ RM未匹配 · ${dq.unmapped_rm}家</div><div class="b">MTY部分Vendor无渠道经理映射,补名单即归位</div></div>
-  <div class="card"><div class="h">⏳ 骑手兑换(图2)</div><div class="b">${M.pending.exchange} · 接入后出兑付成本与积分负债</div></div>
+  ${M.exchange.available?`<div class="card done"><div class="h">✅ 骑手兑换池 · 已接入</div><div class="b">已兑付 ${peso(M.exchange.paid)} 比索 · 处理中 ${peso(M.exchange.pending)} · ${M.exchange.redeemers}人已兑 · 兑出积分 ${peso(M.exchange.redeemed_pts)}</div></div>`:`<div class="card"><div class="h">⏳ 骑手兑换池 · 待授权</div><div class="b">数据库 get_exchange_summary 函数未建或未授权匿名,接上后显示真实兑付</div></div>`}
   <div class="card"><div class="h">⏳ PT结算(图3)</div><div class="b">${M.pending.pt}</div></div>`;
  $('footGen').textContent='生成 '+M.generated+' · 引擎自动产出';
  $('footBasis').textContent=M.points_basis+'(与网站发布一致)';
