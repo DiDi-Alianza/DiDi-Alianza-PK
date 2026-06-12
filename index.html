@@ -2822,8 +2822,8 @@ async function renderDashboard(){
     var _lb=function(v,t){var on=(DASH_LANG===v);return '<button onclick="dashSetLang(\''+v+'\')" style="padding:5px 10px;font-size:11px;border-radius:7px;border:1px solid '+(on?'var(--didi)':'var(--border)')+';background:'+(on?'var(--didi)':'var(--s2)')+';color:'+(on?'#fff':'var(--text)')+';cursor:pointer;font-family:inherit">'+t+'</button>';};
     var _langBar='<div style="display:flex;gap:6px;margin:2px 0 8px;align-items:center"><span style="font-size:11px;color:var(--muted2);margin-right:2px">'+L('看板语言','Idioma','Language')+':</span>'+_lb('inherit',L('跟随','Auto','Auto'))+_lb('zh','中文')+_lb('es','ES')+_lb('en','EN')+'</div>';
     var _tabBar='<div id="dashTabBar" style="display:flex;gap:8px;margin:2px 0 14px;flex-wrap:wrap">'
-      +_dtb('ov',L('📊 总览','📊 Resumen','📊 Overview'))+_dtb('pk',L('🏁 PK 明细','🏁 PK','🏁 PK'))+_dtb('pt',L('🧩 PT 明细','🧩 PT','🧩 PT'))+'</div>';
-    body.innerHTML=_langBar+_tabBar+html;
+      +_dtb('ov',L('📊 总览','📊 Resumen','📊 Overview'))+_dtb('pk',L('🏁 PK 明细','🏁 PK','🏁 PK'))+_dtb('pt',L('🧩 PT 明细','🧩 PT','🧩 PT'))+_dtb('cost',L('💰 成本结算','💰 Costos','💰 Settlement'))+'</div>';
+    body.innerHTML=_langBar+_tabBar+html+'<div class="dtab" data-t="cost" style="display:none"><div style="font-size:12px;color:var(--muted);margin-bottom:8px">'+L('实时奖金池结算 · 数据直读数据库 · 与运营指标同源','Liquidación en vivo · datos del mismo backend','Live settlement · same backend')+'</div><iframe src="settlement.html" style="width:100%;height:82vh;border:1px solid var(--border);border-radius:12px;background:#0f1115" loading="lazy"></iframe></div>';
     dashShowTab(DASH_TAB||'ov');
     if(typeof renderTrendChart==='function')renderTrendChart();
     _dashLangRestore();
