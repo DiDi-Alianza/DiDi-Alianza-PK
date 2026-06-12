@@ -1603,13 +1603,13 @@ select.fi option{background:#18181E}
       </div>
       <div style="display:flex;gap:8px">
         <button class="btn btn-s btn-sm" onclick="toggleLang()" style="font-size:11px" title="切换语言 / Cambiar idioma"><span class="lc-zh">🇪🇸 ES</span><span class="lc-es">🇨🇳 中文</span></button>
-        <button class="btn btn-s btn-sm" onclick="renderDashboard()" style="font-size:11px"><span class="lc-zh">🔄 刷新</span><span class="lc-es">🔄 Actualizar</span></button>
+        <button class="btn btn-s btn-sm" onclick="var b=document.getElementById('dashUploadBar');b.style.display=(b.style.display==='none'?'grid':'none')" style="font-size:11px"><span class="lc-zh">🗂️ 数据上传</span><span class="lc-es">🗂️ Datos</span></button><button class="btn btn-s btn-sm" onclick="renderDashboard()" style="font-size:11px"><span class="lc-zh">🔄 刷新</span><span class="lc-es">🔄 Actualizar</span></button>
         <button class="btn btn-s btn-sm" onclick="exportDashboard()" style="font-size:11px"><span class="lc-zh">⬇️ 导出</span><span class="lc-es">⬇️ Exportar</span></button>
         <button id="dashOpLogout" class="btn btn-s btn-sm" onclick="operatorLogout();closeDashboard();" style="font-size:11px"><span class="lc-zh">退出登录</span><span class="lc-es">Salir</span></button>
         <button class="btn btn-s btn-sm" onclick="closeDashboard()" style="font-size:11px"><span class="lc-zh">✕ 关闭</span><span class="lc-es">✕ Cerrar</span></button>
       </div>
     </div>
-    <div id="dashUploadBar" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0 4px">
+    <div id="dashUploadBar" style="display:none;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0 4px">
       <div style="background:var(--s2);border:1px dashed var(--border);border-radius:10px;padding:10px 12px">
         <div style="font-size:12px;font-weight:700;margin-bottom:4px"><span class="lc-zh">🗂️ Vendor 清单（含名称 / 城市 / 经理）</span><span class="lc-es">🗂️ Lista de Vendors (nombre / ciudad / gerente)</span></div>
         <div style="font-size:11px;color:var(--muted2);line-height:1.7"><span class="lc-zh">👉 已统一到「报名参赛」页的 <b>📥 上传供应商名单</b>，请到那里上传（列：vendor_code、vendor_name、city、rm）。</span><span class="lc-es">👉 Unificado en la página «Inscripción» → <b>📥 Subir lista de proveedores</b> (columnas: vendor_code, vendor_name, city, rm).</span></div>
@@ -2823,7 +2823,7 @@ async function renderDashboard(){
     var _langBar='<div style="display:flex;gap:6px;margin:2px 0 8px;align-items:center"><span style="font-size:11px;color:var(--muted2);margin-right:2px">'+L('看板语言','Idioma','Language')+':</span>'+_lb('inherit',L('跟随','Auto','Auto'))+_lb('zh','中文')+_lb('es','ES')+_lb('en','EN')+'</div>';
     var _tabBar='<div id="dashTabBar" style="display:flex;gap:8px;margin:2px 0 14px;flex-wrap:wrap">'
       +_dtb('ov',L('📊 总览','📊 Resumen','📊 Overview'))+_dtb('pk',L('🏁 PK 明细','🏁 PK','🏁 PK'))+_dtb('pt',L('🧩 PT 明细','🧩 PT','🧩 PT'))+_dtb('cost',L('💰 成本结算','💰 Costos','💰 Settlement'))+'</div>';
-    body.innerHTML=_langBar+_tabBar+html+'<div class="dtab" data-t="cost" style="display:none"><div style="font-size:12px;color:var(--muted);margin-bottom:8px">'+L('实时奖金池结算 · 数据直读数据库 · 与运营指标同源','Liquidación en vivo · datos del mismo backend','Live settlement · same backend')+'</div><iframe src="settlement.html" style="width:100%;height:82vh;border:1px solid var(--border);border-radius:12px;background:#0f1115" loading="lazy"></iframe></div>';
+    body.innerHTML=_tabBar+html+'<div class="dtab" data-t="cost" style="display:none"><div style="font-size:12px;color:var(--muted);margin-bottom:8px">'+L('实时奖金池结算 · 数据直读数据库 · 与运营指标同源','Liquidación en vivo · datos del mismo backend','Live settlement · same backend')+'</div><iframe id="costFrame" src="settlement.html" scrolling="no" style="width:100%;height:1400px;border:1px solid var(--border);border-radius:12px;background:#0f1115;overflow:hidden;display:block" loading="lazy"></iframe></div>';
     dashShowTab(DASH_TAB||'ov');
     if(typeof renderTrendChart==='function')renderTrendChart();
     _dashLangRestore();
@@ -6947,5 +6947,6 @@ initMatchupPage();
 })();
 
 </script>
+<script>window.addEventListener("message",function(e){try{if(e&&e.data&&e.data.t==="sh"){var f=document.getElementById("costFrame");if(f&&e.data.h)f.style.height=(e.data.h+24)+"px";}}catch(_){}});</script>
 </body>
 </html>

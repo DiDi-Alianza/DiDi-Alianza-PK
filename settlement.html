@@ -97,7 +97,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 @media(max-width:920px){.kpis{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 :focus-visible{outline:2px solid var(--orange);outline-offset:2px}
-</style><style>.livebanner{margin:10px 0;padding:9px 14px;border-radius:10px;font-size:13px;font-weight:600;border:1px solid var(--line,#E3DACB);}.livebanner.ok{background:#E3F2E8;color:#1F7A4D;border-color:#bfe3cd;}.livebanner.bad{background:#FBE9E7;color:#C0272D;border-color:#f0c5c2;}.livebanner.warn{background:#FFF7E6;color:#8a6d1a;border-color:#efd9a0;}#unsettledNote{margin:0 0 10px;padding:10px 14px;border-radius:10px;font-size:13px;background:#FFF7E6;border:1px solid #efd9a0;color:#7a5f12;line-height:1.6;}</style></head>
+</style><style>html,body{overflow-x:hidden;}.livebanner{margin:10px 0;padding:9px 14px;border-radius:10px;font-size:13px;font-weight:600;border:1px solid var(--line,#E3DACB);}.livebanner.ok{background:#E3F2E8;color:#1F7A4D;border-color:#bfe3cd;}.livebanner.bad{background:#FBE9E7;color:#C0272D;border-color:#f0c5c2;}.livebanner.warn{background:#FFF7E6;color:#8a6d1a;border-color:#efd9a0;}#unsettledNote{margin:0 0 10px;padding:10px 14px;border-radius:10px;font-size:13px;background:#FFF7E6;border:1px solid #efd9a0;color:#7a5f12;line-height:1.6;}</style></head>
 <body><div class="wrap">
 
 <div class="top">
@@ -473,10 +473,13 @@ function drawCharts(M){
 const WK_CACHE={};
 function getM(k){ if(!WK_CACHE[k]) WK_CACHE[k]=buildM(k); return WK_CACHE[k]; }
 function setBanner(html,cls){ var b=document.getElementById('liveBanner'); if(b){ b.innerHTML=html; b.className='livebanner '+cls; } }
+function reportH(){ try{ if(window.parent && window.parent!==window){ var h=Math.max(document.body.scrollHeight, document.documentElement.scrollHeight); window.parent.postMessage({t:'sh', h:h}, '*'); } }catch(e){} }
 function selfCheckW1(){ try{ var m=getM('wk0601'); var d=m.vendor_pool.distributed,g=m.vendor_pool.total_points; var em=(m.vendor_pool.by_vendor.find(v=>v.vc==='EMILIODIDIMTY2512220')||{}).total; var ok=(d===600000&&g===657585&&em===98540); if(ok) setBanner('🟢 自检通过 · W1 现算 = 官方基准（池 600,000 / 周总 657,585 / EMILIO 98,540）· 引擎可信','ok'); else setBanner('🔴 自检异常 · W1 池='+d+' 周总='+g+' EMILIO='+em+'（应 600000/657585/98540）。把这串发我排查','bad'); }catch(e){ setBanner('🔴 自检出错：'+e.message,'bad'); } }
-async function boot(){ setBanner('⏳ 正在连接数据库并现算…','warn'); try{ await fetchBlocks(); var sel=document.getElementById('wkSel'); sel.innerHTML=''; Object.keys(WEEK_DEFS).forEach(function(k){ var o=document.createElement('option'); o.value=k; o.textContent=WEEK_DEFS[k].label; sel.appendChild(o); }); sel.addEventListener('change',function(e){ var m=getM(e.target.value); render(m); flagUnsettled(m); }); selfCheckW1(); var first=getM('wk0601'); render(first); flagUnsettled(first); }catch(e){ setBanner('🔴 读取数据库失败：'+e.message+' · 多为权限/网络，检查 app_data 的 anon select 策略','bad'); console.error(e); } }
+function afterRender(m){ flagUnsettled(m); reportH(); setTimeout(reportH,400); setTimeout(reportH,1200); }
+async function boot(){ setBanner('⏳ 正在连接数据库并现算…','warn'); try{ await fetchBlocks(); var sel=document.getElementById('wkSel'); sel.innerHTML=''; Object.keys(WEEK_DEFS).forEach(function(k){ var o=document.createElement('option'); o.value=k; o.textContent=WEEK_DEFS[k].label; sel.appendChild(o); }); sel.addEventListener('change',function(e){ var m=getM(e.target.value); render(m); afterRender(m); }); selfCheckW1(); var first=getM('wk0601'); render(first); afterRender(first); }catch(e){ setBanner('🔴 读取数据库失败：'+e.message+' · 多为权限/网络，检查 app_data 的 anon select 策略','bad'); reportH(); console.error(e); } }
 function flagUnsettled(m){ var w=document.getElementById('unsettledNote'); if(!w) return; if(m.unsettled){ w.style.display='block'; w.innerHTML='⚠️ <b>'+m.label+'</b>：本周尚未结束、未结算，数字会随后续每日数据继续变动，仅供参考。'; } else { w.style.display='none'; } }
-if(window.supabase&&window.supabase.createClient){ boot(); } else { var t=setInterval(function(){ if(window.supabase&&window.supabase.createClient){ clearInterval(t); boot(); } },150); setTimeout(function(){ if(!window.supabase){ setBanner('🔴 supabase-js 没加载成功（网络/CDN）。换网络或刷新重试','bad'); } },6000); }
+window.addEventListener('resize', reportH);
+if(window.supabase&&window.supabase.createClient){ boot(); } else { var t=setInterval(function(){ if(window.supabase&&window.supabase.createClient){ clearInterval(t); boot(); } },150); setTimeout(function(){ if(!window.supabase){ setBanner('🔴 supabase-js 没加载成功（网络/CDN）。换网络或刷新重试','bad'); reportH(); } },6000); }
 
 </script>
 </script>
