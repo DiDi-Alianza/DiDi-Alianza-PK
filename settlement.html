@@ -46,6 +46,20 @@ a{color:inherit}
 .kgroup{margin-bottom:8px}
 .kgt{font-family:var(--disp);font-size:13px;font-weight:600;color:var(--txt);margin:4px 0 8px;display:flex;align-items:baseline;gap:8px}
 .kgh{font-size:11px;font-weight:400;color:var(--mut2)}
+.cbadge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;margin-left:6px;vertical-align:middle}
+.cbadge.ok{background:rgba(67,181,129,.16);color:var(--green);border:1px solid rgba(67,181,129,.35)}
+.cbadge.warn{background:rgba(255,170,40,.14);color:var(--amber);border:1px solid rgba(255,170,40,.35)}
+.lifecycle{display:flex;align-items:stretch;gap:6px;flex-wrap:wrap;margin-top:8px}
+.lcs{flex:1;min-width:130px;background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:11px 10px;text-align:center}
+.lcl{font-size:11px;color:var(--mut2)}
+.lcv{font-family:var(--disp);font-size:19px;font-weight:600;margin:3px 0;color:var(--txt)}
+.lcv.g{color:var(--green)} .lcv.a{color:var(--amber)} .lcv.o{color:var(--orange)}
+.lcsub{font-size:10.5px;color:var(--mut2);line-height:1.4}
+.lca{display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--mut2);min-width:54px}
+.lcaT{font-size:9.5px;color:var(--mut2);margin-bottom:1px;white-space:nowrap}
+.panel.hl{border-color:var(--orange);box-shadow:0 0 0 1px rgba(255,122,0,.25)}
+.dlbtn{float:right;font-size:11.5px;font-weight:600;color:var(--orange);background:rgba(255,122,0,.10);border:1px solid rgba(255,122,0,.35);border-radius:8px;padding:4px 10px;cursor:pointer;font-family:var(--ui)}
+.dlbtn:hover{background:rgba(255,122,0,.18)}
 .kc{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:14px 15px;border-left:3px solid var(--blue)}
 .kc.o{border-left-color:var(--orange)}.kc.g{border-left-color:var(--green)}.kc.v{border-left-color:var(--violet)}.kc.a{border-left-color:var(--amber)}
 .kc .lab{font-size:11px;color:var(--mut2);margin-bottom:6px;letter-spacing:.3px}
@@ -193,6 +207,9 @@ function buildM(weekKey){
   const rmvm = RAW.vendor_rmvm || {};
   const roster = RAW.vendor_roster || {};
   const city = RAW.vendor_city || {};
+  // 城市兜底：vendor_city 查不到时，从 vendor_code 识别 CDMX/MTY；都没有才归"其它"
+  function cityOf(vc){ if(!vc) return '其它'; if(city[vc]) return city[vc]; const u=norm(vc);
+    if(u.indexOf('CDMX')>=0) return 'CDMX'; if(u.indexOf('MTY')>=0) return 'MTY'; return '其它'; }
 
   // 本周相关场次（按日期归入）
   const wkMatches = Object.keys(MATCH_DATE).filter(m=>dset.has(MATCH_DATE[m]));
@@ -263,7 +280,7 @@ function buildM(weekKey){
     riders: (ridersSet[vc]?ridersSet[vc].size:(roster[vc]||0)), active: (activeSet[vc]?activeSet[vc].size:0),
     orders: Math.round(orders[vc]||0), hr: Math.round(hr[vc]||0),
     win_rate: played[vc]? (won[vc]||0)/played[vc] : 0,
-    share: (totalFloor[vc]||0)/grandFloor, alloc: alloc[vc]||0, city: city[vc]||''
+    share: (totalFloor[vc]||0)/grandFloor, alloc: alloc[vc]||0, city: cityOf(vc)
   }));
   by_vendor.sort((a,b)=> b.total-a.total);
   by_vendor.forEach((v,i)=>v.rank=i+1);
@@ -280,13 +297,14 @@ function buildM(weekKey){
   const rm=Object.values(rmAgg).map(a=>({...a, win_rate: a.played? a.won/a.played:0})).sort((x,y)=>y.alloc-x.alloc);
 
   // 骑手维度
-  let total_unique=0, total_orders=0, total_online_hr=0;
+  let total_unique=0, total_orders=0, total_online_hr=0, online_riders=0;
   const distMap={}; for(let i=1;i<=7;i++) distMap[i]=0;
   for(const c8 in curp){ const e=curp[c8]; const day=e._day||{}; let dcnt=0,ord=0,h=0,any=false;
     const dord=e._dord||{}, dhr=e._dhr||{};
     dates.forEach(d=>{ const p=+(day[d]||0), od=+(dord[d]||0), hh=+(dhr[d]||0);
       if(p!==0||od!==0||hh!==0){dcnt++;any=true;} ord+=od; h+=hh; });
     total_unique++; total_orders+=ord; total_online_hr+=h;
+    if(h>0) online_riders++;
     if(dcnt>=1 && dcnt<=7) distMap[dcnt]++;
   }
   const active_week=Object.values(dayActive).reduce((m,x)=>Math.max(m,x.active),0); // 近似：峰值活跃
@@ -344,27 +362,48 @@ function buildM(weekKey){
     const day=e._day||{}; let b=0; dates.forEach(d=>{ b+=(+ (day[d]||0)); }); issuedBase+=b;
     cumOrdersAll += (+ (e.total_complete_orders||0));
     if(vc){ cumByV[vc]=(cumByV[vc]||0)+(+ (e.cumulative_pts||0));
-      const ct=city[vc]||'其它'; baseByCity[ct]=(baseByCity[ct]||0)+b; cumByCity[ct]=(cumByCity[ct]||0)+(+ (e.cumulative_pts||0)); }
+      const ct=cityOf(vc); baseByCity[ct]=(baseByCity[ct]||0)+b; cumByCity[ct]=(cumByCity[ct]||0)+(+ (e.cumulative_pts||0)); }
   }
   const pkByCity={};
-  wkMatches.forEach(m=>{ (sa[m]||[]).forEach(t=>{ const vc=norm(t.vendor), ct=city[vc]||'其它';
+  wkMatches.forEach(m=>{ (sa[m]||[]).forEach(t=>{ const vc=norm(t.vendor), ct=cityOf(vc);
     (t.riders||[]).forEach(r=>{ const pb=+(r.pk_bonus||0); issuedPK+=pb; pkByCity[ct]=(pkByCity[ct]||0)+pb; }); }); });
   const issuedPts = Math.round(issuedBase + issuedPK);
   const ordersWk = Object.values(orders).reduce((a,b)=>a+b,0);
   const hoursWk  = Object.values(hr).reduce((a,b)=>a+b,0);
   const poolSpent = POOL;
-  const ptsAccrued = Math.round(pendCash);     // 计提=待同意(pending)实际现金
+  const ptsAccrued = Math.round(pendCash);     // 待审批兑付(pending)实际现金
+  const ptsCostA = Math.round(issuedPts*RATE); // 本周积分计提成本(权责)
+  const cashRedeem = Math.round(redeemWeekCash); // 本周已批兑付(现金)
+  // 两套口径
+  const accrualTotal = poolSpent + ptsCostA;   // 计提口径：奖金池 + 积分计提
+  const cashTotal    = poolSpent + cashRedeem; // 实付口径：奖金池 + 已批兑付
+  const settled = !W.unsettled;
+  const mainTotal = settled ? cashTotal : accrualTotal;  // 未结算→计提 · 已结算→实付
+  const costModel = {
+    settled,
+    pool: poolSpent,
+    accrual: { pts_cost: ptsCostA, total: accrualTotal, cpo: ordersWk? +(accrualTotal/ordersWk).toFixed(2):null },
+    cash:    { redeem: cashRedeem, total: cashTotal,    cpo: ordersWk? +(cashTotal/ordersWk).toFixed(2):null },
+    pending: ptsAccrued,
+    main_total: mainTotal,
+    main_basis: settled ? 'cash' : 'accrual',
+    issued_pts: issuedPts, redeemed_pts_wk: Math.round((Array.isArray(rb)? rb.filter(r=>r.kind==='completed'&&r.cost_week===weekStart).reduce((a,r)=>a+(+r.pts||0),0):0))
+  };
   const cpo = {
     orders: Math.round(ordersWk), hours: Math.round(hoursWk), issued_pts: issuedPts,
     pool_cpo:   ordersWk? +(poolSpent/ordersWk).toFixed(2) : null,
-    points_cpo: ordersWk? +(Math.round(issuedPts*RATE)/ordersWk).toFixed(2) : null,
-    total_cpo:  ordersWk? +((poolSpent+Math.round(issuedPts*RATE))/ordersWk).toFixed(2) : null,
-    redeem_cpo: ordersWk? +(redeemWeekCash/ordersWk).toFixed(2) : null,
-    cum_orders: Math.round(cumOrdersAll)
+    points_cpo: ordersWk? +(ptsCostA/ordersWk).toFixed(2) : null,
+    accrual_cpo: ordersWk? +(accrualTotal/ordersWk).toFixed(2) : null,
+    cash_cpo:    ordersWk? +(cashTotal/ordersWk).toFixed(2) : null,
+    total_cpo:  ordersWk? +(mainTotal/ordersWk).toFixed(2) : null,
+    redeem_cpo: ordersWk? +(cashRedeem/ordersWk).toFixed(2) : null,
+    cum_orders: Math.round(cumOrdersAll),
+    online_riders: online_riders,
+    hr_per_rider_day: (online_riders && dates.length)? +(hoursWk/online_riders/dates.length).toFixed(1) : null
   };
   // 按城市：奖金池/积分/兑换成本 + 单均
   const cityAgg={};
-  by_vendor.forEach(v=>{ const ct=(city[v.vc]||'其它'); if(!cityAgg[ct]) cityAgg[ct]={city:ct,vendors:0,alloc:0,orders:0,riders:0,redeem:0};
+  by_vendor.forEach(v=>{ const ct=cityOf(v.vc); if(!cityAgg[ct]) cityAgg[ct]={city:ct,vendors:0,alloc:0,orders:0,riders:0,redeem:0};
     const a=cityAgg[ct]; a.vendors++; a.alloc+=v.alloc; a.orders+=v.orders; a.riders+=v.riders; a.redeem+=(redeemByV[norm(v.vc)]||0); });
   const by_city=Object.values(cityAgg).map(a=>{ const issued=Math.round((baseByCity[a.city]||0)+(pkByCity[a.city]||0)); const ptsCost=Math.round(issued*RATE);
     return {...a, issued_pts:issued, pts_cost:ptsCost, pool_cost:a.alloc,
@@ -385,7 +424,7 @@ function buildM(weekKey){
   // 骑手积分账本：本周日常/PK/发生额 · 本周兑换 · 待同意 · 累计发放 · 当前余额
   const ledger = by_vendor.map(v=>{ const nv=norm(v.vc); const gross=Math.round(cumByV[v.vc]||0);
     const redAll=Math.round(redeemAllByV[nv]||0); const pend=Math.round(pendByV[nv]||0);
-    return { vc:v.vc, mgr:v.mgr, city:city[v.vc]||'', daily:v.daily, pk:v.pk, occur:v.daily+v.pk,
+    return { vc:v.vc, mgr:v.mgr, city:cityOf(v.vc), daily:v.daily, pk:v.pk, occur:v.daily+v.pk,
       redeem_wk:Math.round(redeemByV[nv]||0), pending:pend, gross:gross, redeemed:redAll,
       balance: gross-redAll-pend, riders:v.riders }; });
   // RM 胜率
@@ -417,7 +456,7 @@ function buildM(weekKey){
     generated: new Date().toISOString().slice(0,19), points_basis:'points',
     budget: BUDGET, exchange,
     cost: { vendor_pool_spent: POOL, exchange_spent: Math.round(exPaid), pt_spent:null, total_spent: POOL + Math.round(exPaid) },
-    cpo, by_city, by_board, projected, ledger, ledgerSummary, rmWin, budgetProgress,
+    cpo, costModel, by_city, by_board, projected, ledger, ledgerSummary, rmWin, budgetProgress,
     issued: { pts: issuedPts, base: Math.round(issuedBase), pk: Math.round(issuedPK), rate: RATE, accrued: ptsAccrued, pending_pts: Math.round(pendPts) },
     redeem: { week_paid: Math.round(redeemWeekCash), pending: Math.round(pendCash), pending_pts: Math.round(pendPts), week_start: weekStart, available: !!rb },
     vendor_pool: { amount: POOL, distributed: Object.values(alloc).reduce((a,b)=>a+b,0),
@@ -434,6 +473,8 @@ const n0=n=>(n==null?'—':Math.round(n).toLocaleString('en-US'));
 const money=n=>(n==null?'—':Math.round(n).toLocaleString('en-US'));
 const cpoFmt=n=>(n==null?'<span class="muted">—</span>':n.toFixed(2));
 const pct=n=>(n==null?'—':(n*100).toFixed(1)+'%');
+function lcStep(lab,val,sub,cls){ return `<div class="lcs"><div class="lcl">${lab}</div><div class="lcv ${cls||''}">${val}</div><div class="lcsub">${sub||''}</div></div>`; }
+function lcArrow(t){ return `<div class="lca"><div class="lcaT">${t||''}</div><div style="font-size:18px">→</div></div>`; }
 let _M=null, _ptsDim='vendor';
 
 function goScreen(s){
@@ -448,51 +489,96 @@ function renderAll(M){ _M=M; renderOv(M); renderPool(M); renderPts(M);
 
 /* ---------- ① 成本总览 ---------- */
 function renderOv(M){
-  const c=M.cpo, b=M.budget, ex=M.exchange, bp=M.budgetProgress, iss=M.issued;
+  const c=M.cpo, b=M.budget, ex=M.exchange, bp=M.budgetProgress, iss=M.issued, cm=M.costModel;
   const cpoHint = (c.orders? '' : ' <span class="muted">(待补)</span>');
-  const poolCost=M.cost.vendor_pool_spent, ptsCost=Math.round(iss.pts*iss.rate), totalCost=poolCost+ptsCost;
   const card=k=>`<div class="kc ${k[0]}"><div class="lab">${k[1]}</div><div class="val">${k[2]}</div><div class="sub">${k[3]}</div></div>`;
   const grp=(title,hint,cards)=>`<div class="kgroup"><div class="kgt">${title}<span class="kgh">${hint||''}</span></div><div class="kgrid">${cards.map(card).join('')}</div></div>`;
-  const costCards=[
-    ['o','奖金池成本', money(poolCost), '本周已发 · 比索'],
-    ['v','积分成本', money(ptsCost), '本周新发积分×'+iss.rate+' · 新增负债'],
-    ['a','总成本', money(totalCost), '奖金池+积分 · 比索']
-  ];
-  const cpoCards=[
-    ['o','奖金池单均', cpoFmt(c.pool_cpo), '比索/单'+cpoHint],
-    ['v','积分单均', cpoFmt(c.points_cpo), '比索/单'+cpoHint],
-    ['a','总单均', cpoFmt(c.total_cpo), '比索/单'+cpoHint],
-    ['g','兑换单均', cpoFmt(c.redeem_cpo), '累计兑付÷累计完单']
-  ];
-  const volCards=[
-    ['','本周完单', n0(c.orders), c.orders? ('在线 '+n0(c.hours)+' 小时'):'本周暂无完单数据'],
-    ['g','本周发放积分', n0(iss.pts), '日常 '+n0(iss.base)+' + PK '+n0(iss.pk)],
-    ['a','待批计提(预告)', money(iss.accrued), n0(iss.pending_pts)+' 分待审批·不计入合计']
-  ];
-  let html=grp('💰 本周成本','奖金池=已发现金 · 积分成本=本周新欠骑手的积分负债',costCards)
-          +grp('📐 单均成本','比索 / 单',cpoCards)
-          +grp('📦 业务量 & 待批','待审批兑付=骑手已申请、等你点头转现金的部分',volCards);
 
-  // 本周总成本（按板块 · A口径）
-  html+=`<div class="panel"><h3>本周成本 · 按板块 <span class="hint">${M.label} · A口径：计提是预告不计入合计</span></h3>
-   <table><thead><tr><th>板块</th><th class="num">金额(比索)</th><th>口径</th></tr></thead><tbody>`
-   +M.by_board.map(x=>{ const st=x.kind==='total'?'font-weight:700;border-top:2px solid var(--orange)':(x.kind==='memo'?'color:var(--amber)':'');
-     return `<tr style="${st}"><td>${x.name}</td><td class="num">${money(x.spent)}</td><td class="muted">${x.note}</td></tr>`;}).join('')
-   +`</tbody></table>`
-   +(M.projected?`<div style="font-size:12px;color:var(--amber);margin-top:10px">📈 预估：本周已出 ${M.projected.days_done} 天 · 积分计提按日均外推全周约 <b>${money(M.projected.pts_proj)}</b> 比索（未结算·参考）</div>`:'')
-   +`</div>`;
-
-  // 两条预算进度
-  html+=`<div class="panel"><h3>预算进度 <span class="hint">总额 ${money(b.total)} · 已用 ${money(M.cost.total_spent)} (${pct(M.cost.total_spent/b.total)})</span></h3>
-   ${progBar('🏆 Vendor 奖金池', bp.vendor_used, bp.vendor_total, 'linear-gradient(90deg,#FF7A00,#FF9A3D)', bp.settled_weeks+' 周已结算')}
-   ${progBar('🎟️ 骑手积分兑换', bp.exchange_used, bp.exchange_total, 'linear-gradient(90deg,#2f6fb0,#5a9bd8)', '累计已兑付'+(ex.available?' · 处理中 '+money(ex.pending):''))}
+  // 顶部：本周总成本（按结算状态自动取口径）
+  const badge = cm.settled
+    ? '<span class="cbadge ok">🟢 已结算 · 实付口径</span>'
+    : '<span class="cbadge warn">🟡 未结算 · 计提暂估</span>';
+  const mainCpo = cm.settled ? cm.cash.cpo : cm.accrual.cpo;
+  let html=`<div class="panel" style="background:linear-gradient(135deg,rgba(255,122,0,.08),transparent)">
+     <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
+       <div><div style="font-size:12px;color:var(--mut2)">本周总成本 · ${M.label} ${badge}</div>
+         <div class="big" style="font-size:34px;margin-top:4px">${money(cm.main_total)} <span style="font-size:13px;color:var(--mut)">比索</span></div>
+         <div style="font-size:11.5px;color:var(--mut);margin-top:3px">${cm.settled?'= 奖金池 '+money(cm.pool)+' + 实付兑换 '+money(cm.cash.redeem):'= 奖金池 '+money(cm.pool)+' + 积分计提 '+money(cm.accrual.pts_cost)}</div></div>
+       <div style="text-align:right"><div style="font-size:11px;color:var(--mut2)">总单均</div><div class="big" style="font-size:24px">${cpoFmt(mainCpo)}</div><div style="font-size:11px;color:var(--mut2)">比索/单</div></div>
+     </div>
+     <div style="font-size:11.5px;color:var(--mut2);margin-top:10px;line-height:1.6">${cm.settled?'本周兑换已审批定案，总成本按<b>实际兑付</b>口径。':'本周未结算：总成本先按<b>计提</b>（权责发生制）暂估，下周一审批兑换后切换为<b>实付</b>口径定案。'}</div>
    </div>`;
 
-  // 按城市（成本 + 单均）
+  // 积分生命周期线
+  html+=`<div class="panel"><h3>积分生命周期 <span class="hint">发生 → 余额 → 申请 → 兑付</span></h3>
+    <div class="lifecycle">
+      ${lcStep('本周发生积分', n0(cm.issued_pts), '×0.5 = 计提 '+money(cm.accrual.pts_cost), 'g')}
+      ${lcArrow('权责计提')}
+      ${lcStep('累计积分余额', n0(M.ledgerSummary.end), '骑手可在 7/15 前任意时点兑', '')}
+      ${lcArrow('骑手申请')}
+      ${lcStep('待审批兑付', money(cm.pending), n0(iss.pending_pts)+' 分 · 待你批', 'a')}
+      ${lcArrow('周一批准')}
+      ${lcStep('本周实付兑现', money(cm.cash.redeem), c.redeem_cpo!=null?'实付单均 '+cpoFmt(cm.cash.cpo):'本周已批兑付', 'o')}
+    </div></div>`;
+
+  // 三层口径
+  html+=`<div class="cols2">
+    <div class="panel ${!cm.settled?'hl':''}"><h3>① 计提成本 <span class="hint">权责发生制 · 实时${!cm.settled?' · 本周主口径':''}</span></h3>
+      <table><tbody>
+        <tr><td>奖金池(当周)</td><td class="num">${money(cm.pool)}</td></tr>
+        <tr><td>积分计提 <span class="muted">(发生${n0(cm.issued_pts)}×0.5)</span></td><td class="num">${money(cm.accrual.pts_cost)}</td></tr>
+        <tr style="border-top:2px solid var(--violet);font-weight:700"><td>计提总成本</td><td class="num">${money(cm.accrual.total)}</td></tr>
+        <tr><td class="muted">计提单均</td><td class="num">${cpoFmt(cm.accrual.cpo)}</td></tr>
+      </tbody></table>
+      <div class="foot">这周新发生、迟早要兑付的负债（钱还没出）</div></div>
+
+    <div class="panel ${cm.settled?'hl':''}"><h3>② 实付成本 <span class="hint">收付实现制 · 实时${cm.settled?' · 本周主口径':''}</span></h3>
+      <table><tbody>
+        <tr><td>奖金池(当周)</td><td class="num">${money(cm.pool)}</td></tr>
+        <tr><td>已批兑付 <span class="muted">(本周归集)</span></td><td class="num">${money(cm.cash.redeem)}</td></tr>
+        <tr style="border-top:2px solid var(--orange);font-weight:700"><td>实付总成本</td><td class="num">${money(cm.cash.total)}</td></tr>
+        <tr><td class="muted">实付单均</td><td class="num">${cpoFmt(cm.cash.cpo)}</td></tr>
+      </tbody></table>
+      <div class="foot">这周实际批准兑付出去的现金（可能兑的是往周积分）</div></div>
+   </div>`;
+
+  // ③ 待定 + 业务量
+  html+=grp('📦 业务量 & 待定','待审批兑付=骑手已申请、等你周一批准转现金的部分（最终成本待定案）',[
+    ['','本周完单', n0(c.orders), c.orders? ('人均在线 '+(c.hr_per_rider_day!=null?c.hr_per_rider_day:'—')+' 小时/天 · '+n0(c.online_riders)+' 人在线'):'本周暂无完单数据'],
+    ['o','奖金池单均', cpoFmt(c.pool_cpo), '比索/单'+cpoHint],
+    ['g','兑换单均(累计)', cpoFmt(c.redeem_cpo), '累计兑付÷累计完单'],
+    ['a','待审批兑付', money(cm.pending), '下周一批准后转实付']
+  ]);
+
+    // （按板块明细已并入上方"三层口径"，不再单列）
+  // 预算进度：Vendor奖金池(单条) + 骑手积分(单条双色：满兑负债浅色 + 已兑付实色)
+  const liabilityPesos=Math.round((M.ledgerSummary.total_cum||0)*M.issued.rate);
+  const paidPesos=bp.exchange_used, exTot=bp.exchange_total;
+  const pLiab=Math.min(100,liabilityPesos/exTot*100), pPaid=Math.min(100,paidPesos/exTot*100);
+  html+=`<div class="panel"><h3>预算进度 <span class="hint">总额 ${money(b.total)}</span></h3>
+   ${progBar('🏆 Vendor 奖金池', bp.vendor_used, bp.vendor_total, 'linear-gradient(90deg,#FF7A00,#FF9A3D)', bp.settled_weeks+' 周已结算')}
+   <div style="margin:12px 0">
+     <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px">
+       <span>🎟️ 骑手积分兑换 <span class="muted">/ ${money(exTot)}</span></span>
+       <span class="muted">满兑负债 <b style="color:#5a9bd8">${money(liabilityPesos)}</b> · 已兑付 <b style="color:#43B581">${money(paidPesos)}</b></span></div>
+     <div style="position:relative;height:15px;background:var(--panel2);border-radius:8px;overflow:hidden;border:1px solid var(--line)">
+       <div style="position:absolute;left:0;top:0;height:100%;width:${pLiab}%;background:rgba(90,155,216,.40)"></div>
+       <div style="position:absolute;left:0;top:0;height:100%;width:${pPaid}%;background:linear-gradient(90deg,#2fae6a,#43B581);border-radius:8px"></div>
+     </div>
+     <div style="display:flex;gap:14px;font-size:11px;color:var(--mut2);margin-top:5px;flex-wrap:wrap">
+       <span><span style="display:inline-block;width:10px;height:10px;background:#43B581;border-radius:2px;vertical-align:middle"></span> 已兑付 ${pct(paidPesos/exTot)} · 真实现金已出</span>
+       <span><span style="display:inline-block;width:10px;height:10px;background:rgba(90,155,216,.40);border-radius:2px;vertical-align:middle"></span> 满兑负债 ${pct(liabilityPesos/exTot)} · 累计发放积分×${M.issued.rate}，假设全兑</span>
+     </div>
+   </div></div>`;
+
+  // 按城市（成本 + 单均）+ 合计行
+  const ct=M.by_city.reduce((a,c2)=>{a.vendors+=c2.vendors;a.riders+=c2.riders;a.orders+=c2.orders;a.alloc+=c2.alloc;a.pts_cost+=c2.pts_cost;a.redeem+=c2.redeem;return a;},{vendors:0,riders:0,orders:0,alloc:0,pts_cost:0,redeem:0});
+  const ctCpo=ct.orders?+((ct.alloc+ct.pts_cost)/ct.orders).toFixed(2):null;
   html+=`<div class="panel"><h3>成本 · 按城市</h3>
    <table><thead><tr><th>城市</th><th class="num">Vendor</th><th class="num">骑手</th><th class="num">完单</th><th class="num">奖金池</th><th class="num">积分成本</th><th class="num">兑换成本</th><th class="num">总单均</th></tr></thead><tbody>`
    +M.by_city.map(c2=>`<tr><td>${c2.city}</td><td class="num">${c2.vendors}</td><td class="num">${n0(c2.riders)}</td><td class="num">${n0(c2.orders)}</td><td class="num">${money(c2.alloc)}</td><td class="num">${money(c2.pts_cost)}</td><td class="num">${money(c2.redeem)}</td><td class="num">${cpoFmt(c2.total_cpo)}</td></tr>`).join('')
-   +`</tbody></table><div class="foot">兑换成本经 rider_id 反查 vendor 归集到城市 · 单均=比索/单</div></div>`;
+   +`<tr style="border-top:2px solid var(--line);font-weight:700"><td>合计</td><td class="num">${ct.vendors}</td><td class="num">${n0(ct.riders)}</td><td class="num">${n0(ct.orders)}</td><td class="num">${money(ct.alloc)}</td><td class="num">${money(ct.pts_cost)}</td><td class="num">${money(ct.redeem)}</td><td class="num">${cpoFmt(ctCpo)}</td></tr>`
+   +`</tbody></table><div class="foot">兑换成本经 rider_id 反查 vendor 归集到城市 · "其它"=vendor_city 表缺城市映射 · 单均=比索/单</div></div>`;
   $('scrOv').innerHTML=html;
 }
 function progBar(label, used, total, color, sub){
@@ -515,7 +601,7 @@ function renderPool(M){
      <table style="margin-top:10px"><thead><tr><th>RM</th><th class="num">Vendor数</th><th class="num">骑手</th><th class="num">奖金池分配(比索)</th><th class="num">占比</th><th class="num">PK胜率</th></tr></thead><tbody>
      ${rm.map(x=>`<tr><td>${x.mgr}</td><td class="num">${x.vendors}</td><td class="num">${n0(x.riders)}</td><td class="num">${money(x.alloc)}</td><td class="num">${pct(x.alloc/vp.amount)}</td><td class="num">${x.played?pct(x.win_rate):'—'}</td></tr>`).join('')}
      </tbody></table></div>
-   <div class="panel"><h3>Vendor 排行 & 掉队预警 <span class="hint">按奖金池计分排序 · By Vendor 胜率</span></h3>
+   <div class="panel"><h3>Vendor 排行 & 掉队预警 <span class="hint">按奖金池计分排序</span> <button class="dlbtn" onclick="exportVendorCSV()">⬇️ 导出全部CSV</button></h3>
      <table><thead><tr><th>#</th><th>Vendor</th><th>RM</th><th class="num">奖金池计分</th><th class="num">奖金池分配(比索)</th><th class="num">PK胜率</th></tr></thead><tbody>
      ${vp.by_vendor.slice(0,12).map(v=>`<tr><td>${v.rank}</td><td style="font-family:var(--mono);font-size:11px">${v.vc.slice(0,20)}</td><td>${v.mgr}</td><td class="num">${n0(v.total)}</td><td class="num">${money(v.alloc)}</td><td class="num">${v.played?pct(v.win_rate):'—'}</td></tr>`).join('')}
      </tbody></table>
@@ -530,6 +616,19 @@ function renderPool(M){
 
 /* ---------- ③ 骑手积分 ---------- */
 function setPtsDim(d){ _ptsDim=d; renderPts(_M); reportH(); }
+function exportVendorCSV(){
+  const M=_M; if(!M){ return; }
+  const rows=M.vendor_pool.by_vendor.slice().sort((a,b)=>(a.rank||0)-(b.rank||0));
+  const head=['排名','Vendor','RM','城市','奖金池计分','奖金池分配(比索)','PK胜率','骑手数'];
+  const esc=v=>{ const s=String(v==null?'':v); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
+  const lines=[head.join(',')];
+  rows.forEach(v=>{ lines.push([v.rank, v.vc, v.mgr||'未分配', v.city||'其它', v.total, v.alloc, (v.played?(v.win_rate*100).toFixed(1)+'%':'—'), v.riders].map(esc).join(',')); });
+  const csv='\ufeff'+lines.join('\r\n');  // BOM 防 Excel 中文乱码
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=(M.week||'week')+'_vendor_奖金池分配_共'+rows.length+'家.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
 function renderPts(M){
   const ls=M.ledgerSummary, iss=M.issued;
   // 期初 → +发生 → −兑换 → 期末（净余额链）
@@ -569,7 +668,7 @@ function getM(k){ if(!WK_CACHE[k]) WK_CACHE[k]=buildM(k); return WK_CACHE[k]; }
 function setBanner(html,cls){ var b=document.getElementById('liveBanner'); if(b){ b.innerHTML=html; b.className='livebanner '+cls; } }
 function reportH(){ try{ if(window.parent && window.parent!==window){ var h=Math.max(document.body.scrollHeight, document.documentElement.scrollHeight); window.parent.postMessage({t:'sh', h:h}, '*'); } }catch(e){} }
 function flagUnsettled(m){ var w=document.getElementById('unsettledNote'); if(!w) return; if(m.unsettled){ w.style.display='block'; w.innerHTML='⚠️ <b>'+m.label+'</b>：本周尚未结束、未结算，数字会随后续每日数据继续变动，仅供参考。'; } else { w.style.display='none'; } }
-function selfCheckW1(){ try{ var m=getM('wk0601'); var d=m.vendor_pool.distributed,g=m.vendor_pool.total_points; var em=(m.vendor_pool.by_vendor.find(function(v){return v.vc==='EMILIODIDIMTY2512220';})||{}).total; var ok=(d===600000&&g===657585&&em===98540); if(ok) setBanner('🟢 自检通过 · W1 现算 = 官方基准（池 600,000 / 周总 657,585 / EMILIO 98,540）· 引擎可信','ok'); else setBanner('🔴 自检异常 · W1 池='+d+' 周总='+g+' EMILIO='+em,'bad'); }catch(e){ setBanner('🔴 自检出错：'+e.message,'bad'); } }
+function selfCheckW1(){ try{ var m=getM('wk0601'); var d=m.vendor_pool.distributed,g=m.vendor_pool.total_points; var em=(m.vendor_pool.by_vendor.find(function(v){return v.vc==='EMILIODIDIMTY2512220';})||{}).total; var ok=(d===600000&&g===657585&&em===98540); if(ok) setBanner('🟢 自检通过 · W1 现算 = 官方基准（池 600,000 / 周总 657,585 / EMILIO 98,540）· 引擎可信','ok'); else setBanner('🔴 自检异常','bad'); }catch(e){ setBanner('🔴 自检出错：'+e.message,'bad'); } }
 function showWeek(k){ var m=getM(k); renderAll(m); flagUnsettled(m); reportH(); setTimeout(reportH,400); setTimeout(reportH,1200); }
 async function boot(){ setBanner('⏳ 正在连接数据库并现算…','warn'); try{ await fetchBlocks(); var sel=document.getElementById('wkSel'); sel.innerHTML=''; Object.keys(WEEK_DEFS).forEach(function(k){ var o=document.createElement('option'); o.value=k; o.textContent=WEEK_DEFS[k].label; sel.appendChild(o); }); sel.value='wk0601'; sel.addEventListener('change',function(e){ showWeek(e.target.value); }); selfCheckW1(); showWeek('wk0601'); goScreen('ov'); }catch(e){ setBanner('🔴 读取数据库失败：'+e.message,'bad'); reportH(); console.error(e); } }
 window.addEventListener('resize', reportH);
