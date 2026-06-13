@@ -874,7 +874,7 @@ function renderPts(M){
 const WK_CACHE={};
 function getM(k){ if(!WK_CACHE[k]) WK_CACHE[k]=buildM(k); return WK_CACHE[k]; }
 function setBanner(html,cls){ var b=document.getElementById('liveBanner'); if(b){ b.innerHTML=(typeof SLANG!=='undefined'&&SLANG==='en')?translateZH(html):html; b.className='livebanner '+cls; } }
-function reportH(){ try{ if(window.parent && window.parent!==window){ var h=Math.max(document.body.scrollHeight, document.documentElement.scrollHeight); window.parent.postMessage({t:'sh', h:h}, '*'); } }catch(e){} }
+function reportH(){ try{ if(window.parent && window.parent!==window){ var w=document.querySelector('.wrap'); var h = w ? Math.ceil(w.getBoundingClientRect().bottom + 10) : Math.max(document.body.scrollHeight, document.documentElement.scrollHeight); window.parent.postMessage({t:'sh', h:h}, '*'); } }catch(e){} }
 function flagUnsettled(m){ var w=document.getElementById('unsettledNote'); if(!w) return; if(m.unsettled){ w.style.display='block'; var t='⚠️ <b>'+m.label+'</b>：本周尚未结束、未结算，数字会随后续每日数据继续变动，仅供参考。'; w.innerHTML=(typeof SLANG!=='undefined'&&SLANG==='en')?('⚠️ <b>'+m.label+'</b>: this week is not over / not settled; figures will keep changing with daily data — reference only.'):t; } else { w.style.display='none'; } }
 function selfCheckW1(){ try{ var m=getM('wk0601'); var d=m.vendor_pool.distributed,g=m.vendor_pool.total_points; var em=(m.vendor_pool.by_vendor.find(function(v){return v.vc==='EMILIODIDIMTY2512220';})||{}).total; var ok=(d===600000&&g===657585&&em===98540); if(ok) setBanner(SLANG==='en'?'🟢 Self-check OK · W1 live = official baseline (pool 600,000 / total 657,585 / EMILIO 98,540) · engine trusted':'🟢 自检通过 · W1 现算 = 官方基准（池 600,000 / 周总 657,585 / EMILIO 98,540）· 引擎可信','ok'); else setBanner(SLANG==='en'?'🔴 Self-check anomaly':'🔴 自检异常','bad'); }catch(e){ setBanner('🔴 '+e.message,'bad'); } }
 function showWeek(k){ window.__curWk=k; var m=getM(k); renderAll(m); flagUnsettled(m); reportH(); setTimeout(reportH,400); setTimeout(reportH,1200); }
@@ -887,6 +887,7 @@ async function boot(){ setBanner('⏳ 正在连接数据库并现算…','warn')
 }
 window.addEventListener('message', function(e){ if(e&&e.data&&e.data.t==='lang' && typeof applySettleLang==='function'){ applySettleLang(e.data.lang); } });
 window.addEventListener('resize', reportH);
+try{ if(window.ResizeObserver){ var _ro=new ResizeObserver(function(){ reportH(); }); var _w=document.querySelector('.wrap'); if(_w) _ro.observe(_w); } }catch(e){}
 if(window.supabase&&window.supabase.createClient){ boot(); } else { var t=setInterval(function(){ if(window.supabase&&window.supabase.createClient){ clearInterval(t); boot(); } },150); setTimeout(function(){ if(!window.supabase){ setBanner('🔴 supabase-js 没加载成功','bad'); reportH(); } },6000); }
 
 </script>

@@ -476,7 +476,7 @@ select.fi option{background:#18181E}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body data-lang="zh">
-<script>document.body.setAttribute('data-lang',localStorage.getItem('didi_lang')||'zh');</script>
+<script>(function(){var _l=localStorage.getItem('didi_lang')||'zh';if(_l==='en')_l='es';document.body.setAttribute('data-lang',_l);})();</script>
 
 <!-- NAV: 0=首页 1=规则 2=报名 3=赛程 4=配对 5=结果 6=骑手积分 7=配对系统 -->
 <nav class="nav">
@@ -3019,7 +3019,7 @@ async function renderDashboard(){
     var _langBar='<div style="display:flex;gap:6px;margin:2px 0 8px;align-items:center"><span style="font-size:11px;color:var(--muted2);margin-right:2px">'+L('看板语言','Idioma','Language')+':</span>'+_lb('inherit',L('跟随','Auto','Auto'))+_lb('zh','中文')+_lb('es','ES')+_lb('en','EN')+'</div>';
     var _tabBar='<div id="dashTabBar" style="display:flex;gap:8px;margin:2px 0 14px;flex-wrap:wrap">'
       +_dtb('ov',L('📊 总览','📊 Resumen','📊 Overview'))+_dtb('pk',L('🏁 PK 明细','🏁 PK','🏁 PK'))+_dtb('pt',L('🧩 PT 明细','🧩 PT','🧩 PT'))+_dtb('cost',L('💰 成本结算','💰 Costos','💰 Settlement'))+'</div>';
-    body.innerHTML=_tabBar+html+'<div class="dtab" data-t="cost" style="display:none"><div style="font-size:12px;color:var(--muted);margin-bottom:8px">'+L('实时奖金池结算 · 数据直读数据库 · 与运营指标同源','Liquidación en vivo · datos del mismo backend','Live settlement · same backend')+'</div><iframe id="costFrame" src="settlement.html?v=15" scrolling="no" style="width:100%;height:700px;border:1px solid var(--border);border-radius:12px;background:#0f1115;overflow:hidden;display:block" loading="lazy"></iframe></div>';
+    body.innerHTML=_tabBar+html+'<div class="dtab" data-t="cost" style="display:none"><div style="font-size:12px;color:var(--muted);margin-bottom:8px">'+L('实时奖金池结算 · 数据直读数据库 · 与运营指标同源','Liquidación en vivo · datos del mismo backend','Live settlement · same backend')+'</div><iframe id="costFrame" src="settlement.html?v=16" scrolling="no" style="width:100%;height:700px;border:1px solid var(--border);border-radius:12px;background:#0f1115;overflow:hidden;display:block" loading="lazy"></iframe></div>';
     dashShowTab(DASH_TAB||'ov');
     if(!window.__costFrameLis){ window.__costFrameLis=true; window.addEventListener('message',function(e){ try{ if(e&&e.data&&e.data.t==='sh'&&e.data.h){ var f=document.getElementById('costFrame'); if(f){ f.style.height=(Math.max(300,e.data.h)+16)+'px'; } } }catch(_){} }); }
     if(typeof renderTrendChart==='function')renderTrendChart();
@@ -3208,6 +3208,7 @@ function getSlotVals(prefix){return[0,1,2,3,4].map(i=>{const e=document.getEleme
 // BILINGUAL SYSTEM (中文 / Español)
 // ══════════════════════════════════════════════════════════
 let LANG = localStorage.getItem('didi_lang') || 'es';
+if(LANG==='en'){ LANG='es'; try{localStorage.setItem('didi_lang','es');}catch(e){} }  // 主网站只中/西，纠正历史残留的 en
 
 // Helper for inline dynamic strings: L('中文','Español'[,'English']). EN 缺省回退西语。
 function L(zh, es, en){ if(LANG==='en') return (en!==undefined?en:es); return LANG === 'es' ? es : zh; }
@@ -3275,10 +3276,9 @@ const I18N = {
 function t(key){ return (I18N[LANG] && I18N[LANG][key]) || (I18N.zh && I18N.zh[key]) || key; }
 
 function toggleLang(){
-  LANG = LANG === 'zh' ? 'es' : (LANG === 'es' ? 'en' : 'zh');
+  LANG = LANG === 'zh' ? 'es' : 'zh';
   localStorage.setItem('didi_lang', LANG);
   applyLang();
-  try{ var f=document.getElementById('costFrame'); if(f&&f.contentWindow) f.contentWindow.postMessage({t:'lang', lang:LANG}, '*'); }catch(e){}
 }
 
 function applyLang(){
@@ -3294,7 +3294,7 @@ function applyLang(){
   });
   // Toggle button label
   var btn = document.getElementById('langToggle');
-  if(btn) btn.textContent = LANG === 'zh' ? '🇪🇸 ES' : (LANG === 'es' ? '🇬🇧 EN' : '🇨🇳 中文');
+  if(btn) btn.textContent = LANG === 'zh' ? '🇪🇸 ES' : '🇨🇳 中文';
   // Logo sub
   var logoSub = document.querySelector('.logo-sub'); if(logoSub) logoSub.textContent = t('logo_sub');
   document.title = L('DiDi Alianza · 骑手PK赛平台','DiDi Alianza · Plataforma PK');
