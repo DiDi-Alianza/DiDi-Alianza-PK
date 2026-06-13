@@ -1606,7 +1606,7 @@ select.fi option{background:#18181E}
         <div style="font-family:Fraunces,serif;font-weight:600;font-size:24px;color:var(--text)"><span class="lc-zh">📊 PK 赛运营 Dashboard</span><span class="lc-es en-hide">📊 Dashboard de operaciones PK</span><span class="lc-en">📊 PK Operations Dashboard</span></div>
       </div>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-s btn-sm" onclick="toggleLang()" style="font-size:11px" title="切换语言 / Cambiar idioma / Switch"><span class="lc-zh">🇪🇸 ES</span><span class="lc-es en-hide">🇬🇧 EN</span><span class="lc-en">🇨🇳 中文</span></button>
+        <select id="dashLangSel" onchange="dashSetLang(this.value)" class="btn btn-s btn-sm" style="font-size:11px;cursor:pointer" title="看板语言 / Dashboard language"><option value="zh">🌐 中文</option><option value="en">🌐 English</option></select>
         <button id="dashUploadToggle" class="btn btn-s btn-sm" onclick="var b=document.getElementById('dashUploadBar');b.style.display=(b.style.display==='none'?'grid':'none')" style="font-size:11px"><span class="lc-zh">🗂️ 数据上传</span><span class="lc-es en-hide">🗂️ Datos</span><span class="lc-en">🗂️ Upload</span></button><button class="btn btn-s btn-sm" onclick="renderDashboard()" style="font-size:11px"><span class="lc-zh">🔄 刷新</span><span class="lc-es en-hide">🔄 Actualizar</span><span class="lc-en">🔄 Refresh</span></button>
         <button class="btn btn-s btn-sm" onclick="exportDashboard()" style="font-size:11px"><span class="lc-zh">⬇️ 导出</span><span class="lc-es en-hide">⬇️ Exportar</span><span class="lc-en">⬇️ Export</span></button>
         <button id="dashOpLogout" class="btn btn-s btn-sm" onclick="operatorLogout();closeDashboard();" style="font-size:11px"><span class="lc-zh">退出登录</span><span class="lc-es en-hide">Salir</span><span class="lc-en">Log out</span></button>
@@ -1734,15 +1734,20 @@ const TP_ZH = {weekend:'<span class="tp tp-wk">🏖️ 周末PK</span>',matchday
 const TP_ES = {weekend:'<span class="tp tp-wk">🏖️ PK Fin de semana</span>',matchday:'<span class="tp tp-md">⚽ PK Día de partido</span>',both:'<span class="tp tp-both">⚡ Fin de semana + Partido</span>',prewc:'<span class="tp tp-pre">🔥 PK Pre-Mundial</span>'};
 const TP = TP_ZH; // legacy alias
 function tp(type){ return LANG==='es' ? TP_ES[type] : TP_ZH[type]; }
-function sDate(s){return L(s.date,s.date_es);}
-function sDay(s){return L(s.day,s.day_es);}
+var _EN_DAY={'周一':'Mon','周二':'Tue','周三':'Wed','周四':'Thu','周五':'Fri','周六':'Sat','周日':'Sun'};
+var _EN_MON=['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function _enDate(zh){ var m=String(zh||'').match(/(\d+)月(\d+)日/); return m?(_EN_MON[+m[1]]+' '+(+m[2])):(zh||''); }
+function _enDay(zh){ return _EN_DAY[zh]||zh||''; }
+function _enName(zh,id){ var w=String(zh||'').match(/热身\s*(\d+)/); if(w) return 'Warm-up '+w[1]; var p=String(zh||'').match(/第\s*(\d+)\s*场/); if(p) return 'Match '+p[1]; return zh||('Match '+id); }
+function sDate(s){return LANG==='en'?_enDate(s.date):L(s.date,s.date_es);}
+function sDay(s){return LANG==='en'?_enDay(s.day):L(s.day,s.day_es);}
 function sDeadline(s){return L(s.deadline,s.deadline_es);}
 function sNote(s){return L(s.note,s.note_es);}
 function matchLabel(id){
   var all=(typeof PRE_SCHEDULE!=='undefined'?PRE_SCHEDULE:[]).concat(typeof SCHEDULE!=='undefined'?SCHEDULE:[]);
   var e=all.find(function(s){return String(s.id)===String(id);});
-  if(e&&e.name) return L(e.name, e.name_es||e.name);
-  return L('第'+id+'场','Partido '+id);
+  if(e&&e.name) return LANG==='en'?_enName(e.name,id):L(e.name, e.name_es||e.name);
+  return LANG==='en'?('Match '+id):L('第'+id+'场','Partido '+id);
 }
 function rTxt(res){ return res==='胜'?L('胜','Victoria'):res==='败'?L('败','Derrota'):(res||''); }
 // Score category labels and tags for new 6-category breakdown
@@ -2202,6 +2207,8 @@ async function openDashboard(){
   var ub=document.getElementById('dashUploadBar'); if(ub) ub.style.display='none';  // 默认收起，只靠右上角「🗂️数据上传」按钮展开
   var ubt=document.getElementById('dashUploadToggle'); if(ubt) ubt.style.display=isOp?'inline-flex':'none';  // 上传按钮仅运营可见
   var lo=document.getElementById('dashOpLogout'); if(lo) lo.style.display=isOp?'inline-flex':'none';
+  document.body.setAttribute('data-lang', DASH_LANG);  // 看板按自己的语言(中/英)
+  var dls=document.getElementById('dashLangSel'); if(dls) dls.value=DASH_LANG;
   renderDashboard();
 }
 // 上传 附件1：Vendor ↔ RM/VM 清单（列：VM、RM、VENDOR Code）
@@ -2282,6 +2289,7 @@ function handleRosterUpload(file){
 function closeDashboard(){
   var d=document.getElementById('pDash'); if(d) d.style.display='none';
   document.body.style.overflow='';
+  try{ document.body.setAttribute('data-lang', LANG); }catch(e){}  // 恢复公开页语言
   if(location.hash==='#dashboard'){ history.replaceState(null,'',location.pathname+location.search); }
 }
 function _card(label,value,sub){
@@ -3011,7 +3019,7 @@ async function renderDashboard(){
     var _langBar='<div style="display:flex;gap:6px;margin:2px 0 8px;align-items:center"><span style="font-size:11px;color:var(--muted2);margin-right:2px">'+L('看板语言','Idioma','Language')+':</span>'+_lb('inherit',L('跟随','Auto','Auto'))+_lb('zh','中文')+_lb('es','ES')+_lb('en','EN')+'</div>';
     var _tabBar='<div id="dashTabBar" style="display:flex;gap:8px;margin:2px 0 14px;flex-wrap:wrap">'
       +_dtb('ov',L('📊 总览','📊 Resumen','📊 Overview'))+_dtb('pk',L('🏁 PK 明细','🏁 PK','🏁 PK'))+_dtb('pt',L('🧩 PT 明细','🧩 PT','🧩 PT'))+_dtb('cost',L('💰 成本结算','💰 Costos','💰 Settlement'))+'</div>';
-    body.innerHTML=_tabBar+html+'<div class="dtab" data-t="cost" style="display:none"><div style="font-size:12px;color:var(--muted);margin-bottom:8px">'+L('实时奖金池结算 · 数据直读数据库 · 与运营指标同源','Liquidación en vivo · datos del mismo backend','Live settlement · same backend')+'</div><iframe id="costFrame" src="settlement.html?v=14" scrolling="no" style="width:100%;height:700px;border:1px solid var(--border);border-radius:12px;background:#0f1115;overflow:hidden;display:block" loading="lazy"></iframe></div>';
+    body.innerHTML=_tabBar+html+'<div class="dtab" data-t="cost" style="display:none"><div style="font-size:12px;color:var(--muted);margin-bottom:8px">'+L('实时奖金池结算 · 数据直读数据库 · 与运营指标同源','Liquidación en vivo · datos del mismo backend','Live settlement · same backend')+'</div><iframe id="costFrame" src="settlement.html?v=15" scrolling="no" style="width:100%;height:700px;border:1px solid var(--border);border-radius:12px;background:#0f1115;overflow:hidden;display:block" loading="lazy"></iframe></div>';
     dashShowTab(DASH_TAB||'ov');
     if(!window.__costFrameLis){ window.__costFrameLis=true; window.addEventListener('message',function(e){ try{ if(e&&e.data&&e.data.t==='sh'&&e.data.h){ var f=document.getElementById('costFrame'); if(f){ f.style.height=(Math.max(300,e.data.h)+16)+'px'; } } }catch(_){} }); }
     if(typeof renderTrendChart==='function')renderTrendChart();
@@ -3204,8 +3212,13 @@ let LANG = localStorage.getItem('didi_lang') || 'es';
 // Helper for inline dynamic strings: L('中文','Español'[,'English']). EN 缺省回退西语。
 function L(zh, es, en){ if(LANG==='en') return (en!==undefined?en:es); return LANG === 'es' ? es : zh; }
 // Dashboard 专用语言（独立于全站语言）：'inherit' 跟随全站，或 'zh'/'es'/'en'
-let DASH_LANG = localStorage.getItem('didi_dash_lang') || 'inherit';
-function dashSetLang(v){ DASH_LANG=v; try{localStorage.setItem('didi_dash_lang',v);}catch(e){} renderDashboard(); }
+let DASH_LANG = localStorage.getItem('didi_dash_lang') || 'zh';
+if(DASH_LANG!=='zh' && DASH_LANG!=='en') DASH_LANG='zh';  // 看板只中/英
+function dashSetLang(v){ DASH_LANG=(v==='en')?'en':'zh'; try{localStorage.setItem('didi_dash_lang',DASH_LANG);}catch(e){}
+  document.body.setAttribute('data-lang', DASH_LANG);  // 外框 lc- 文案跟随
+  try{ var f=document.getElementById('costFrame'); if(f&&f.contentWindow) f.contentWindow.postMessage({t:'lang', lang:DASH_LANG}, '*'); }catch(e){}  // 结算 iframe 跟随
+  renderDashboard();
+}
 // 在 Dashboard 渲染期间临时切换语言
 function _dashLangApply(){ if(DASH_LANG!=='inherit'){ window._SAVED_LANG=LANG; LANG=DASH_LANG; } }
 function _dashLangRestore(){ if(window._SAVED_LANG!==undefined){ LANG=window._SAVED_LANG; delete window._SAVED_LANG; } }

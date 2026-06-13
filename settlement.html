@@ -879,7 +879,7 @@ function flagUnsettled(m){ var w=document.getElementById('unsettledNote'); if(!w
 function selfCheckW1(){ try{ var m=getM('wk0601'); var d=m.vendor_pool.distributed,g=m.vendor_pool.total_points; var em=(m.vendor_pool.by_vendor.find(function(v){return v.vc==='EMILIODIDIMTY2512220';})||{}).total; var ok=(d===600000&&g===657585&&em===98540); if(ok) setBanner(SLANG==='en'?'🟢 Self-check OK · W1 live = official baseline (pool 600,000 / total 657,585 / EMILIO 98,540) · engine trusted':'🟢 自检通过 · W1 现算 = 官方基准（池 600,000 / 周总 657,585 / EMILIO 98,540）· 引擎可信','ok'); else setBanner(SLANG==='en'?'🔴 Self-check anomaly':'🔴 自检异常','bad'); }catch(e){ setBanner('🔴 '+e.message,'bad'); } }
 function showWeek(k){ window.__curWk=k; var m=getM(k); renderAll(m); flagUnsettled(m); reportH(); setTimeout(reportH,400); setTimeout(reportH,1200); }
 async function boot(){ setBanner('⏳ 正在连接数据库并现算…','warn'); try{ await fetchBlocks(); var sel=document.getElementById('wkSel'); sel.innerHTML=''; Object.keys(WEEK_DEFS).forEach(function(k){ var o=document.createElement('option'); o.value=k; o.textContent=WEEK_DEFS[k].label; sel.appendChild(o); }); sel.value='wk0601'; sel.addEventListener('change',function(e){ showWeek(e.target.value); });
-  var initLang='zh'; try{ initLang=localStorage.getItem('didi_lang')||'zh'; }catch(e){}
+  var initLang='zh'; try{ initLang=localStorage.getItem('didi_dash_lang')||localStorage.getItem('didi_lang')||'zh'; }catch(e){}
   if(typeof applySettleLang==='function'){ SLANG=(initLang==='zh')?'zh':'en'; try{document.body.setAttribute('data-lang',SLANG);}catch(_){ } }
   selfCheckW1(); window.__curWk='wk0601'; showWeek('wk0601'); goScreen('ov');
   if(typeof applySettleLang==='function' && SLANG==='en'){ applySettleLang('en'); }
