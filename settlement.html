@@ -108,7 +108,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
   <div class="logo">D</div>
   <div><div class="h1">结算指挥台</div><div class="sub">DiDi Alianza · 世界杯激励 · 成本中台</div></div>
   <div class="spacer"></div>
-  <div class="wksel">结算周 <select id="wkSel"></select></div>
+  <div class="wksel"><span id="wkSelLbl">结算周</span> <select id="wkSel"></select></div>
  </div>
  <div id="liveBanner" class="livebanner warn">⏳ 初始化…</div>
  <div id="unsettledNote" style="display:none"></div>
@@ -128,6 +128,212 @@ tr:hover td{background:rgba(255,255,255,.02)}
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
+// 结算页中→英词典（英文展示用）。渲染后对容器做"中文段替换"，按长度从长到短，保留数字与标记。
+var ZH2EN = {
+  "这周实际批准兑付出去的现金":"Cash actually approved and paid out this week",
+  "等你周一批准转现金的部分":"awaiting your Monday approval to become cash",
+  "下周一审批兑换后切换为":"after next Monday's redemption approval switches to",
+  "从下周起按快照更精确":"more precise from next week via snapshots",
+  "按板块明细已并入上方":"segment breakdown merged above",
+  "按结算状态自动取口径":"basis auto-selected by settlement state",
+  "下周一审批后转兑换":"becomes redemption after next Mon. approval",
+  "下周一批准后转实付":"becomes cash after next Mon. approval",
+  "可能兑的是往周积分":"may redeem points earned in prior weeks",
+  "期末由当前累计反推":"ending balance derived from current cumulative",
+  "本周兑换已审批定案":"this week's redemptions approved and final",
+  "按奖金池计分排序":"sorted by pool score",
+  "按本周发生额排序":"sorted by this week's issued",
+  "未结算·仅供参考":"Unsettled · reference only",
+  "本周暂无完单数据":"no order data this week yet",
+  "迟早要兑付的负债":"liability to be paid eventually",
+  "与运营指标同源":"same source as ops metrics",
+  "最终成本待定案":"final cost pending",
+  "积分生命周期线":"Points lifecycle",
+  "前任意时点兑":"can redeem anytime before",
+  "本周发生积分":"Points issued this week",
+  "本周实付兑现":"Cash paid this week",
+  "本周已批兑付":"Approved & paid this week",
+  "满兑负债浅色":"full-redemption liability (light)",
+  "真实现金已出":"real cash already out",
+  "积分生命周期":"Points lifecycle",
+  "累计发放积分":"Cumulative points issued",
+  "累计积分余额":"Cumulative points balance",
+  "表缺城市映射":"missing city mapping in table",
+  "骑手积分兑换":"Rider points redemption",
+  "骑手积分账本":"Rider points ledger",
+  "世界杯激励":"World Cup Incentive",
+  "兑换成本经":"Redemption cost via",
+  "历史周期初":"historical week opening",
+  "奖金池分析":"Pool Analysis",
+  "奖金池分配":"Pool allocation",
+  "奖金池单均":"Pool per-order",
+  "奖金池计分":"Pool score",
+  "实付总成本":"Cash total cost",
+  "已兑付实色":"paid (solid)",
+  "归集到城市":"attributed to city",
+  "待审批兑付":"Pending payout",
+  "总成本先按":"total cost first by",
+  "按维度拆分":"Split by dimension",
+  "收付实现制":"cash basis",
+  "本周主口径":"this week's main basis",
+  "本周发生额":"Issued this week",
+  "本周总成本":"Total cost this week",
+  "本周无异常":"no anomalies this week",
+  "本周未结算":"this week unsettled",
+  "权责发生制":"accrual basis",
+  "结算指挥台":"Settlement Command Center",
+  "计提总成本":"Accrued total cost",
+  "这周新发生":"newly issued this week",
+  "骑手·本周":"riders · this week",
+  "骑手已申请":"rider has applied",
+  "三层口径":"Three-layer basis",
+  "不再单列":"no longer listed separately",
+  "中文乱码":"garbled text",
+  "人均在线":"Avg online",
+  "假设全兑":"assume fully redeemed",
+  "兑换单均":"Redemption per-order",
+  "兑换成本":"Redemption cost",
+  "净余额链":"Net balance chain",
+  "单条双色":"single dual-color bar",
+  "口径定案":"basis finalized",
+  "周一批准":"Mon. approval",
+  "周已结算":"week(s) settled",
+  "实付兑换":"cash redemption",
+  "实付单均":"Cash per-order",
+  "实付口径":"cash basis",
+  "实付成本":"Cash cost",
+  "实时现算":"live computed",
+  "实际兑付":"actual payout",
+  "导出全部":"Export all",
+  "已批兑付":"approved payout",
+  "总成本按":"total cost by",
+  "成本中台":"Cost hub",
+  "成本总览":"Cost Overview",
+  "掉队预警":"Laggard alerts",
+  "期初余额":"Opening balance",
+  "期末余额":"Ending balance",
+  "本周兑换":"Redeemed this week",
+  "本周发生":"Issued this week",
+  "本周完单":"Orders this week",
+  "本周归集":"attributed this week",
+  "本周日常":"Daily this week",
+  "权责计提":"accrual",
+  "渠道经理":"Channel Manager",
+  "满兑负债":"Full-redemption liability",
+  "积分成本":"Points cost",
+  "积分计提":"Points accrual",
+  "累计兑付":"cumulative paid",
+  "累计兑换":"cumulative redeemed",
+  "累计发放":"cumulative issued",
+  "累计完单":"cumulative orders",
+  "计提单均":"Accrual per-order",
+  "计提成本":"Accrued cost",
+  "计提暂估":"accrual estimate",
+  "负分兜底":"negative score",
+  "钱还没出":"cash not yet out",
+  "预算进度":"Budget progress",
+  "骑手可在":"riders may, ",
+  "骑手申请":"rider applies",
+  "骑手积分":"Rider Points",
+  "业务量":"Volume",
+  "人在线":"online",
+  "兑换经":"redemption via",
+  "净余额":"Net balance",
+  "分配池":"allocated pool",
+  "初始化":"Initializing",
+  "发生额":"issued",
+  "合计行":"total row",
+  "周总分":"Week score",
+  "奖金池":"Pool",
+  "已兑付":"Paid",
+  "已结算":"Settled",
+  "待你批":"awaiting your approval",
+  "总单均":"Total per-order",
+  "按城市":"by City",
+  "无完单":"no orders",
+  "显示前":"showing top",
+  "未分配":"Unassigned",
+  "未结算":"Unsettled",
+  "结算周":"Settlement week",
+  "骑手数":"Riders",
+  "余额":"balance",
+  "兑付":"payout",
+  "兑换":"Redeem",
+  "其它":"Other",
+  "分配":"Allocation",
+  "单均":"per-order",
+  "单条":"single",
+  "占比":"Share",
+  "反查":"lookup",
+  "发生":"issued",
+  "口径":"basis",
+  "合计":"Total",
+  "城市":"City",
+  "完单":"Orders",
+  "实付":"Cash",
+  "实时":"live",
+  "小时":"h",
+  "归集":"attributed",
+  "当周":"week's",
+  "待定":"Pending",
+  "待批":"Pending",
+  "待补":"TBD",
+  "总额":"Total",
+  "成本":"Cost",
+  "排名":"Rank",
+  "排行":"Ranking",
+  "日常":"Daily",
+  "暂估":"estimate",
+  "期初":"Opening",
+  "期末":"Ending",
+  "本周":"this week",
+  "比索":"MXN",
+  "渲染":"render",
+  "燃尽":"burndown",
+  "生成":"Generated",
+  "申请":"applied",
+  "累计":"Cumulative",
+  "维度":"dimension",
+  "胜率":"Win rate",
+  "自检":"Self-check",
+  "计入":"counted",
+  "计提":"Accrual",
+  "顶部":"top",
+  "预警":"Alert",
+  "骑手":"Rider",
+  "个":"",
+  "共":"total",
+  "分":"pts",
+  "单":"order",
+  "天":"d",
+  "家":"",
+  "数":"count",
+  "防":"prevent",
+  "，":", ","：":": ","、":", ","；":"; ","（":" (","）":") "
+};
+var ZH2EN_KEYS = Object.keys(ZH2EN).sort(function(a,b){ return b.length-a.length; }); // 长→短
+function translateZH(html){
+  if(!html) return html;
+  for(var i=0;i<ZH2EN_KEYS.length;i++){ var k=ZH2EN_KEYS[i]; if(html.indexOf(k)>=0){ html=html.split(k).join(ZH2EN[k]); } }
+  return html;
+}
+var SLANG='zh', _origChrome=null;
+function _cacheChrome(){
+  if(_origChrome) return;
+  _origChrome={};
+  ['.h1','.sub','#wkSelLbl','.side'].forEach(function(sel){ var el=document.querySelector(sel); if(el) _origChrome[sel]=el.innerHTML; });
+}
+function applySettleLang(lang){
+  SLANG=(lang==='zh')?'zh':'en';  // 非中文一律英文（展示用）
+  try{ document.body.setAttribute('data-lang', SLANG); }catch(e){}
+  _cacheChrome();
+  Object.keys(_origChrome).forEach(function(sel){ var el=document.querySelector(sel); if(el) el.innerHTML = (SLANG==='en')? translateZH(_origChrome[sel]) : _origChrome[sel]; });
+  // 文档标题
+  try{ document.title = (SLANG==='en')? 'DiDi Alianza · Settlement Command Center' : 'DiDi Alianza · 结算指挥台'; }catch(e){}
+  // 重渲染当前周（renderAll 会按 SLANG 翻译屏幕；banner/note 也重设）
+  if(window.__curWk && typeof showWeek==='function'){ showWeek(window.__curWk); }
+}
+
 /* ===== DiDi Alianza · 结算指挥台 实时引擎 =====
    连 Supabase 读 app_data，按周现算 Vendor 奖金池 + 全维度指标，产出 render() 用的 M。
    算法已用 W1 真实数据验证：日常540269 / PK117316 / 周总657585 / 池600000 全部对齐。 */
@@ -485,7 +691,9 @@ function goScreen(s){
   reportH();
 }
 function renderAll(M){ _M=M; renderOv(M); renderPool(M); renderPts(M);
-  $('foot').textContent='生成 '+M.generated+' · 实时现算 · 与运营指标同源 · '+(M.unsettled?'本周未结算':'已结算'); }
+  $('foot').textContent='生成 '+M.generated+' · 实时现算 · 与运营指标同源 · '+(M.unsettled?'本周未结算':'已结算');
+  if(typeof SLANG!=='undefined' && SLANG==='en'){ ['scrOv','scrPool','scrPts'].forEach(function(id){ var el=$(id); if(el) el.innerHTML=translateZH(el.innerHTML); }); var ft=$('foot'); if(ft) ft.textContent=translateZH(ft.textContent); }
+}
 
 /* ---------- ① 成本总览 ---------- */
 function renderOv(M){
@@ -665,12 +873,19 @@ function renderPts(M){
 
 const WK_CACHE={};
 function getM(k){ if(!WK_CACHE[k]) WK_CACHE[k]=buildM(k); return WK_CACHE[k]; }
-function setBanner(html,cls){ var b=document.getElementById('liveBanner'); if(b){ b.innerHTML=html; b.className='livebanner '+cls; } }
+function setBanner(html,cls){ var b=document.getElementById('liveBanner'); if(b){ b.innerHTML=(typeof SLANG!=='undefined'&&SLANG==='en')?translateZH(html):html; b.className='livebanner '+cls; } }
 function reportH(){ try{ if(window.parent && window.parent!==window){ var h=Math.max(document.body.scrollHeight, document.documentElement.scrollHeight); window.parent.postMessage({t:'sh', h:h}, '*'); } }catch(e){} }
-function flagUnsettled(m){ var w=document.getElementById('unsettledNote'); if(!w) return; if(m.unsettled){ w.style.display='block'; w.innerHTML='⚠️ <b>'+m.label+'</b>：本周尚未结束、未结算，数字会随后续每日数据继续变动，仅供参考。'; } else { w.style.display='none'; } }
-function selfCheckW1(){ try{ var m=getM('wk0601'); var d=m.vendor_pool.distributed,g=m.vendor_pool.total_points; var em=(m.vendor_pool.by_vendor.find(function(v){return v.vc==='EMILIODIDIMTY2512220';})||{}).total; var ok=(d===600000&&g===657585&&em===98540); if(ok) setBanner('🟢 自检通过 · W1 现算 = 官方基准（池 600,000 / 周总 657,585 / EMILIO 98,540）· 引擎可信','ok'); else setBanner('🔴 自检异常','bad'); }catch(e){ setBanner('🔴 自检出错：'+e.message,'bad'); } }
-function showWeek(k){ var m=getM(k); renderAll(m); flagUnsettled(m); reportH(); setTimeout(reportH,400); setTimeout(reportH,1200); }
-async function boot(){ setBanner('⏳ 正在连接数据库并现算…','warn'); try{ await fetchBlocks(); var sel=document.getElementById('wkSel'); sel.innerHTML=''; Object.keys(WEEK_DEFS).forEach(function(k){ var o=document.createElement('option'); o.value=k; o.textContent=WEEK_DEFS[k].label; sel.appendChild(o); }); sel.value='wk0601'; sel.addEventListener('change',function(e){ showWeek(e.target.value); }); selfCheckW1(); showWeek('wk0601'); goScreen('ov'); }catch(e){ setBanner('🔴 读取数据库失败：'+e.message,'bad'); reportH(); console.error(e); } }
+function flagUnsettled(m){ var w=document.getElementById('unsettledNote'); if(!w) return; if(m.unsettled){ w.style.display='block'; var t='⚠️ <b>'+m.label+'</b>：本周尚未结束、未结算，数字会随后续每日数据继续变动，仅供参考。'; w.innerHTML=(typeof SLANG!=='undefined'&&SLANG==='en')?('⚠️ <b>'+m.label+'</b>: this week is not over / not settled; figures will keep changing with daily data — reference only.'):t; } else { w.style.display='none'; } }
+function selfCheckW1(){ try{ var m=getM('wk0601'); var d=m.vendor_pool.distributed,g=m.vendor_pool.total_points; var em=(m.vendor_pool.by_vendor.find(function(v){return v.vc==='EMILIODIDIMTY2512220';})||{}).total; var ok=(d===600000&&g===657585&&em===98540); if(ok) setBanner(SLANG==='en'?'🟢 Self-check OK · W1 live = official baseline (pool 600,000 / total 657,585 / EMILIO 98,540) · engine trusted':'🟢 自检通过 · W1 现算 = 官方基准（池 600,000 / 周总 657,585 / EMILIO 98,540）· 引擎可信','ok'); else setBanner(SLANG==='en'?'🔴 Self-check anomaly':'🔴 自检异常','bad'); }catch(e){ setBanner('🔴 '+e.message,'bad'); } }
+function showWeek(k){ window.__curWk=k; var m=getM(k); renderAll(m); flagUnsettled(m); reportH(); setTimeout(reportH,400); setTimeout(reportH,1200); }
+async function boot(){ setBanner('⏳ 正在连接数据库并现算…','warn'); try{ await fetchBlocks(); var sel=document.getElementById('wkSel'); sel.innerHTML=''; Object.keys(WEEK_DEFS).forEach(function(k){ var o=document.createElement('option'); o.value=k; o.textContent=WEEK_DEFS[k].label; sel.appendChild(o); }); sel.value='wk0601'; sel.addEventListener('change',function(e){ showWeek(e.target.value); });
+  var initLang='zh'; try{ initLang=localStorage.getItem('didi_lang')||'zh'; }catch(e){}
+  if(typeof applySettleLang==='function'){ SLANG=(initLang==='zh')?'zh':'en'; try{document.body.setAttribute('data-lang',SLANG);}catch(_){ } }
+  selfCheckW1(); window.__curWk='wk0601'; showWeek('wk0601'); goScreen('ov');
+  if(typeof applySettleLang==='function' && SLANG==='en'){ applySettleLang('en'); }
+  }catch(e){ setBanner('🔴 '+( (typeof SLANG!=='undefined'&&SLANG==='en')?'DB load failed: ':'读取数据库失败：')+e.message,'bad'); reportH(); console.error(e); }
+}
+window.addEventListener('message', function(e){ if(e&&e.data&&e.data.t==='lang' && typeof applySettleLang==='function'){ applySettleLang(e.data.lang); } });
 window.addEventListener('resize', reportH);
 if(window.supabase&&window.supabase.createClient){ boot(); } else { var t=setInterval(function(){ if(window.supabase&&window.supabase.createClient){ clearInterval(t); boot(); } },150); setTimeout(function(){ if(!window.supabase){ setBanner('🔴 supabase-js 没加载成功','bad'); reportH(); } },6000); }
 

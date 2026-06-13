@@ -468,6 +468,10 @@ select.fi option{background:#18181E}
 /* Bilingual toggle (中文 / Español) */
 [data-lang="es"] .lc-zh{display:none!important}
 [data-lang="zh"] .lc-es{display:none!important}
+/* English mode: 隐藏中文；英文(.lc-en)优先显示；缺英文处保留西语作回退(不留空白)，标了 .en-hide 的西语隐藏避免重复 */
+[data-lang="en"] .lc-zh{display:none!important}
+[data-lang="zh"] .lc-en,[data-lang="es"] .lc-en{display:none!important}
+[data-lang="en"] .lc-es.en-hide{display:none!important}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -1599,23 +1603,23 @@ select.fi option{background:#18181E}
     <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px">
       <div>
         <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--didi);font-weight:700"><span class="lc-zh">运营专属 · 仅内部可见</span><span class="lc-es">Solo operaciones · interno</span></div>
-        <div style="font-family:Fraunces,serif;font-weight:600;font-size:24px;color:var(--text)"><span class="lc-zh">📊 PK 赛运营 Dashboard</span><span class="lc-es">📊 Dashboard de operaciones PK</span></div>
+        <div style="font-family:Fraunces,serif;font-weight:600;font-size:24px;color:var(--text)"><span class="lc-zh">📊 PK 赛运营 Dashboard</span><span class="lc-es en-hide">📊 Dashboard de operaciones PK</span><span class="lc-en">📊 PK Operations Dashboard</span></div>
       </div>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-s btn-sm" onclick="toggleLang()" style="font-size:11px" title="切换语言 / Cambiar idioma"><span class="lc-zh">🇪🇸 ES</span><span class="lc-es">🇨🇳 中文</span></button>
-        <button class="btn btn-s btn-sm" onclick="var b=document.getElementById('dashUploadBar');b.style.display=(b.style.display==='none'?'grid':'none')" style="font-size:11px"><span class="lc-zh">🗂️ 数据上传</span><span class="lc-es">🗂️ Datos</span></button><button class="btn btn-s btn-sm" onclick="renderDashboard()" style="font-size:11px"><span class="lc-zh">🔄 刷新</span><span class="lc-es">🔄 Actualizar</span></button>
-        <button class="btn btn-s btn-sm" onclick="exportDashboard()" style="font-size:11px"><span class="lc-zh">⬇️ 导出</span><span class="lc-es">⬇️ Exportar</span></button>
-        <button id="dashOpLogout" class="btn btn-s btn-sm" onclick="operatorLogout();closeDashboard();" style="font-size:11px"><span class="lc-zh">退出登录</span><span class="lc-es">Salir</span></button>
-        <button class="btn btn-s btn-sm" onclick="closeDashboard()" style="font-size:11px"><span class="lc-zh">✕ 关闭</span><span class="lc-es">✕ Cerrar</span></button>
+        <button class="btn btn-s btn-sm" onclick="toggleLang()" style="font-size:11px" title="切换语言 / Cambiar idioma / Switch"><span class="lc-zh">🇪🇸 ES</span><span class="lc-es en-hide">🇬🇧 EN</span><span class="lc-en">🇨🇳 中文</span></button>
+        <button id="dashUploadToggle" class="btn btn-s btn-sm" onclick="var b=document.getElementById('dashUploadBar');b.style.display=(b.style.display==='none'?'grid':'none')" style="font-size:11px"><span class="lc-zh">🗂️ 数据上传</span><span class="lc-es en-hide">🗂️ Datos</span><span class="lc-en">🗂️ Upload</span></button><button class="btn btn-s btn-sm" onclick="renderDashboard()" style="font-size:11px"><span class="lc-zh">🔄 刷新</span><span class="lc-es en-hide">🔄 Actualizar</span><span class="lc-en">🔄 Refresh</span></button>
+        <button class="btn btn-s btn-sm" onclick="exportDashboard()" style="font-size:11px"><span class="lc-zh">⬇️ 导出</span><span class="lc-es en-hide">⬇️ Exportar</span><span class="lc-en">⬇️ Export</span></button>
+        <button id="dashOpLogout" class="btn btn-s btn-sm" onclick="operatorLogout();closeDashboard();" style="font-size:11px"><span class="lc-zh">退出登录</span><span class="lc-es en-hide">Salir</span><span class="lc-en">Log out</span></button>
+        <button class="btn btn-s btn-sm" onclick="closeDashboard()" style="font-size:11px"><span class="lc-zh">✕ 关闭</span><span class="lc-es en-hide">✕ Cerrar</span><span class="lc-en">✕ Close</span></button>
       </div>
     </div>
     <div id="dashUploadBar" style="display:none;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0 4px">
       <div style="background:var(--s2);border:1px dashed var(--border);border-radius:10px;padding:10px 12px">
-        <div style="font-size:12px;font-weight:700;margin-bottom:4px"><span class="lc-zh">🗂️ Vendor 清单（含名称 / 城市 / 经理）</span><span class="lc-es">🗂️ Lista de Vendors (nombre / ciudad / gerente)</span></div>
+        <div style="font-size:12px;font-weight:700;margin-bottom:4px"><span class="lc-zh">🗂️ Vendor 清单（含名称 / 城市 / 经理）</span><span class="lc-es en-hide">🗂️ Lista de Vendors (nombre / ciudad / gerente)</span><span class="lc-en">🗂️ Vendor list (name / city / manager)</span></div>
         <div style="font-size:11px;color:var(--muted2);line-height:1.7"><span class="lc-zh">👉 已统一到「报名参赛」页的 <b>📥 上传供应商名单</b>，请到那里上传（列：vendor_code、vendor_name、city、rm）。</span><span class="lc-es">👉 Unificado en la página «Inscripción» → <b>📥 Subir lista de proveedores</b> (columnas: vendor_code, vendor_name, city, rm).</span></div>
       </div>
       <div style="background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:10px 12px">
-        <div style="font-size:12px;font-weight:700;margin-bottom:4px"><span class="lc-zh">🛵 骑手名册（每 Vendor 骑手数）</span><span class="lc-es">🛵 Roster de riders</span></div>
+        <div style="font-size:12px;font-weight:700;margin-bottom:4px"><span class="lc-zh">🛵 骑手名册（每 Vendor 骑手数）</span><span class="lc-es en-hide">🛵 Roster de riders</span><span class="lc-en">🛵 Rider roster (riders per vendor)</span></div>
         <div style="font-size:10px;color:var(--muted2);margin-bottom:6px"><span class="lc-zh">含 rider_id、vendor_code 列；可定期更新覆盖</span><span class="lc-es">Columnas rider_id, vendor_code; actualizable</span></div>
         <input type="file" accept=".xlsx,.xls" onchange="handleRosterUpload(this.files[0]);this.value=''" style="font-size:11px">
         <div id="dashRosterMsg" style="font-size:11px;margin-top:5px;color:var(--muted2)"></div>
@@ -2195,7 +2199,8 @@ async function openDashboard(){
   document.body.style.overflow='hidden';
   // 只读访客：隐藏上传入口与「退出登录」（避免编辑、避免接触运营账号）
   var isOp=(typeof OPERATOR!=='undefined' && OPERATOR);
-  var ub=document.getElementById('dashUploadBar'); if(ub) ub.style.display=isOp?'grid':'none';
+  var ub=document.getElementById('dashUploadBar'); if(ub) ub.style.display='none';  // 默认收起，只靠右上角「🗂️数据上传」按钮展开
+  var ubt=document.getElementById('dashUploadToggle'); if(ubt) ubt.style.display=isOp?'inline-flex':'none';  // 上传按钮仅运营可见
   var lo=document.getElementById('dashOpLogout'); if(lo) lo.style.display=isOp?'inline-flex':'none';
   renderDashboard();
 }
@@ -2286,20 +2291,21 @@ function _card(label,value,sub){
     +(sub?('<div style="font-size:11px;color:var(--muted);margin-top:4px">'+sub+'</div>'):'')+'</div>';
 }
 function _svgBars(series, color){
-  // series: [{label, value}], vertical bars
+  // series: [{label, value}], vertical bars — 撑满容器宽度
   if(!series.length) return '<div style="font-size:12px;color:var(--muted2)">'+L('暂无数据','Sin datos')+'</div>';
   var max=Math.max.apply(null,series.map(function(s){return s.value;}))||1;
-  var W=Math.max(320, series.length*46), H=160, pad=24, bw=28, gap=(W-pad*2-bw*series.length)/Math.max(1,series.length-1);
+  var n=series.length, W=1120, H=190, pad=26, padT=24, padB=30;
+  var innerW=W-pad*2, slot=innerW/n, bw=Math.min(64, slot*0.62);
   var bars=series.map(function(s,i){
-    var h=Math.round((s.value/max)*(H-pad*2));
-    var x=pad+i*(bw+gap), y=H-pad-h;
+    var h=Math.round((s.value/max)*(H-padT-padB));
+    var x=pad+i*slot+(slot-bw)/2, y=H-padB-h;
     return '<g>'
-      +'<rect x="'+x+'" y="'+y+'" width="'+bw+'" height="'+h+'" rx="4" fill="'+color+'"></rect>'
-      +'<text x="'+(x+bw/2)+'" y="'+(y-4)+'" text-anchor="middle" font-size="10" fill="var(--text)">'+s.value+'</text>'
-      +'<text x="'+(x+bw/2)+'" y="'+(H-pad+12)+'" text-anchor="middle" font-size="9" fill="var(--muted)">'+s.label+'</text>'
+      +'<rect x="'+x.toFixed(1)+'" y="'+y+'" width="'+bw.toFixed(1)+'" height="'+h+'" rx="4" fill="'+color+'"></rect>'
+      +'<text x="'+(x+bw/2).toFixed(1)+'" y="'+(y-5)+'" text-anchor="middle" font-size="11" fill="var(--text)">'+s.value+'</text>'
+      +'<text x="'+(x+bw/2).toFixed(1)+'" y="'+(H-padB+14)+'" text-anchor="middle" font-size="10" fill="var(--muted)">'+s.label+'</text>'
       +'</g>';
   }).join('');
-  return '<svg viewBox="0 0 '+W+' '+(H+6)+'" style="width:100%;height:auto;max-width:'+W+'px">'+bars+'</svg>';
+  return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block">'+bars+'</svg>';
 }
 function _svgLine(series, isPct, showVals, threshold){
   // series: [{name, color, points:[{label,val}]}]; threshold: 可选预警线（数值或百分比）
@@ -2378,7 +2384,7 @@ function renderRegTrend(){
   var series=[{name:(metric==='rv'?L('报名 Vendor 数','Vendors inscritos','Registered vendors'):L('报名队伍数','Equipos inscritos','Registered teams')),color:'#3D9EFF',points:t.matches.map(function(m){return {label:_shortDate(m.id),val:(metric==='rv'?m.rv:m.rt)};})}];
   box.innerHTML=_svgLine(series,false,true,th);
 }
-function renderTrendChart(){ renderTrendTotal(); renderTrendByOwner(); renderRegTrend(); }
+function renderTrendChart(){ renderRegTrend(); }
 function _lastNDays(n){
   var arr=[]; var now=new Date(Date.now()-MX_OFFSET_MS);
   for(var i=n-1;i>=0;i--){ var d=new Date(now.getTime()-i*86400000); arr.push(d.getUTCFullYear()+'-'+_p2(d.getUTCMonth()+1)+'-'+_p2(d.getUTCDate())); }
@@ -2393,6 +2399,200 @@ function dashShowTab(t){
   var dabs=document.querySelectorAll('#dashBody .dtab'); for(var i=0;i<dabs.length;i++){ dabs[i].style.display=(dabs[i].getAttribute('data-t')===t)?'block':'none'; }
   var btns=document.querySelectorAll('#dashTabBar .dtb'); for(var j=0;j<btns.length;j++){ var on=btns[j].getAttribute('data-t')===t; btns[j].style.background=on?'var(--didi)':'var(--s2)'; btns[j].style.color=on?'#fff':'var(--text)'; btns[j].style.borderColor=on?'var(--didi)':'var(--border)'; btns[j].style.fontWeight=on?'700':'400'; }
 }
+// Dashboard zh->en dictionary (for English display). After render, phrase-replace on dashboard container, longest-first, numbers preserved.
+var DASH_ZH2EN = {
+  "本分析根据所选场次的实时数据自动生成":"This analysis is auto-generated from live data of the selected round",
+  "每天早会用本看板复盘各渠道经理进度":"Use this board in the daily standup to review each manager's progress",
+  "其骑手取自这些队在本场的报名记录":"riders taken from these teams' registrations for this round",
+  "渠道经理来自内置清单或附件":"managers from the built-in list or attachment",
+  "配对未发布则退回用报名数据":"if matches unpublished, falls back to registration data",
+  "注意配对生成即报名截止":"note: registration closes once matches are generated",
+  "两个指标各自的预警线":"alert line for each metric",
+  "含尚未配对的后续场次":"includes upcoming, not-yet-matched rounds",
+  "赛会拉低其奖金池排名":"hurts their pool ranking",
+  "需保持并继续扩大覆盖":"keep it up and keep expanding coverage",
+  "需在供应商名单中包含":"must be included in the vendor list",
+  "仅保留下方报名趋势":"only the registration trend below is kept",
+  "今日内逐一联系旗下":"contact each one under them today",
+  "低于线的场次点标红":"rounds below the line are marked red",
+  "含未配对的未来场次":"includes future, not-yet-matched rounds",
+  "总骑手来自骑手名册":"total riders from the rider roster",
+  "数据实时来自数据库":"data live from the database",
+  "时间为墨西哥城时间":"times are Mexico City time",
+  "需重点回访已流失的":"focus on re-engaging the churned ones",
+  "匹配成功的参赛队":"successfully matched teams",
+  "报名最多的供应商":"vendors with the most registrations",
+  "暂无已配对的场次":"no matched rounds yet",
+  "渠道经理业绩追踪":"Channel manager performance tracking",
+  "直接减少最终收入":"directly reduces final income",
+  "该场已发布配对里":"in this round's published matches",
+  "该场配对还未发布":"this round's matches are not published yet",
+  "较上一场有所下滑":"down from the previous round",
+  "较上一场有所改善":"up from the previous round",
+  "还没上传骑手名册":"rider roster not uploaded yet",
+  "与运营指标同源":"same source as ops metrics",
+  "各渠道经理表现":"each manager's performance",
+  "墨西哥城自然日":"Mexico City calendar day",
+  "天每日新增报名":"-day daily new sign-ups",
+  "实时奖金池结算":"Live pool settlement",
+  "当前分析的场次":"round being analyzed",
+  "数据直读数据库":"data read directly from DB",
+  "整体参赛率偏低":"overall participation is low",
+  "跨场次趋势数据":"cross-round trend data",
+  "须在截止前动员":"mobilize before the deadline",
+  "与上一场对比":"vs previous round",
+  "人均报名场次":"avg rounds registered per",
+  "今日报名次数":"sign-ups today",
+  "兑换申请次数":"redemption requests",
+  "兑换积分总数":"total points redeemed",
+  "参与供应商数":"participating vendors",
+  "多线不标数字":"multiple lines, no value labels",
+  "天每日访问量":"-day daily visits",
+  "并在标题提示":"and noted in the title",
+  "当前数据来源":"current data source",
+  "整体参赛情况":"overall participation",
+  "早会自动分析":"standup auto-analysis",
+  "暂无报名场次":"no registered rounds yet",
+  "未匹配的归入":"unmatched go into",
+  "累计报名场次":"cumulative rounds registered",
+  "累计积分查询":"cumulative points lookup",
+  "累计页面访问":"cumulative page views",
+  "自动日报分析":"auto daily report",
+  "落实到具体人":"assign to specific people",
+  "请在上方上传":"please upload above",
+  "趋势图已移除":"trend charts removed",
+  "不积极参加":"not actively participating",
+  "仅运营可见":"ops-only",
+  "从存储载入":"loaded from storage",
+  "兑换骑手数":"redeeming riders",
+  "其报名骑手":"its registered riders",
+  "加载数据中":"Loading data",
+  "去重队伍名":"unique team names",
+  "去重骑手数":"unique riders",
+  "后台未连接":"Backend not connected",
+  "报名一定有":"registration always has",
+  "报名队伍数":"registered teams",
+  "按当天数据":"by that day's data",
+  "按渠道经理":"by channel manager",
+  "本场参赛的":"participating in this round",
+  "累计·去重":"cumulative · unique",
+  "队伍预警线":"team alert line",
+  "需重点攻坚":"needs focused effort",
+  "骑手参赛率":"rider participation rate",
+  "骑手报名率":"rider registration rate",
+  "骑手未进入":"riders not entered",
+  "下载明细":"Download detail",
+  "仍有大量":"still many",
+  "优先攻坚":"prioritize",
+  "供应商数":"vendors",
+  "兑换金额":"redemption amount",
+  "具体待办":"to-dos",
+  "写回存储":"saved to storage",
+  "切换指标":"switch metric",
+  "参赛为零":"zero participation",
+  "参赛本场":"join this round",
+  "参赛骑手":"participating riders",
+  "同一指标":"same metric",
+  "场次选择":"round selector",
+  "当前页签":"current tab",
+  "成本结算":"Settlement",
+  "报名情况":"registration status",
+  "报名数据":"registration data",
+  "报名次数":"sign-ups",
+  "报名趋势":"Registration trend",
+  "排名更高":"higher ranking",
+  "收入更高":"higher income",
+  "无法计算":"cannot compute",
+  "日会分析":"standup analysis",
+  "暂无数据":"No data",
+  "本周目标":"this week's goal",
+  "本地存储":"local storage",
+  "本场参赛":"join this round",
+  "本场报名":"this round's registrations",
+  "清单里的":"in the list",
+  "渠道经理":"Channel Manager",
+  "用户输入":"user input",
+  "的负责人":"'s owner",
+  "看板语言":"board language",
+  "真正参赛":"actually participating",
+  "积分兑换":"points redemption",
+  "行动建议":"Action items",
+  "表现较好":"performing well",
+  "较上一场":"vs previous round",
+  "选择场次":"select round",
+  "配对成功":"matched",
+  "骑手总数":"total riders",
+  "先破零":"break zero first",
+  "分维度":"by dimension",
+  "加载中":"Loading",
+  "参与率":"participation rate",
+  "参赛率":"participation rate",
+  "名骑手":" riders",
+  "多参赛":"join more",
+  "已完成":"Completed",
+  "待处理":"Pending",
+  "总骑手":"total riders",
+  "报名率":"registration rate",
+  "更新于":"Updated",
+  "有报名":"has registrations",
+  "未分配":"Unassigned",
+  "标数字":"label values",
+  "的场次":" rounds",
+  "的队伍":" teams",
+  "还没有":"no",
+  "预警线":"alert line",
+  "骑手数":"riders",
+  "中文":"中文",
+  "今日":"Today",
+  "全集":"all",
+  "兼职":"Part-time",
+  "参赛":"Participate",
+  "对比":"compare",
+  "小写":"lowercase",
+  "建议":"Suggestion",
+  "总数":"total",
+  "总览":"Overview",
+  "总计":"Total",
+  "所有":"all",
+  "报名":"Registration",
+  "整体":"overall",
+  "明确":"clear",
+  "明细":"detail",
+  "暂无":"none",
+  "正式":"official",
+  "比索":"MXN",
+  "活跃":"active",
+  "清单":"list",
+  "点起":"from",
+  "热身":"Warm-up",
+  "累计":"Cumulative",
+  "维度":"dimension",
+  "聚合":"aggregate",
+  "规模":"scale",
+  "跟随":"follow",
+  "配对":"Match",
+  "队伍":"team",
+  "队名":"team name",
+  "附件":"attachment",
+  "预警":"Alert",
+  "首次":"first",
+  "近":"Last ",
+  "上一场":"previous round",
+  "骑手":"Rider",
+  "，":", ","：":": ","、":", ","；":"; ","（":" (","）":") "
+};
+var DASH_KEYS = Object.keys(DASH_ZH2EN).sort(function(a,b){ return b.length-a.length; });
+function _dtr(html){
+  if(!html) return html;
+  for(var i=0;i<DASH_KEYS.length;i++){ var k=DASH_KEYS[i]; if(k==='中文') continue; if(html.indexOf(k)>=0){ html=html.split(k).join(DASH_ZH2EN[k]); } }
+  return html;
+}
+function dashTranslateEN(){
+  var body=document.getElementById('dashBody'); if(!body) return;
+  var nodes=body.querySelectorAll('#dashTabBar, .dtab[data-t="ov"], .dtab[data-t="pk"], .dtab[data-t="pt"]');
+  for(var i=0;i<nodes.length;i++){ nodes[i].innerHTML=_dtr(nodes[i].innerHTML); }
+}
+
 async function renderDashboard(){
   var body=document.getElementById('dashBody');
   if(!body) return;
@@ -2639,19 +2839,7 @@ async function renderDashboard(){
     if(!hasMap)html+='<div style="font-size:11px;color:#F59E0B;margin-bottom:8px">'+L('⚠️ 还没有 Vendor↔渠道经理 清单（附件1），"总Vendor数/报名率"无法计算。请在上方上传。','⚠️ Sube la lista Vendor↔gerente arriba para calcular totales y tasas.')+'</div>';
     if(!hasRoster)html+='<div style="font-size:11px;color:#F59E0B;margin-bottom:8px">'+L('⚠️ 还没上传骑手名册（附件2），"骑手总数/骑手报名率"无法计算。请在上方上传。','⚠️ Sube el roster de riders arriba para totales y tasas de riders.')+'</div>';
 
-    // ---- PK · 跨场次趋势折线图 ----
-    var _metSel=function(id){return '<select id="'+id+'" onchange="renderTrendChart()" style="padding:7px 11px;font-size:12px;background:var(--s2);color:var(--text);border:1px solid var(--border);border-radius:8px">'
-        +'<option value="pv">'+L('配对成功 Vendor 数','Vendors emparejados','Matched vendors')+'</option>'
-        +'<option value="vrate">'+L('Vendor 参与率','Tasa participación Vendor','Vendor participation rate')+'</option>'
-        +'<option value="pr">'+L('配对成功骑手数','Riders emparejados','Matched riders')+'</option>'
-        +'<option value="rrate">'+L('骑手参与率','Tasa participación riders','Rider participation rate')+'</option>'
-      +'</select>';};
-    html+=sec(L('📈 PK 趋势 · 总计','📈 Tendencia PK · Total','📈 PK Trend · Total'));
-    html+='<div style="margin-bottom:8px">'+_metSel('trendMetricTotal')+'</div>';
-    html+='<div id="trendChartTotal" style="background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:14px 10px;margin-bottom:14px">'+L('加载中…','Cargando…','Loading…')+'</div>';
-    html+=sec(L('📈 PK 趋势 · 各渠道经理对比','📈 Tendencia PK · por gerente','📈 PK Trend · by manager'));
-    html+='<div style="margin-bottom:8px">'+_metSel('trendMetricOwner')+'</div>';
-    html+='<div id="trendChartOwner" style="background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:14px 10px">'+L('加载中…','Cargando…','Loading…')+'</div>';
+    // ---- PK 趋势图已移除（仅保留下方报名趋势）----
 
     // ---- 报名趋势（预警，含未配对的未来场次）----
     html+=sec(L('📈 报名趋势 · 预警','📈 Tendencia de inscripción','📈 Registration Trend (early warning)')
@@ -2823,9 +3011,11 @@ async function renderDashboard(){
     var _langBar='<div style="display:flex;gap:6px;margin:2px 0 8px;align-items:center"><span style="font-size:11px;color:var(--muted2);margin-right:2px">'+L('看板语言','Idioma','Language')+':</span>'+_lb('inherit',L('跟随','Auto','Auto'))+_lb('zh','中文')+_lb('es','ES')+_lb('en','EN')+'</div>';
     var _tabBar='<div id="dashTabBar" style="display:flex;gap:8px;margin:2px 0 14px;flex-wrap:wrap">'
       +_dtb('ov',L('📊 总览','📊 Resumen','📊 Overview'))+_dtb('pk',L('🏁 PK 明细','🏁 PK','🏁 PK'))+_dtb('pt',L('🧩 PT 明细','🧩 PT','🧩 PT'))+_dtb('cost',L('💰 成本结算','💰 Costos','💰 Settlement'))+'</div>';
-    body.innerHTML=_tabBar+html+'<div class="dtab" data-t="cost" style="display:none"><div style="font-size:12px;color:var(--muted);margin-bottom:8px">'+L('实时奖金池结算 · 数据直读数据库 · 与运营指标同源','Liquidación en vivo · datos del mismo backend','Live settlement · same backend')+'</div><iframe id="costFrame" src="settlement.html?v=11" scrolling="no" style="width:100%;height:1400px;border:1px solid var(--border);border-radius:12px;background:#0f1115;overflow:hidden;display:block" loading="lazy"></iframe></div>';
+    body.innerHTML=_tabBar+html+'<div class="dtab" data-t="cost" style="display:none"><div style="font-size:12px;color:var(--muted);margin-bottom:8px">'+L('实时奖金池结算 · 数据直读数据库 · 与运营指标同源','Liquidación en vivo · datos del mismo backend','Live settlement · same backend')+'</div><iframe id="costFrame" src="settlement.html?v=14" scrolling="no" style="width:100%;height:700px;border:1px solid var(--border);border-radius:12px;background:#0f1115;overflow:hidden;display:block" loading="lazy"></iframe></div>';
     dashShowTab(DASH_TAB||'ov');
+    if(!window.__costFrameLis){ window.__costFrameLis=true; window.addEventListener('message',function(e){ try{ if(e&&e.data&&e.data.t==='sh'&&e.data.h){ var f=document.getElementById('costFrame'); if(f){ f.style.height=(Math.max(300,e.data.h)+16)+'px'; } } }catch(_){} }); }
     if(typeof renderTrendChart==='function')renderTrendChart();
+    if(LANG==='en' && typeof dashTranslateEN==='function') dashTranslateEN();
     _dashLangRestore();
   }catch(err){
     console.error(err);
@@ -3072,9 +3262,10 @@ const I18N = {
 function t(key){ return (I18N[LANG] && I18N[LANG][key]) || (I18N.zh && I18N.zh[key]) || key; }
 
 function toggleLang(){
-  LANG = LANG === 'zh' ? 'es' : 'zh';
+  LANG = LANG === 'zh' ? 'es' : (LANG === 'es' ? 'en' : 'zh');
   localStorage.setItem('didi_lang', LANG);
   applyLang();
+  try{ var f=document.getElementById('costFrame'); if(f&&f.contentWindow) f.contentWindow.postMessage({t:'lang', lang:LANG}, '*'); }catch(e){}
 }
 
 function applyLang(){
@@ -3090,7 +3281,7 @@ function applyLang(){
   });
   // Toggle button label
   var btn = document.getElementById('langToggle');
-  if(btn) btn.textContent = LANG === 'zh' ? '🇪🇸 ES' : '🇨🇳 中文';
+  if(btn) btn.textContent = LANG === 'zh' ? '🇪🇸 ES' : (LANG === 'es' ? '🇬🇧 EN' : '🇨🇳 中文');
   // Logo sub
   var logoSub = document.querySelector('.logo-sub'); if(logoSub) logoSub.textContent = t('logo_sub');
   document.title = L('DiDi Alianza · 骑手PK赛平台','DiDi Alianza · Plataforma PK');
