@@ -1227,8 +1227,8 @@ select.fi option{background:#18181E}
       <div style="background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:16px">
         <div style="font-size:11px;color:var(--muted2);margin-bottom:10px"><span class="lc-zh">输入你的 <strong style="color:var(--didi)">Vendor Code</strong> 查看与你相关的对阵</span><span class="lc-es">Ingresa tu <strong style="color:var(--didi)">Vendor Code</strong> para ver tus duelos</span><br><span style="font-size:10px;color:var(--muted)"><span class="lc-zh">运营人员：点「查看全部」验证后可查看所有对阵</span><span class="lc-es">Operaciones: usa «Ver todo» tras verificarte para ver todos los duelos</span></span></div>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
-          <input class="fi" id="matchupVendorFilter" type="text" data-i18n-placeholder="mu_search_vc" placeholder="输入 Vendor Code 查看自己的对阵" style="flex:1;min-width:200px;padding:9px 12px;font-size:13px" oninput="renderMatchupGrid()">
-          <input class="fi" id="matchupTeamFilter" type="text" data-i18n-placeholder="mu_team_ph" placeholder="队伍名称（可选）" style="flex:1;min-width:140px;padding:9px 12px;font-size:13px" oninput="renderMatchupGrid()">
+          <input class="fi" id="matchupVendorFilter" type="text" data-i18n-placeholder="mu_search_vc" placeholder="输入 Vendor Code 查看自己的对阵" style="flex:1;min-width:200px;padding:9px 12px;font-size:13px" onkeydown="if(event.key==='Enter')renderMatchupGrid()">
+          <input class="fi" id="matchupTeamFilter" type="text" data-i18n-placeholder="mu_team_ph" placeholder="队伍名称（可选）" style="flex:1;min-width:140px;padding:9px 12px;font-size:13px" onkeydown="if(event.key==='Enter')renderMatchupGrid()">
           <button id="muSearchBtn" class="btn btn-s btn-sm" onclick="renderMatchupGrid()"><span class="lc-zh">🔍 查看</span><span class="lc-es">🔍 Ver</span></button>
           <button id="muViewAllBtn" class="btn btn-s btn-sm" onclick="adminViewAllMatchups()" style="display:none" title="Solo operaciones"><span class="lc-zh">查看全部</span><span class="lc-es">Ver todo</span></button>
         </div>
@@ -1661,7 +1661,7 @@ select.fi option{background:#18181E}
     <div class="card">
       <div class="card-t"><span class="lc-zh">📋 配对比赛场次</span><span class="lc-es">📋 Partido a emparejar</span></div>
       <div class="frow">
-        <div class="fg"><label><span class="lc-zh">配对场次</span><span class="lc-es">Partido</span></label><select class="fi" id="pairMatchSel"><option value=""><span class="lc-zh">— 选择场次 —</span><span class="lc-es">— Selecciona el partido —</span></option></select></div>
+        <div class="fg"><label><span class="lc-zh">配对场次</span><span class="lc-es">Partido</span></label><select class="fi" id="pairMatchSel"><option value="">— 选择场次 / Selecciona —</option></select></div>
         <div class="fg" style="justify-content:flex-end">
           <button class="btn btn-p" style="margin-top:auto" onclick="runMatching()"><span class="lc-zh">🎯 生成配对结果</span><span class="lc-es">🎯 Generar emparejamientos</span></button>
         </div>
@@ -3192,7 +3192,12 @@ function buildSchedule(){
     cbContainer.innerHTML=preHtml+formalHtml;
   }
   const psel=document.getElementById('pairMatchSel');
-  if(psel){ PRE_SCHEDULE.concat(SCHEDULE).forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=`${matchLabel(s.id)} · ${sDate(s)} ${sDay(s)}`;psel.appendChild(o)}); }
+  if(psel){
+    var _curPsel=psel.value;
+    psel.innerHTML='<option value="">'+L('— 选择场次 —','— Selecciona el partido —')+'</option>';
+    PRE_SCHEDULE.concat(SCHEDULE).forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=`${matchLabel(s.id)} · ${sDate(s)} ${sDay(s)}`;psel.appendChild(o);});
+    if(_curPsel) psel.value=_curPsel;
+  }
 }
 
 // ══════════════════════════════════
@@ -4394,7 +4399,15 @@ function renderMatchupGrid(){
            ((p.b.vendor||'').toLowerCase().includes(vfl)&&(p.b.team||'').toLowerCase().includes(tfl));
   });
   // 轮空提示（与对阵卡叠加）：查询的 Vendor/队伍若本场轮空，就显示提示
-  var _byes=(MD.byes||[]);
+  // 优先用发布时存的轮空名单；旧场次没存 → 用"该场报名队 − 已配对队"现算
+  var _byes=(MD.byes&&MD.byes.length)?MD.byes:(function(){
+    try{
+      var inP={}; (MD.pairs||[]).forEach(function(p){ if(p.a&&p.a.team)inP[String(p.a.team).trim().toLowerCase()]=1; if(p.b&&p.b.team)inP[String(p.b.team).trim().toLowerCase()]=1; });
+      var regs=(typeof getTeams==='function'?getTeams():[]).filter(function(t){return String(t.matchId)===String(MD.matchId);});
+      var out=[]; regs.forEach(function(t){ var tn=String(t.teamName||'').trim(); if(tn&&!inP[tn.toLowerCase()]) out.push({team:tn,vendor:String(t.vendorCode||'').toUpperCase(),riders:(t.riders||[]).map(String)}); });
+      return out;
+    }catch(e){ return []; }
+  })();
   var _hitBye=(vfl||tfl) && _byes.some(function(u){ var uv=(u.vendor||'').toLowerCase(), ut=(u.team||'').toLowerCase();
     if(vfl&&tfl) return uv.indexOf(vfl)>=0&&ut.indexOf(tfl)>=0;
     if(vfl) return uv.indexOf(vfl)>=0; if(tfl) return ut.indexOf(tfl)>=0; return false; });
@@ -4647,12 +4660,16 @@ function _showRepeatDetail(){
   var lines=rr.repeatedList.map(function(p,i){ return (i+1)+'. '+(p.a.team)+' ('+(p.a.vendor)+')  vs  '+(p.b.team)+' ('+(p.b.vendor)+')'; });
   alert(L('与上一场（'+rr.prevLabel+'）重复的对阵 · 共 '+rr.teamRep+' 组：\n\n','Duelos repetidos vs '+rr.prevLabel+' ('+rr.teamRep+'):\n\n')+lines.join('\n'));
 }
-function runMatching(){
+async function runMatching(){
   const matchId=parseInt(document.getElementById('pairMatchSel').value);
   if(!matchId){alert(L('请选择场次','Selecciona un partido'));return}
 
-  // Get registered teams for this match
-  const registered=getTeams().filter(t=>String(t.matchId)===String(matchId));
+  // Get registered teams for this match; if none, ensure shared data is loaded then retry
+  let registered=getTeams().filter(t=>String(t.matchId)===String(matchId));
+  if(!registered.length && typeof loadSharedData==='function'){
+    try{ await loadSharedData(); }catch(e){}
+    registered=getTeams().filter(t=>String(t.matchId)===String(matchId));
+  }
   if(!registered.length){
     alert(L('第'+matchId+'场没有报名记录！\n\n请确认：\n① 已在「报名参赛」页面完成报名\n② 选择的场次与报名场次一致','No hay inscripciones para el Partido '+matchId+'.\n\nVerifica:\n① Completaste la inscripción en «Inscripción»\n② El partido seleccionado coincide con el inscrito'));
     return;
