@@ -4374,7 +4374,19 @@ function renderMatchupGrid(){
     return((p.a.vendor||'').toLowerCase().includes(vfl)&&(p.a.team||'').toLowerCase().includes(tfl))||
            ((p.b.vendor||'').toLowerCase().includes(vfl)&&(p.b.team||'').toLowerCase().includes(tfl));
   });
-  if(!filtered.length){grid.innerHTML='';if(noRes)noRes.style.display='block';return;}
+  if(!filtered.length){
+    grid.innerHTML='';
+    var _byes=(MD.byes||[]);
+    var _hitBye=_byes.some(function(u){ var uv=(u.vendor||'').toLowerCase(), ut=(u.team||'').toLowerCase();
+      if(vfl&&tfl) return uv.indexOf(vfl)>=0&&ut.indexOf(tfl)>=0;
+      if(vfl) return uv.indexOf(vfl)>=0; if(tfl) return ut.indexOf(tfl)>=0; return false; });
+    if(_hitBye){
+      var _lbl=(typeof matchLabel==='function'?matchLabel(parseInt(MD.matchId)):('第'+MD.matchId+'场'));
+      grid.innerHTML=(typeof _byeNoticeHTML==='function')?_byeNoticeHTML(_lbl):'';
+      if(noRes)noRes.style.display='none'; return;
+    }
+    if(noRes)noRes.style.display='block'; return;
+  }
   if(noRes)noRes.style.display='none';
   grid.innerHTML=filtered.map((p,i)=>{
     const va=vendorName(p.a.vendor);
@@ -5770,8 +5782,6 @@ function queryVendorResults(){
   var vc=(document.getElementById('vendorQueryIn').value||'').trim().toUpperCase();
   var panel=document.getElementById('vendorResultPanel');
   if(!vc){panel.innerHTML='<div class="q-err show" style="display:block">'+L('请输入 Vendor Code','Ingresa el Vendor Code')+'</div>';return;}
-  var _byeIV=(typeof _latestByes==='function')?_latestByes():null;
-  var _isByeV=_byeIV&&!!_byeIV.vendors[vc];
   var _vt=getViewTeams(); if(!_vt.length){panel.innerHTML='<div class="q-err show" style="display:block">'+L('该场次暂无结果，请在上方切换场次或联系运营','Sin resultados para este partido; cambia de partido arriba o contacta a operaciones')+'</div>';return;}
   // Deduplicate by name, prefer highest-score entry
   var vcNameMap={};
@@ -5785,12 +5795,10 @@ function queryVendorResults(){
   var teams=Object.values(vcNameMap).sort(function(a,b){return teamTotalScore(b)-teamTotalScore(a);});
   teams=filterDisplayTeams(teams); // 只显示真正参赛的队，过滤掉用 Vendor Code 凑出来的垃圾队
   if(!teams.length){
-    if(_isByeV){ panel.innerHTML=_byeNoticeHTML(_byeIV.label); return; }  // 该Vendor的队本场轮空 → 显示轮空提示
     panel.innerHTML='<div class="q-err show" style="display:block">'+L('未找到 Vendor Code: ','No se encontró el Vendor Code: ')+vc+L(' &nbsp; 请确认大小写（例如 EMILIODIDIMTY2512220）',' &nbsp; Verifica mayúsculas/minúsculas (ej. EMILIODIDIMTY2512220)')+'</div>';
     return;
   }
   panel.innerHTML='';
-  if(_isByeV){ var _bnv=document.createElement('div'); _bnv.innerHTML=_byeNoticeHTML(_byeIV.label); if(_bnv.firstChild) panel.appendChild(_bnv.firstChild); }
   // Header row: count + download button
   var hdrRow=document.createElement('div');
   hdrRow.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px';
@@ -5880,8 +5888,6 @@ function queryTeamResults(){
   var name=(document.getElementById('teamQueryIn').value||'').trim();
   var panel=document.getElementById('teamResultPanel');
   if(!name){panel.innerHTML='<div class="q-err show" style="display:block">'+L('请输入队伍名称','Ingresa el nombre del equipo')+'</div>';return;}
-  var _byeI=(typeof _latestByes==='function')?_latestByes():null;
-  var _isBye=_matchBye(_byeI, name.toLowerCase());
   var _vt=getViewTeams(); if(!_vt.length){panel.innerHTML='<div class="q-err show" style="display:block">'+L('该场次暂无结果，请在上方切换场次','Sin resultados para este partido; cambia de partido arriba')+'</div>';return;}
 
   // Find team - prefer highest-score entry when duplicates exist
@@ -5889,15 +5895,12 @@ function queryTeamResults(){
   if(!candidates.length){
     candidates=_vt.filter(function(t){return t.name.includes(name)||name.includes(t.name);});
   }
-  if(!candidates.length){
-    if(_isBye){ panel.innerHTML=_byeNoticeHTML(_byeI.label); return; }  // 轮空队没有比分 → 显示轮空提示
-    panel.innerHTML='<div class="q-err show" style="display:block">'+L('未找到队伍：','Equipo no encontrado: ')+name+L('，请检查队伍名称',', verifica el nombre')+'</div>';return;}
+  if(!candidates.length){panel.innerHTML='<div class="q-err show" style="display:block">'+L('未找到队伍：','Equipo no encontrado: ')+name+L('，请检查队伍名称',', verifica el nombre')+'</div>';return;}
   // Always use the highest-score entry (vendor fallback > registration duplicate)
   var team=candidates.sort(function(a,b){return Number(b.my_score||0)-Number(a.my_score||0);})[0];
 
   var isWin=team.result==='胜';
   panel.innerHTML='';
-  if(_isBye){ var _bn=document.createElement('div'); _bn.innerHTML=_byeNoticeHTML(_byeI.label); if(_bn.firstChild) panel.appendChild(_bn.firstChild); }
 
   // Team header card
   var hdr=document.createElement('div');
