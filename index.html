@@ -1229,7 +1229,8 @@ select.fi option{background:#18181E}
         <div style="display:flex;gap:10px;flex-wrap:wrap">
           <input class="fi" id="matchupVendorFilter" type="text" data-i18n-placeholder="mu_search_vc" placeholder="输入 Vendor Code 查看自己的对阵" style="flex:1;min-width:200px;padding:9px 12px;font-size:13px" oninput="renderMatchupGrid()">
           <input class="fi" id="matchupTeamFilter" type="text" data-i18n-placeholder="mu_team_ph" placeholder="队伍名称（可选）" style="flex:1;min-width:140px;padding:9px 12px;font-size:13px" oninput="renderMatchupGrid()">
-          <button class="btn btn-s btn-sm" onclick="adminViewAllMatchups()" title="Solo operaciones"><span class="lc-zh">查看全部</span><span class="lc-es">Ver todo</span></button>
+          <button id="muSearchBtn" class="btn btn-s btn-sm" onclick="renderMatchupGrid()"><span class="lc-zh">🔍 查看</span><span class="lc-es">🔍 Ver</span></button>
+          <button id="muViewAllBtn" class="btn btn-s btn-sm" onclick="adminViewAllMatchups()" style="display:none" title="Solo operaciones"><span class="lc-zh">查看全部</span><span class="lc-es">Ver todo</span></button>
         </div>
       </div>
       <div class="mu-grid" id="matchupsGrid"></div>
@@ -3165,19 +3166,25 @@ function buildSchedule(){
   if(cbContainer){
     const ttMapZ={weekend:'🏖️周末PK',matchday:'⚽赛事日',both:'⚡双倍',prewc:'🔥热身PK'};const ttMapE={weekend:'🏖️ Fin de semana',matchday:'⚽ Día de partido',both:'⚡ Doble',prewc:'🔥 Pre-Mundial'};const ttMap=LANG==='es'?ttMapE:ttMapZ;
     var _isLocked=function(id){ return !!(typeof MATCHUP_ARCHIVE!=='undefined' && MATCHUP_ARCHIVE && MATCHUP_ARCHIVE[String(id)] && (MATCHUP_ARCHIVE[String(id)].pairs||[]).length); };
-    var _lockedRow=function(s,accent){
-      // 已发布配对 → 报名截止，禁用并提示
+    var _todayKey=(function(){ var d=new Date(); return (d.getMonth()+1)*100 + d.getDate(); })();
+    var _mdKey=function(str){ var m=String(str||'').match(/(\d+)月(\d+)日/); return m?(parseInt(m[1])*100+parseInt(m[2])):null; };
+    var _isPast=function(s){ var dl=_mdKey(s.deadline), dt=_mdKey(s.date); if(dl!=null) return _todayKey>dl; return dt!=null && _todayKey>dt; }; // 正式赛过截止日 / 热身赛过比赛日 → 已截止
+    var _lockedRow=function(s,_zh,_es){
       return `<label style="display:flex;align-items:flex-start;gap:8px;padding:7px 10px;background:var(--s3);border-radius:7px;border:1px dashed var(--border);font-size:11px;color:var(--muted);opacity:.6;cursor:not-allowed">
         <input type="checkbox" value="${s.id}" disabled style="margin-top:2px;flex-shrink:0">
-        <div><div style="font-weight:600;color:var(--muted2)">${matchLabel(s.id)} · ${sDate(s)} ${sDay(s)}</div><div style="color:var(--lose);font-size:10px;margin-top:1px">🔒 ${L('报名截止 · 配对已生成','Inscripción cerrada · ya emparejado')}</div></div>
+        <div><div style="font-weight:600;color:var(--muted2)">${matchLabel(s.id)} · ${sDate(s)} ${sDay(s)}</div><div style="color:var(--lose);font-size:10px;margin-top:1px">🔒 ${L(_zh,_es)}</div></div>
       </label>`;
     };
-    const preHtml=PRE_SCHEDULE.map(s=> _isLocked(s.id)?_lockedRow(s):`
+    var _closedRow=function(s){
+      if(_isLocked(s.id)) return _lockedRow(s,'报名截止 · 配对已生成','Inscripción cerrada · ya emparejado');
+      return _lockedRow(s,'报名已截止 · 该场已过','Inscripción cerrada · partido pasado');
+    };
+    const preHtml=PRE_SCHEDULE.map(s=> (_isLocked(s.id)||_isPast(s))?_closedRow(s):`
       <label style="display:flex;align-items:flex-start;gap:8px;padding:7px 10px;background:rgba(139,92,246,.08);border-radius:7px;cursor:pointer;border:1px solid rgba(139,92,246,.30);font-size:11px;color:var(--muted2);transition:border-color .2s" onmouseover="this.style.borderColor='#A78BFA'" onmouseout="this.style.borderColor='rgba(139,92,246,.30)'">
         <input type="checkbox" value="${s.id}" style="margin-top:2px;accent-color:#A78BFA;flex-shrink:0">
         <div><div style="font-weight:600;color:var(--text)">${matchLabel(s.id)} · ${sDate(s)} ${sDay(s)}</div><div style="color:#A78BFA;font-size:10px;margin-top:1px">${ttMap[s.type]} · ${L('随时可报名','Sin fecha límite')}</div></div>
       </label>`).join('');
-    const formalHtml=SCHEDULE.map(s=> _isLocked(s.id)?_lockedRow(s):`
+    const formalHtml=SCHEDULE.map(s=> (_isLocked(s.id)||_isPast(s))?_closedRow(s):`
       <label style="display:flex;align-items:flex-start;gap:8px;padding:7px 10px;background:var(--s3);border-radius:7px;cursor:pointer;border:1px solid var(--border);font-size:11px;color:var(--muted2);transition:border-color .2s" onmouseover="this.style.borderColor='var(--didi)'" onmouseout="this.style.borderColor='var(--border)'">
         <input type="checkbox" value="${s.id}" style="margin-top:2px;accent-color:var(--didi);flex-shrink:0">
         <div><div style="font-weight:600;color:var(--text)">${matchLabel(s.id)} · ${sDate(s)} ${sDay(s)}</div><div style="color:var(--muted);font-size:10px;margin-top:1px">${ttMap[s.type]} · ${L('截止','Cierre ')}${sDeadline(s)}</div></div>
@@ -3713,6 +3720,16 @@ async function submitReg(){
   if(lockedSel.length){
     var lnames=lockedSel.map(function(mid){return matchLabel(parseInt(mid));}).join(L('、',', '));
     showAlert('regErr',L('❌ 你已经错过了「'+lnames+'」的报名时间（该场配对已生成），请报名后面的场次。','❌ Ya pasó el cierre de inscripción de «'+lnames+'» (los emparejamientos ya se generaron). Inscríbete en partidos posteriores.'));
+    return;
+  }
+  // 已过期场次（正式赛过截止日 / 热身赛过比赛日）：报名已截止
+  var _tdk=(function(){var d=new Date();return (d.getMonth()+1)*100+d.getDate();})();
+  var _mdk=function(str){var m=String(str||'').match(/(\d+)月(\d+)日/);return m?(parseInt(m[1])*100+parseInt(m[2])):null;};
+  var _allDefs={}; (typeof PRE_SCHEDULE!=='undefined'?PRE_SCHEDULE:[]).concat(typeof SCHEDULE!=='undefined'?SCHEDULE:[]).forEach(function(s){_allDefs[String(s.id)]=s;});
+  var pastSel=selectedMatchIds.filter(function(mid){ var s=_allDefs[String(parseInt(mid))]; if(!s)return false; var dl=_mdk(s.deadline),dt=_mdk(s.date); if(dl!=null)return _tdk>dl; return dt!=null&&_tdk>dt; });
+  if(pastSel.length){
+    var pnames=pastSel.map(function(mid){return matchLabel(parseInt(mid));}).join(L('、',', '));
+    showAlert('regErr',L('❌「'+pnames+'」的报名时间已过，无法报名，请选择后面的场次。','❌ Ya cerró la inscripción de «'+pnames+'». Elige partidos posteriores.'));
     return;
   }
   const filled=riders.filter(r=>r);
@@ -4326,6 +4343,8 @@ function initMatchupPage(){
   if(wrap) wrap.style.display='block'; // 只要有配对就显示场次选择（便于确认当前查看的是哪一天）
   var dlBtn=document.getElementById('matchupDownloadBtn');
   if(dlBtn) dlBtn.style.display = (typeof OPERATOR!=='undefined' && OPERATOR) ? 'inline-block' : 'none'; // 下载配对表仅运营可见
+  var vaBtn=document.getElementById('muViewAllBtn');
+  if(vaBtn) vaBtn.style.display = (typeof OPERATOR!=='undefined' && OPERATOR) ? 'inline-block' : 'none'; // 查看全部仅运营可见
   renderMatchupTitleAndGrid();
 }
 function selectMatchupMatch(id){ MATCHUP_VIEW_ID=id; renderMatchupTitleAndGrid(); }
@@ -4374,21 +4393,19 @@ function renderMatchupGrid(){
     return((p.a.vendor||'').toLowerCase().includes(vfl)&&(p.a.team||'').toLowerCase().includes(tfl))||
            ((p.b.vendor||'').toLowerCase().includes(vfl)&&(p.b.team||'').toLowerCase().includes(tfl));
   });
+  // 轮空提示（与对阵卡叠加）：查询的 Vendor/队伍若本场轮空，就显示提示
+  var _byes=(MD.byes||[]);
+  var _hitBye=(vfl||tfl) && _byes.some(function(u){ var uv=(u.vendor||'').toLowerCase(), ut=(u.team||'').toLowerCase();
+    if(vfl&&tfl) return uv.indexOf(vfl)>=0&&ut.indexOf(tfl)>=0;
+    if(vfl) return uv.indexOf(vfl)>=0; if(tfl) return ut.indexOf(tfl)>=0; return false; });
+  var _byeHTML=_hitBye?((typeof _byeNoticeHTML==='function')?_byeNoticeHTML((typeof matchLabel==='function'?matchLabel(parseInt(MD.matchId)):('第'+MD.matchId+'场'))):''):'';
   if(!filtered.length){
-    grid.innerHTML='';
-    var _byes=(MD.byes||[]);
-    var _hitBye=_byes.some(function(u){ var uv=(u.vendor||'').toLowerCase(), ut=(u.team||'').toLowerCase();
-      if(vfl&&tfl) return uv.indexOf(vfl)>=0&&ut.indexOf(tfl)>=0;
-      if(vfl) return uv.indexOf(vfl)>=0; if(tfl) return ut.indexOf(tfl)>=0; return false; });
-    if(_hitBye){
-      var _lbl=(typeof matchLabel==='function'?matchLabel(parseInt(MD.matchId)):('第'+MD.matchId+'场'));
-      grid.innerHTML=(typeof _byeNoticeHTML==='function')?_byeNoticeHTML(_lbl):'';
-      if(noRes)noRes.style.display='none'; return;
-    }
-    if(noRes)noRes.style.display='block'; return;
+    grid.innerHTML=_byeHTML;
+    if(noRes)noRes.style.display=_hitBye?'none':'block';
+    return;
   }
   if(noRes)noRes.style.display='none';
-  grid.innerHTML=filtered.map((p,i)=>{
+  grid.innerHTML=_byeHTML+filtered.map((p,i)=>{
     const va=vendorName(p.a.vendor);
     const vb=vendorName(p.b.vendor);
     return '<div class="matchup-card">'
