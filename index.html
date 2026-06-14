@@ -4433,6 +4433,16 @@ function renderPerfStatus(){
     +'<span style="font-size:11px;color:var(--muted2)">'+L('（上传新文件会自动存为新版本，旧版本保留，最多5个）','(Subir un archivo nuevo crea una versión; se conservan las anteriores, máx. 5)')+'</span>'
     +'</div>';
 }
+function _fixWsRange(ws){
+  // 修复部分导出工具写错的 !ref（范围只标了 A 列等），扫描真实单元格重算范围，否则 SheetJS 会丢列
+  if(!ws||typeof ws!=='object'||!window.XLSX||!XLSX.utils) return ws;
+  var R={s:{r:Infinity,c:Infinity},e:{r:-1,c:-1}}, found=false;
+  for(var k in ws){ if(!ws.hasOwnProperty(k)||k.charAt(0)==='!') continue; var cc; try{cc=XLSX.utils.decode_cell(k);}catch(e){continue;} if(!cc||isNaN(cc.r)||isNaN(cc.c)) continue; found=true; if(cc.r<R.s.r)R.s.r=cc.r; if(cc.c<R.s.c)R.s.c=cc.c; if(cc.r>R.e.r)R.e.r=cc.r; if(cc.c>R.e.c)R.e.c=cc.c; }
+  if(found){ if(R.s.r===Infinity)R.s.r=0; if(R.s.c===Infinity)R.s.c=0; try{ ws['!ref']=XLSX.utils.encode_range(R); }catch(e){} }
+  return ws;
+}
+(function(){ try{ if(window.XLSX&&XLSX.utils&&XLSX.utils.sheet_to_json&&!XLSX.utils.__rangeFixed){ var _o=XLSX.utils.sheet_to_json; XLSX.utils.sheet_to_json=function(ws,opts){ try{ _fixWsRange(ws); }catch(e){} return _o.call(this,ws,opts); }; XLSX.utils.__rangeFixed=true; } }catch(e){} })();
+
 function handlePerfFile(file){
   if(!file)return;
   if(!file.name.match(/\.(xlsx|xls)$/i)){showAlert('perfErr',L('请上传 .xlsx 或 .xls 格式','Sube un archivo .xlsx o .xls'));return}
