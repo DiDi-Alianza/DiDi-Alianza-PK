@@ -4670,6 +4670,14 @@ function runMatching(){
   GENERATED_PAIRS=[];
   const unmatched=[...candidates];
   const paired=new Set();
+  // 奇数时：把"业绩最差(综合实力分最低)"的队定为本场轮空，先从配对池移除
+  // 跳过"上场已轮空、本场应优先匹配"的队，避免同一队连续轮空
+  if(unmatched.length % 2 === 1){
+    var _byePool=unmatched.filter(function(c){return !c._priority;});
+    if(!_byePool.length) _byePool=unmatched.slice();
+    var _bye=_byePool.reduce(function(lo,c){ return (c.score<lo.score)? c : lo; }, _byePool[0]);
+    var _bi=unmatched.indexOf(_bye); if(_bi>=0) unmatched.splice(_bi,1);  // 移出配对池 → 落单(轮空)
+  }
 
   // 历史对手表（避免重复对阵）：取本场之前已存档的所有场次
   var _curKey=(typeof matchDateKey==='function')?matchDateKey(matchId):matchId;
