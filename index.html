@@ -3166,9 +3166,10 @@ function buildSchedule(){
   if(cbContainer){
     const ttMapZ={weekend:'🏖️周末PK',matchday:'⚽赛事日',both:'⚡双倍',prewc:'🔥热身PK'};const ttMapE={weekend:'🏖️ Fin de semana',matchday:'⚽ Día de partido',both:'⚡ Doble',prewc:'🔥 Pre-Mundial'};const ttMap=LANG==='es'?ttMapE:ttMapZ;
     var _isLocked=function(id){ return !!(typeof MATCHUP_ARCHIVE!=='undefined' && MATCHUP_ARCHIVE && MATCHUP_ARCHIVE[String(id)] && (MATCHUP_ARCHIVE[String(id)].pairs||[]).length); };
-    var _todayKey=(function(){ var d=new Date(); return (d.getMonth()+1)*100 + d.getDate(); })();
-    var _mdKey=function(str){ var m=String(str||'').match(/(\d+)月(\d+)日/); return m?(parseInt(m[1])*100+parseInt(m[2])):null; };
-    var _isPast=function(s){ var dl=_mdKey(s.deadline), dt=_mdKey(s.date); if(dl!=null) return _todayKey>dl; return dt!=null && _todayKey>dt; }; // 正式赛过截止日 / 热身赛过比赛日 → 已截止
+    var _today=(function(){ var d=new Date(); d.setHours(0,0,0,0); return d; })();
+    var _matchDate=function(s){ var m=String(s.date||'').match(/(\d+)月(\d+)日/); if(!m)return null; var y=new Date().getFullYear(); var d=new Date(y, parseInt(m[1])-1, parseInt(m[2])); d.setHours(0,0,0,0); return d; };
+    // 规则：比赛当天起截止报名（前一天仍可报）；另：已生成配对则立即截止(见 _isLocked)
+    var _isPast=function(s){ var md=_matchDate(s); if(!md) return false; return _today.getTime() >= md.getTime(); };
     var _lockedRow=function(s,_zh,_es){
       return `<label style="display:flex;align-items:flex-start;gap:8px;padding:7px 10px;background:var(--s3);border-radius:7px;border:1px dashed var(--border);font-size:11px;color:var(--muted);opacity:.6;cursor:not-allowed">
         <input type="checkbox" value="${s.id}" disabled style="margin-top:2px;flex-shrink:0">
@@ -3177,7 +3178,7 @@ function buildSchedule(){
     };
     var _closedRow=function(s){
       if(_isLocked(s.id)) return _lockedRow(s,'报名截止 · 配对已生成','Inscripción cerrada · ya emparejado');
-      return _lockedRow(s,'报名已截止 · 该场已过','Inscripción cerrada · partido pasado');
+      return _lockedRow(s,'报名已截止 · 比赛当天关闭','Inscripción cerrada · cierra el día del partido');
     };
     const preHtml=PRE_SCHEDULE.map(s=> (_isLocked(s.id)||_isPast(s))?_closedRow(s):`
       <label style="display:flex;align-items:flex-start;gap:8px;padding:7px 10px;background:rgba(139,92,246,.08);border-radius:7px;cursor:pointer;border:1px solid rgba(139,92,246,.30);font-size:11px;color:var(--muted2);transition:border-color .2s" onmouseover="this.style.borderColor='#A78BFA'" onmouseout="this.style.borderColor='rgba(139,92,246,.30)'">
@@ -3727,14 +3728,14 @@ async function submitReg(){
     showAlert('regErr',L('❌ 你已经错过了「'+lnames+'」的报名时间（该场配对已生成），请报名后面的场次。','❌ Ya pasó el cierre de inscripción de «'+lnames+'» (los emparejamientos ya se generaron). Inscríbete en partidos posteriores.'));
     return;
   }
-  // 已过期场次（正式赛过截止日 / 热身赛过比赛日）：报名已截止
-  var _tdk=(function(){var d=new Date();return (d.getMonth()+1)*100+d.getDate();})();
-  var _mdk=function(str){var m=String(str||'').match(/(\d+)月(\d+)日/);return m?(parseInt(m[1])*100+parseInt(m[2])):null;};
+  // 统一规则：比赛前一天起截止报名
+  var _today2=(function(){var d=new Date();d.setHours(0,0,0,0);return d;})();
+  var _mDate=function(s){var m=String(s.date||'').match(/(\d+)月(\d+)日/);if(!m)return null;var d=new Date(new Date().getFullYear(),parseInt(m[1])-1,parseInt(m[2]));d.setHours(0,0,0,0);return d;};
   var _allDefs={}; (typeof PRE_SCHEDULE!=='undefined'?PRE_SCHEDULE:[]).concat(typeof SCHEDULE!=='undefined'?SCHEDULE:[]).forEach(function(s){_allDefs[String(s.id)]=s;});
-  var pastSel=selectedMatchIds.filter(function(mid){ var s=_allDefs[String(parseInt(mid))]; if(!s)return false; var dl=_mdk(s.deadline),dt=_mdk(s.date); if(dl!=null)return _tdk>dl; return dt!=null&&_tdk>dt; });
+  var pastSel=selectedMatchIds.filter(function(mid){ var s=_allDefs[String(parseInt(mid))]; if(!s)return false; var md=_mDate(s); if(!md)return false; return _today2.getTime()>=md.getTime(); });
   if(pastSel.length){
     var pnames=pastSel.map(function(mid){return matchLabel(parseInt(mid));}).join(L('、',', '));
-    showAlert('regErr',L('❌「'+pnames+'」的报名时间已过，无法报名，请选择后面的场次。','❌ Ya cerró la inscripción de «'+pnames+'». Elige partidos posteriores.'));
+    showAlert('regErr',L('❌「'+pnames+'」已过报名截止（比赛当天关闭），无法报名，请选择后面的场次。','❌ «'+pnames+'» ya cerró (cierra el día del partido). Elige partidos posteriores.'));
     return;
   }
   const filled=riders.filter(r=>r);
