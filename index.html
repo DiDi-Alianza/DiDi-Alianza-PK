@@ -4393,10 +4393,11 @@ function renderMatchupGrid(){
   }
   const filtered=MD.pairs.filter(p=>{
     if(!vfl&&!tfl&&matchupAdminAuthed)return true;
-    if(vfl&&!tfl)return(p.a.vendor||'').toLowerCase().includes(vfl)||(p.b.vendor||'').toLowerCase().includes(vfl);
-    if(!vfl&&tfl)return(p.a.team||'').toLowerCase().includes(tfl)||(p.b.team||'').toLowerCase().includes(tfl);
-    return((p.a.vendor||'').toLowerCase().includes(vfl)&&(p.a.team||'').toLowerCase().includes(tfl))||
-           ((p.b.vendor||'').toLowerCase().includes(vfl)&&(p.b.team||'').toLowerCase().includes(tfl));
+    var ta=(p.a.team||'').toLowerCase(), tb=(p.b.team||'').toLowerCase();
+    var va=(p.a.vendor||'').toLowerCase(), vb=(p.b.vendor||'').toLowerCase();
+    if(vfl&&!tfl)return va.includes(vfl)||vb.includes(vfl);
+    if(!vfl&&tfl)return ta===tfl||tb===tfl;                       // 队名精确匹配
+    return (va.includes(vfl)&&ta===tfl)||(vb.includes(vfl)&&tb===tfl);
   });
   // 轮空提示（与对阵卡叠加）：查询的 Vendor/队伍若本场轮空，就显示提示
   // 优先用发布时存的轮空名单；旧场次没存 → 用"该场报名队 − 已配对队"现算
@@ -4409,16 +4410,29 @@ function renderMatchupGrid(){
     }catch(e){ return []; }
   })();
   var _hitBye=(vfl||tfl) && _byes.some(function(u){ var uv=(u.vendor||'').toLowerCase(), ut=(u.team||'').toLowerCase();
-    if(vfl&&tfl) return uv.indexOf(vfl)>=0&&ut.indexOf(tfl)>=0;
-    if(vfl) return uv.indexOf(vfl)>=0; if(tfl) return ut.indexOf(tfl)>=0; return false; });
+    if(vfl&&tfl) return uv.indexOf(vfl)>=0&&ut===tfl;
+    if(vfl) return uv.indexOf(vfl)>=0; if(tfl) return ut===tfl; return false; });   // 队名精确匹配
   var _byeHTML=_hitBye?((typeof _byeNoticeHTML==='function')?_byeNoticeHTML((typeof matchLabel==='function'?matchLabel(parseInt(MD.matchId)):('第'+MD.matchId+'场'))):''):'';
+  // 运营专用：本场轮空队伍速查（无筛选时显示全部轮空队）
+  var _byeAdminHTML='';
+  if(matchupAdminAuthed && !vfl && !tfl){
+    if(_byes.length){
+      _byeAdminHTML='<div style="border:1px solid #caa14a;border-radius:12px;padding:14px 16px;margin-bottom:14px;background:rgba(202,161,74,.10)">'
+        +'<div style="font-weight:800;font-size:13px;color:#e7c489;margin-bottom:8px">⏳ '+L('本场轮空队伍','Equipos sin pareja')+' · '+_byes.length+'</div>'
+        +_byes.map(function(u){return '<div style="font-size:12px;color:var(--muted);padding:3px 0">• <b style="color:var(--text)">'+(u.team||'—')+'</b> <span style="color:var(--muted2)">('+(u.vendor||'—')+')</span></div>';}).join('')
+        +'<div style="font-size:10px;color:var(--muted2);margin-top:6px">'+L((MD.byes&&MD.byes.length)?'来源：发布存档':'来源：报名队−已配对队（现算）',(MD.byes&&MD.byes.length)?'Fuente: archivo publicado':'Fuente: inscritos − emparejados')+'</div>'
+        +'</div>';
+    } else {
+      _byeAdminHTML='<div style="font-size:12px;color:var(--muted2);margin-bottom:14px">'+L('本场无轮空队伍（或该场报名数据未加载）','Sin equipos sin pareja (o faltan datos de inscripción)')+'</div>';
+    }
+  }
   if(!filtered.length){
-    grid.innerHTML=_byeHTML;
-    if(noRes)noRes.style.display=_hitBye?'none':'block';
+    grid.innerHTML=_byeAdminHTML+_byeHTML+(!_hitBye&&(vfl||tfl)?('<div class="empty-st" style="padding:24px"><div class="empty-icon">🔍</div><p style="font-size:13px;color:var(--muted2)">'+L('无该队伍 / Vendor 的对阵记录，请检查输入是否准确','Sin registro para ese equipo / Vendor; verifica lo ingresado')+'</p></div>'):'');
+    if(noRes)noRes.style.display='none';
     return;
   }
   if(noRes)noRes.style.display='none';
-  grid.innerHTML=_byeHTML+filtered.map((p,i)=>{
+  grid.innerHTML=_byeAdminHTML+_byeHTML+filtered.map((p,i)=>{
     const va=vendorName(p.a.vendor);
     const vb=vendorName(p.b.vendor);
     return '<div class="matchup-card">'
