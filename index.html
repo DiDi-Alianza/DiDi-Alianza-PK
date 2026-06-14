@@ -1671,6 +1671,7 @@ select.fi option{background:#18181E}
       <div class="card">
         <div class="card-t" id="matchingTitle">配对结果</div>
         <div style="font-size:12px;color:var(--muted2);margin-bottom:16px" id="matchingSummary"></div>
+        <div id="matchingRepeat" style="margin-bottom:16px"></div>
         <div id="matchingCards"></div>
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
@@ -4564,6 +4565,49 @@ function processPerfData(rows){
 }
 
 
+function _matchupRepeat(matchId){
+  // 找本场之前、日期最近且已存档的一场作对比基准
+  var curKey=(typeof matchDateKey==='function')?matchDateKey(matchId):matchId;
+  var prevId=null, prevKey=-Infinity;
+  Object.keys(MATCHUP_ARCHIVE||{}).forEach(function(mid){
+    if(String(mid)===String(matchId)) return;
+    var k=(typeof matchDateKey==='function')?matchDateKey(mid):parseInt(mid);
+    if(k==null) return;
+    if((curKey==null||k<curKey) && k>prevKey && ((MATCHUP_ARCHIVE[mid]||{}).pairs||[]).length){ prevKey=k; prevId=mid; }
+  });
+  if(prevId==null) return null;
+  var prevPairs=(MATCHUP_ARCHIVE[prevId]||{}).pairs||[];
+  var tk=function(s){return String((s&&s.team)||'').trim().toLowerCase();};
+  var vk=function(s){return String((s&&s.vendor)||'').toUpperCase();};
+  var tp=function(p){return [tk(p.a),tk(p.b)].sort().join(' ||| ');};
+  var vp=function(p){return [vk(p.a),vk(p.b)].sort().join(' ||| ');};
+  var prevT={}, prevV={}; prevPairs.forEach(function(p){ prevT[tp(p)]=1; prevV[vp(p)]=1; });
+  var repTeam=[], vendHit=0;
+  GENERATED_PAIRS.forEach(function(p){ if(prevT[tp(p)]) repTeam.push(p); if(prevV[vp(p)]) vendHit++; });
+  var tot=GENERATED_PAIRS.length||1;
+  return { prevId:prevId, prevLabel:(typeof matchLabel==='function'?matchLabel(parseInt(prevId)):('第'+prevId+'场')),
+    teamRep:repTeam.length, teamPct:repTeam.length/tot*100, vendRep:vendHit, vendPct:vendHit/tot*100, total:tot, repeatedList:repTeam };
+}
+function _renderRepeatRate(matchId){
+  var el=document.getElementById('matchingRepeat'); if(!el) return;
+  var rr=_matchupRepeat(matchId);
+  if(!rr){ el.innerHTML='<div style="font-size:11px;color:var(--muted)">'+L('（首场或无历史可比，暂无重复率）','(Primer partido o sin historial)')+'</div>'; window._LAST_REPEAT=null; return; }
+  window._LAST_REPEAT=rr;
+  var col=rr.teamPct<=5?'var(--win)':(rr.teamPct<=12?'var(--gold)':'var(--lose)');
+  el.innerHTML='<div style="background:var(--s2);border:1px solid var(--border);border-radius:11px;padding:14px 16px">'
+    +'<div style="font-size:13px;font-weight:700;margin-bottom:8px">'+L('🔁 与上一场（'+rr.prevLabel+'）重复率','🔁 Repetición vs '+rr.prevLabel)+'</div>'
+    +'<div style="display:flex;gap:24px;flex-wrap:wrap;font-size:12px">'
+    +'<div><span style="color:var(--muted)">'+L('队伍对重复','Duelos repetidos')+'</span> <b style="color:'+col+';font-size:15px">'+rr.teamRep+'</b> / '+rr.total+' · <b style="color:'+col+'">'+rr.teamPct.toFixed(1)+'%</b></div>'
+    +'<div><span style="color:var(--muted)">'+L('Vendor对重复','Vendors repetidos')+'</span> <b style="font-size:15px">'+rr.vendRep+'</b> / '+rr.total+' · <b>'+rr.vendPct.toFixed(1)+'%</b></div>'
+    +'</div>'
+    +(rr.teamRep?'<button class="btn btn-s btn-sm" style="margin-top:10px;font-size:11px" onclick="_showRepeatDetail()">'+L('查看重复对阵明细','Ver detalle')+'</button>':'<div style="margin-top:8px;font-size:11px;color:var(--win)">'+L('✅ 没有任何队伍重赛','✅ Sin revanchas')+'</div>')
+    +'</div>';
+}
+function _showRepeatDetail(){
+  var rr=window._LAST_REPEAT; if(!rr||!rr.repeatedList.length) return;
+  var lines=rr.repeatedList.map(function(p,i){ return (i+1)+'. '+(p.a.team)+' ('+(p.a.vendor)+')  vs  '+(p.b.team)+' ('+(p.b.vendor)+')'; });
+  alert(L('与上一场（'+rr.prevLabel+'）重复的对阵 · 共 '+rr.teamRep+' 组：\n\n','Duelos repetidos vs '+rr.prevLabel+' ('+rr.teamRep+'):\n\n')+lines.join('\n'));
+}
 function runMatching(){
   const matchId=parseInt(document.getElementById('pairMatchSel').value);
   if(!matchId){alert(L('请选择场次','Selecciona un partido'));return}
@@ -4617,27 +4661,44 @@ function runMatching(){
   const unmatched=[...candidates];
   const paired=new Set();
 
-  // Build adjacency: for each team, find best cross-vendor match by closest score
+  // 历史对手表（避免重复对阵）：取本场之前已存档的所有场次
+  var _curKey=(typeof matchDateKey==='function')?matchDateKey(matchId):matchId;
+  var recentTeamOpp={}, recentVendorOpp={};
+  try{ Object.keys(MATCHUP_ARCHIVE||{}).forEach(function(mid){
+    if(String(mid)===String(matchId)) return;  // 不含本场自身
+    var k=(typeof matchDateKey==='function')?matchDateKey(mid):parseInt(mid);
+    if(_curKey!=null && k!=null && k>=_curKey) return;  // 只看更早的场次
+    ((MATCHUP_ARCHIVE[mid]||{}).pairs||[]).forEach(function(p){
+      if(!p.a||!p.b) return;
+      var ta=String(p.a.team||'').trim().toLowerCase(), tb=String(p.b.team||'').trim().toLowerCase();
+      var va=String(p.a.vendor||'').toUpperCase(), vb=String(p.b.vendor||'').toUpperCase();
+      if(ta&&tb){ (recentTeamOpp[ta]=recentTeamOpp[ta]||{})[tb]=1; (recentTeamOpp[tb]=recentTeamOpp[tb]||{})[ta]=1; }
+      if(va&&vb){ (recentVendorOpp[va]=recentVendorOpp[va]||{})[vb]=1; (recentVendorOpp[vb]=recentVendorOpp[vb]||{})[va]=1; }
+    });
+  }); }catch(e){}
+  function _teamRematch(a,b){ var ta=String(a.team||'').trim().toLowerCase(), tb=String(b.team||'').trim().toLowerCase(); return !!(recentTeamOpp[ta]&&recentTeamOpp[ta][tb]); }
+  function _vendorRematch(a,b){ var va=String(a.vendor||'').toUpperCase(), vb=String(b.vendor||'').toUpperCase(); return !!(recentVendorOpp[va]&&recentVendorOpp[va][vb]); }
+  var REPEAT_TOL=6;  // 实力差容差：只在"实力相当"(差≤最优+容差)的候选里换非重复对手，保证公平
+
+  // 配对：跨Vendor优先 → 实力相当的候选里优先选没对过的对手（队伍优先，其次Vendor）
   while(unmatched.filter(t=>!paired.has(t.team)).length>=2){
     const avail=unmatched.filter(t=>!paired.has(t.team));
     const a=avail[0];
-    // Find closest score from different vendor
-    let bestB=null,bestDiff=Infinity;
-    for(const b of avail.slice(1)){
-      if(b.vendor!==a.vendor){
-        const diff=Math.abs(a.score-b.score);
-        if(diff<bestDiff){bestDiff=diff;bestB=b}
-      }
-    }
-    // If no cross-vendor available, allow same vendor
-    if(!bestB){
-      for(const b of avail.slice(1)){
-        const diff=Math.abs(a.score-b.score);
-        if(diff<bestDiff){bestDiff=diff;bestB=b}
-      }
-    }
+    var pool=avail.slice(1);
+    var cross=pool.filter(function(b){return b.vendor!==a.vendor;});
+    var useSet=cross.length?cross:pool;  // 优先跨Vendor，没有才允许同Vendor
+    var minDiff=Infinity; useSet.forEach(function(b){ var d=Math.abs(a.score-b.score); if(d<minDiff)minDiff=d; });
+    var band=useSet.filter(function(b){ return Math.abs(a.score-b.score)<=minDiff+REPEAT_TOL; });
+    band.sort(function(x,y){
+      var tx=_teamRematch(a,x)?1:0, ty=_teamRematch(a,y)?1:0;
+      if(tx!==ty) return tx-ty;                                   // ① 优先避免队伍重赛
+      var vx=_vendorRematch(a,x)?1:0, vy=_vendorRematch(a,y)?1:0;
+      if(vx!==vy) return vx-vy;                                   // ② 其次避免Vendor重复
+      return Math.abs(a.score-x.score)-Math.abs(a.score-y.score); // ③ 同等下选实力最近
+    });
+    var bestB=band[0]||null;
     if(bestB){
-      GENERATED_PAIRS.push({a,b:bestB,diff:bestDiff,crossVendor:a.vendor!==bestB.vendor});
+      GENERATED_PAIRS.push({a,b:bestB,diff:Math.abs(a.score-bestB.score),crossVendor:a.vendor!==bestB.vendor});
       paired.add(a.team);paired.add(bestB.team);
     } else break;
   }
@@ -4653,6 +4714,7 @@ function runMatching(){
   const m=SCHEDULE.find(s=>s.id===matchId);
   document.getElementById('matchingTitle').textContent=L(`🎯 第${matchId}场配对结果 · ${m?sDate(m)+' '+sDay(m):''} · ${GENERATED_PAIRS.length}场对决`,`🎯 Emparejamientos ${matchLabel(matchId)} · ${m?sDate(m)+' '+sDay(m):''} · ${GENERATED_PAIRS.length} duelos`);
   document.getElementById('matchingSummary').innerHTML=L(`共 ${candidates.length} 支队伍参赛 · ${GENERATED_PAIRS.length} 场对决 · ${unmatchedFinal.length} 支队伍轮空${unmatchedFinal.length?'（按普通工作日处理，下场优先匹配）':''}${_prioMatched?` · 其中 ${_prioMatched} 支含上场落空骑手·本场已优先配对`:''}`,`${candidates.length} equipos · ${GENERATED_PAIRS.length} duelos · ${unmatchedFinal.length} sin pareja${unmatchedFinal.length?' (tratados como día normal, prioridad el próximo partido)':''}${_prioMatched?` · ${_prioMatched} con riders que antes quedaron sin jugar·priorizados`:''}`);
+  _renderRepeatRate(matchId);
 
   document.getElementById('matchingCards').innerHTML=GENERATED_PAIRS.map((p,i)=>`
     <div class="match-result-card">
