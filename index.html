@@ -1344,9 +1344,14 @@ select.fi option{background:#18181E}
       <button class="btn btn-s btn-sm" onclick="showDiagnostic()"><span class="lc-zh">🔍 诊断</span><span class="lc-es">🔍 Diagnóstico</span></button>
       <button class="btn btn-p btn-sm" onclick="forceRecalculate()"><span class="lc-zh">🔄 重算</span><span class="lc-es">🔄 Recalcular</span></button>
       <button class="btn btn-s btn-sm" onclick="downloadAllResults()" style="border-color:rgba(255,184,0,.4);color:#FFB800"><span class="lc-zh">⬇️ 下载全部结果</span><span class="lc-es">⬇️ Descargar todo</span></button>
-      <button class="btn btn-s btn-sm" onclick="clearAllScoreData()" style="border-color:rgba(239,68,68,.4);color:#EF4444"><span class="lc-zh">🗑️ 清空比赛数据</span><span class="lc-es">🗑️ Borrar datos de partidos</span></button>
-      <button class="btn btn-s btn-sm" onclick="clearEverything()" style="border-color:rgba(168,85,247,.4);color:#A855F7;font-weight:700"><span class="lc-zh">🔴 清空所有数据</span><span class="lc-es">🔴 Borrar todos los datos</span></button>
     </div>
+    <details style="margin-bottom:8px">
+      <summary style="font-size:11px;color:var(--muted2);cursor:pointer;user-select:none"><span class="lc-zh">⚠️ 危险操作（清空数据，传错才用）</span><span class="lc-es">⚠️ Zona peligrosa (borrar datos)</span></summary>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px;padding:10px;border:1px dashed rgba(239,68,68,.4);border-radius:8px">
+        <div style="flex:1 1 100%;font-size:10px;color:var(--muted2);line-height:1.5"><span class="lc-zh">仅在某场积分传错、需要重传时使用。清空不可恢复，建议先「下载全部结果」备份。</span><span class="lc-es">Úsalo solo si subiste datos equivocados. Irreversible; respalda primero con «Descargar todo».</span></div>
+        <button class="btn btn-s btn-sm" onclick="clearAllScoreData()" style="border-color:rgba(239,68,68,.4);color:#EF4444"><span class="lc-zh">🗑️ 清空本场比赛数据</span><span class="lc-es">🗑️ Borrar datos de partidos</span></button>
+      </div>
+    </details>
     <div id="sharedVendorWarn" style="display:none;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.5);border-radius:9px;padding:10px 14px;margin-bottom:8px;font-size:12px;color:#F59E0B;line-height:1.6"></div>
     <div id="diagPanel" style="display:none;background:var(--s3);border:1px solid var(--border);border-radius:10px;padding:14px;margin-top:8px;font-size:10px;font-family:monospace;white-space:pre-wrap;color:var(--muted2);max-height:200px;overflow-y:auto"></div>
   </div>
@@ -7314,19 +7319,25 @@ initMatchupPage();
   window.rb_renderWeek=function(){
     var box=document.getElementById('rbWeekBox'); if(!box)return;
     var set={}; try{ Object.keys(REAL_CURP_MAP).forEach(function(k){var e=REAL_CURP_MAP[k]; if(e&&e._day)Object.keys(e._day).forEach(function(d){if(d&&d!=='_nd')set[d]=1;}); }); }catch(e){}
-    var now=new Date(); var dow=(now.getDay()+6)%7; // 周一=0
-    var mon=new Date(now); mon.setDate(now.getDate()-dow); mon.setHours(0,0,0,0);
-    var names=['一','二','三','四','五','六','日'];
-    var html='';
-    for(var i=0;i<7;i++){ var dd=new Date(mon); dd.setDate(mon.getDate()+i);
-      var key=dd.getFullYear()+'-'+('0'+(dd.getMonth()+1)).slice(-2)+'-'+('0'+dd.getDate()).slice(-2);
-      var has=!!set[key]; var future=dd.getTime()>now.setHours(0,0,0,0);
-      html+='<div style="flex:1;text-align:center;padding:5px 2px;border-radius:6px;margin:0 1px;background:'+(has?'#0A8A4A':(future?'#e8e8ea':'#F3C7C0'))+';color:'+(has?'#fff':(future?'#aaa':'#7a2018'))+'">'
-        +'<div style="font-size:10px">'+tL('周'+names[i],['L','M','X','J','V','S','D'][i])+'</div>'
-        +'<div style="font-size:11px;font-weight:700">'+(dd.getMonth()+1)+'/'+dd.getDate()+'</div>'
-        +'<div style="font-size:11px">'+(has?'✓':(future?'·':'✗'))+'</div></div>';
+    var now=new Date(); var today0=new Date(now); today0.setHours(0,0,0,0);
+    var dow=(now.getDay()+6)%7; // 周一=0
+    var thisMon=new Date(now); thisMon.setDate(now.getDate()-dow); thisMon.setHours(0,0,0,0);
+    var lastMon=new Date(thisMon); lastMon.setDate(thisMon.getDate()-7);
+    var names=['一','二','三','四','五','六','日'], esn=['L','M','X','J','V','S','D'];
+    function weekRow(mon){
+      var h='';
+      for(var i=0;i<7;i++){ var dd=new Date(mon); dd.setDate(mon.getDate()+i);
+        var key=dd.getFullYear()+'-'+('0'+(dd.getMonth()+1)).slice(-2)+'-'+('0'+dd.getDate()).slice(-2);
+        var has=!!set[key]; var future=dd.getTime()>today0.getTime();
+        h+='<div style="flex:1;text-align:center;padding:4px 1px;border-radius:5px;margin:0 1px;background:'+(has?'#0A8A4A':(future?'#e8e8ea':'#F3C7C0'))+';color:'+(has?'#fff':(future?'#aaa':'#7a2018'))+'">'
+          +'<div style="font-size:9px">'+tL('周'+names[i],esn[i])+'</div>'
+          +'<div style="font-size:10px;font-weight:700">'+(dd.getMonth()+1)+'/'+dd.getDate()+'</div>'
+          +'<div style="font-size:10px">'+(has?'✓':(future?'·':'✗'))+'</div></div>';
+      }
+      return '<div style="display:flex">'+h+'</div>';
     }
-    box.innerHTML='<div style="font-size:10px;color:#999;font-weight:700;margin:2px 0 4px">'+tL('本周上传情况','Esta semana')+'</div><div style="display:flex">'+html+'</div>';
+    box.innerHTML='<div style="font-size:10px;color:#999;font-weight:700;margin:2px 0 3px">'+tL('上周上传情况','Semana pasada')+'</div>'+weekRow(lastMon)
+      +'<div style="font-size:10px;color:#999;font-weight:700;margin:6px 0 3px">'+tL('本周上传情况','Esta semana')+'</div>'+weekRow(thisMon);
   };
   window.rb_uploadDaily=async function(file){
     if(!file)return;
