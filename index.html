@@ -3593,7 +3593,18 @@ async function sbLockMatch(matchId){
   try{ const { error } = await sb.rpc('lock_match', { p_match_id: parseInt(matchId) }); if(error) console.error('lock_match', error); }
   catch(e){ console.error('lock_match', e); }
 }
-async function saveCurp(){ await dbSaveData('curp_map', REAL_CURP_MAP); }
+async function saveCurp(){
+  // 存库瘦身：体积最大的每日明细 _pk 不再持久化（仅内存保留，供「从每日数据生成本场结果」当次使用）。
+  // 改存精简后的每日数据，避免 curp_map 过大导致保存静默失败 / 读取卡死。明细滚动改用紧凑的 _bd。
+  var slim={};
+  Object.keys(REAL_CURP_MAP).forEach(function(k){
+    var e=REAL_CURP_MAP[k];
+    if(!e||typeof e!=='object'){ slim[k]=e; return; }
+    var c={}; Object.keys(e).forEach(function(f){ if(f!=='_pk') c[f]=e[f]; });
+    slim[k]=c;
+  });
+  await dbSaveData('curp_map', slim);
+}
 async function clearCurpData(){
   if(!(await requireOperator())) return;
   if(!confirm(L('确定要清空全部骑手积分数据吗？此操作不可恢复！\n建议先导出备份。','¿Borrar TODOS los puntos de los riders? ¡Es irreversible!\nSe recomienda exportar un respaldo primero.'))) return;
@@ -7198,7 +7209,23 @@ initMatchupPage();
     var d=calc();
     if(!d.riders){st(tL('没有可公布的滚动数据。请先①设期初并②上传每日积分。','Sin datos.'),false);return;}
     if(!confirm(tL('确认公布？将更新 '+d.riders+' 名骑手的可查余额（累计合计 '+d.total.toLocaleString()+'）。公布后骑手立即可查。','¿Publicar '+d.riders+' riders?')))return;
-    Object.keys(d.map).forEach(function(k){var e=REAL_CURP_MAP[k];if(!e)return;var m=d.map[k];e.cumulative_pts=m.cum;e.pk_pt=m.pk;var c=tierRate(m.cum);e.coeff=c;e.estimated_cash=Math.round(m.cum*c*10)/10;e.total_online_hr=m.hr;e.total_complete_orders=m.ord;e.online_days=m.days;e._published_at=Date.now();});
+    Object.keys(d.map).forEach(function(k){var e=REAL_CURP_MAP[k];if(!e)return;var m=d.map[k];e.cumulative_pts=m.cum;e.pk_pt=m.pk;var c=tierRate(m.cum);e.coeff=c;e.estimated_cash=Math.round(m.cum*c*10)/10;e.total_online_hr=m.hr;e.total_complete_orders=m.ord;e.online_days=m.days;
+      // 明细滚动：把每日 Slot23/Perfect/周末加成/扣分 汇总进顶层字段（骑手查询显示最新拆解）。
+      // 清零感知（清零日及之前不计）；用 _open_* 快照历史基准，保证可重复公布不重复累加。
+      if(e._bd && Object.keys(e._bd).length){
+        var _clr=e._clearDate||null;
+        if(e._open_slot23===undefined)e._open_slot23=Number(e.slot23_pt||0);
+        if(e._open_perfect===undefined)e._open_perfect=Number(e.perfect_pt||0);
+        if(e._open_bonus===undefined)e._open_bonus=Number(e.weekend_bonus_pt||0);
+        if(e._open_deduct===undefined)e._open_deduct=Number(e.deduct_pt||0);
+        var _s=0,_p=0,_b=0,_dd=0;
+        Object.keys(e._bd).forEach(function(d){ if(_clr&&d<=_clr)return; var a=e._bd[d]||[]; _s+=Number(a[0]||0);_p+=Number(a[1]||0);_b+=Number(a[2]||0);_dd+=Number(a[3]||0)+Number(a[4]||0); });
+        e.slot23_pt=Math.round((_clr?0:(e._open_slot23||0))+_s);
+        e.perfect_pt=Math.round((_clr?0:(e._open_perfect||0))+_p);
+        e.weekend_bonus_pt=Math.round((_clr?0:(e._open_bonus||0))+_b);
+        e.deduct_pt=Math.round((_clr?0:(e._open_deduct||0))+_dd);
+      }
+      e._published_at=Date.now();});
     try{if(typeof saveCurp==='function')await saveCurp();}catch(e){console.error(e);}
     st(tL('✅ 已公布！'+d.riders+' 名骑手余额已更新，骑手现在可查询。','✅ Publicado: '+d.riders+' riders.'),true);
   };
@@ -7376,12 +7403,12 @@ initMatchupPage();
         Object.keys(pp).forEach(function(k){
           var e=REAL_CURP_MAP[k];
           if(!e){e={rider_id:'',cumulative_pts:0,rank:'—',_open:0,_open_hr:0,_open_ord:0,_open_days:0,_day:{},_dhr:{},_dord:{}};REAL_CURP_MAP[k]=e;}
-          if(!e._day)e._day={};if(!e._dhr)e._dhr={};if(!e._dord)e._dord={};if(!e._pk)e._pk={};
+          if(!e._day)e._day={};if(!e._dhr)e._dhr={};if(!e._dord)e._dord={};if(!e._pk)e._pk={};if(!e._bd)e._bd={};
           if(e._open===undefined)e._open=Number(e.cumulative_pts||0);
           if(e._open_hr===undefined)e._open_hr=Number(e.total_online_hr||0);
           if(e._open_ord===undefined)e._open_ord=Number(e.total_complete_orders||0);
           if(e._open_days===undefined)e._open_days=Number(e.online_days||0);
-          Object.keys(pp[k]).forEach(function(d){var x=pp[k][d];e._day[d]=x.p;e._dhr[d]=x.hr;e._dord[d]=x.o;
+          Object.keys(pp[k]).forEach(function(d){var x=pp[k][d];e._day[d]=x.p;e._dhr[d]=x.hr;e._dord[d]=x.o;e._bd[d]=[x.s23,x.perf,x.bon,x.ded,x.sch];
             e._pk[d]={slot23_point_part:x.s23,perfect_point_part:x.perf,bonus_point_part:x.bon,deduct_point_part:x.ded,schedule_penalty_part:x.sch,points:x.p,effective_points:x.eff,complete_orders:x.o,dduty_3r_cnt:x.d3r,vendor_code:x.vc,vendor_id:x.vid,rider_id:x.rid};
             if(x.rid&&!e.rider_id)e.rider_id=x.rid; if(x.vc&&!e.vendor_code)e.vendor_code=x.vc;});
           nR++;
