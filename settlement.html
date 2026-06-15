@@ -361,7 +361,7 @@ const peso0 = n => (n==null?'—':Math.round(n));
 
 let RAW = {};   // 原始 app_data 块
 async function fetchBlocks(){
-  const sb = window.supabase.createClient(SB_URL, SB_KEY);
+  const sb = window.supabase.createClient(SB_URL, SB_KEY, { global:{ fetch:(u,o)=>fetch(u,Object.assign({},o||{},{cache:'no-store'})) } });
   const keys = ['curp_map','perf_store','score_archive','vendor_rm','vendor_rmvm','vendor_city','vendor_roster','settled_weeks'];
   const { data, error } = await sb.from('app_data').select('key,value').in('key', keys);
   if(error) throw error;
@@ -380,7 +380,7 @@ async function fetchBlocks(){
 
 // 结算确认：把某周写入/移出 app_data 的 settled_weeks，然后重载刷新
 async function _saveSettledWeeks(list){
-  const sb = window.supabase.createClient(SB_URL, SB_KEY);
+  const sb = window.supabase.createClient(SB_URL, SB_KEY, { global:{ fetch:(u,o)=>fetch(u,Object.assign({},o||{},{cache:'no-store'})) } });
   const { error } = await sb.from('app_data').upsert({ key:'settled_weeks', value:list, updated_at:new Date().toISOString() });
   if(error) throw error;
 }
