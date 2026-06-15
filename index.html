@@ -7400,6 +7400,9 @@ initMatchupPage();
           dates[d]=1;
         });
         var dl=Object.keys(dates).filter(function(d){return d!=='_nd';}).sort(),nR=0;
+        // 替换式上传：先清掉本次文件覆盖的这些日期(所有骑手)的旧值，避免历次上传残留拼成脏数据(完单/积分对不上)。
+        // 前提：每次上传的是这些日期的全量 extract（你的工作流就是如此）。如需只改个别骑手，请上传当天全量文件。
+        if(dl.length){ Object.keys(REAL_CURP_MAP).forEach(function(_k){ var _e=REAL_CURP_MAP[_k]; if(!_e)return; dl.forEach(function(_d){ if(_e._day)delete _e._day[_d]; if(_e._dhr)delete _e._dhr[_d]; if(_e._dord)delete _e._dord[_d]; if(_e._bd)delete _e._bd[_d]; if(_e._pk)delete _e._pk[_d]; }); }); }
         Object.keys(pp).forEach(function(k){
           var e=REAL_CURP_MAP[k];
           if(!e){e={rider_id:'',cumulative_pts:0,rank:'—',_open:0,_open_hr:0,_open_ord:0,_open_days:0,_day:{},_dhr:{},_dord:{}};REAL_CURP_MAP[k]=e;}
