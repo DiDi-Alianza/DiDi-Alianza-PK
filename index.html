@@ -1615,7 +1615,7 @@ select.fi option{background:#18181E}
       </div>
       <div style="display:flex;gap:8px">
         <select id="dashLangSel" onchange="dashSetLang(this.value)" class="btn btn-s btn-sm" style="font-size:11px;cursor:pointer" title="看板语言 / Dashboard language"><option value="zh">🌐 中文</option><option value="en">🌐 English</option></select>
-        <button id="dashUploadToggle" class="btn btn-s btn-sm" onclick="var b=document.getElementById('dashUploadBar');b.style.display=(b.style.display==='none'?'grid':'none')" style="font-size:11px"><span class="lc-zh">🗂️ 数据上传</span><span class="lc-es en-hide">🗂️ Datos</span><span class="lc-en">🗂️ Upload</span></button><button class="btn btn-s btn-sm" onclick="renderDashboard()" style="font-size:11px"><span class="lc-zh">🔄 刷新</span><span class="lc-es en-hide">🔄 Actualizar</span><span class="lc-en">🔄 Refresh</span></button>
+        <button id="dashUploadToggle" class="btn btn-s btn-sm" onclick="var b=document.getElementById('dashUploadBar');b.style.display=(b.style.display==='none'?'grid':'none')" style="font-size:11px"><span class="lc-zh">🗂️ 数据上传</span><span class="lc-es en-hide">🗂️ Datos</span><span class="lc-en">🗂️ Upload</span></button><button class="btn btn-s btn-sm" onclick="renderDashboard();var f=document.getElementById('costFrame');if(f)f.src='settlement.html?v=18&t='+Date.now()" style="font-size:11px"><span class="lc-zh">🔄 刷新</span><span class="lc-es en-hide">🔄 Actualizar</span><span class="lc-en">🔄 Refresh</span></button>
         <button class="btn btn-s btn-sm" onclick="exportDashboard()" style="font-size:11px"><span class="lc-zh">⬇️ 导出</span><span class="lc-es en-hide">⬇️ Exportar</span><span class="lc-en">⬇️ Export</span></button>
         <button id="dashOpLogout" class="btn btn-s btn-sm" onclick="operatorLogout();closeDashboard();" style="font-size:11px"><span class="lc-zh">退出登录</span><span class="lc-es en-hide">Salir</span><span class="lc-en">Log out</span></button>
         <button class="btn btn-s btn-sm" onclick="closeDashboard()" style="font-size:11px"><span class="lc-zh">✕ 关闭</span><span class="lc-es en-hide">✕ Cerrar</span><span class="lc-en">✕ Close</span></button>
@@ -3029,7 +3029,7 @@ async function renderDashboard(){
     var _langBar='<div style="display:flex;gap:6px;margin:2px 0 8px;align-items:center"><span style="font-size:11px;color:var(--muted2);margin-right:2px">'+L('看板语言','Idioma','Language')+':</span>'+_lb('inherit',L('跟随','Auto','Auto'))+_lb('zh','中文')+_lb('es','ES')+_lb('en','EN')+'</div>';
     var _tabBar='<div id="dashTabBar" style="display:flex;gap:8px;margin:2px 0 14px;flex-wrap:wrap">'
       +_dtb('ov',L('📊 总览','📊 Resumen','📊 Overview'))+_dtb('pk',L('🏁 PK 明细','🏁 PK','🏁 PK'))+_dtb('pt',L('🧩 PT 明细','🧩 PT','🧩 PT'))+_dtb('cost',L('💰 成本结算','💰 Costos','💰 Settlement'))+'</div>';
-    body.innerHTML=_tabBar+html+'<div class="dtab" data-t="cost" style="display:none"><div style="font-size:12px;color:var(--muted);margin-bottom:8px">'+L('实时奖金池结算 · 数据直读数据库 · 与运营指标同源','Liquidación en vivo · datos del mismo backend','Live settlement · same backend')+'</div><iframe id="costFrame" src="settlement.html?v=17" scrolling="no" style="width:100%;height:700px;border:1px solid var(--border);border-radius:12px;background:#0f1115;overflow:hidden;display:block" loading="lazy"></iframe></div>';
+    body.innerHTML=_tabBar+html+'<div class="dtab" data-t="cost" style="display:none"><div style="font-size:12px;color:var(--muted);margin-bottom:8px">'+L('实时奖金池结算 · 数据直读数据库 · 与运营指标同源','Liquidación en vivo · datos del mismo backend','Live settlement · same backend')+'</div><iframe id="costFrame" src="settlement.html?v=18" scrolling="no" style="width:100%;height:700px;border:1px solid var(--border);border-radius:12px;background:#0f1115;overflow:hidden;display:block" loading="lazy"></iframe></div>';
     dashShowTab(DASH_TAB||'ov');
     if(!window.__costFrameLis){ window.__costFrameLis=true; window.addEventListener('message',function(e){ try{ if(e&&e.data&&e.data.t==='sh'&&e.data.h){ var f=document.getElementById('costFrame'); if(f){ f.style.height=(Math.max(300,e.data.h)+16)+'px'; } } }catch(_){} }); }
     if(typeof renderTrendChart==='function')renderTrendChart();
@@ -7273,6 +7273,7 @@ initMatchupPage();
       +'<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f2f2f4;text-align:left">'
       +'<th style="padding:6px 8px"><input type="checkbox" id="rbClrAll" checked></th><th style="padding:6px 8px">Rider</th><th style="padding:6px 8px">Vendor</th><th style="padding:6px 8px">'+tL('0单区间','Rango')+'</th><th style="padding:6px 8px;text-align:right">'+tL('将清零分','Puntos')+'</th><th style="padding:6px 8px;text-align:center">'+tL('备注','Nota')+'</th></tr></thead><tbody>'+rows+'</tbody></table>'
       +'<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">'
+      +'<button onclick="window.rb_exportClearReview()" style="padding:9px 18px;border:1px solid #2D7DD2;border-radius:8px;background:#EAF3FC;color:#1A5FA8;font-weight:700;cursor:pointer">⬇️ '+tL('导出待清零清单','Exportar lista')+'</button>'
       +'<button onclick="document.getElementById(\'rbClearOv\').remove()" style="padding:9px 18px;border:1px solid #ccc;border-radius:8px;background:#f5f5f7;cursor:pointer">'+tL('取消','Cancelar')+'</button>'
       +'<button onclick="window.rb_confirmClear()" style="padding:9px 18px;border:none;border-radius:8px;background:#C0392B;color:#fff;font-weight:700;cursor:pointer">'+tL('✅ 确认清零所选','✅ Confirmar')+'</button></div></div>';
     var allChk=document.getElementById('rbClrAll'); if(allChk)allChk.onclick=function(){document.querySelectorAll('.rbClrChk').forEach(function(c){c.checked=allChk.checked;});};
@@ -7293,6 +7294,14 @@ initMatchupPage();
     try{ if(typeof dbSaveData==='function') await dbSaveData('clear_log',CLEAR_LOG); }catch(e){}
     var ov=document.getElementById('rbClearOv'); if(ov)ov.remove();
     st(tL('✅ 已清零 '+picks.length+' 名并留痕。可在「清零记录」查看/导出。','✅ '+picks.length+' puestos a cero y registrados.'),true);
+  };
+  window.rb_exportClearReview=function(){
+    var cands=window.__clearCands||[];
+    if(!cands.length){alert(tL('暂无待清零清单','Sin lista'));return;}
+    if(typeof XLSX==='undefined'){alert('XLSX');return;}
+    var data=cands.map(function(c){return {Rider_ID:c.rider_id||c.curp,Vendor:c.vendor||'',零单起_From:c.zeroFrom,零单止_To:c.zeroTo,将清零分_Points:c.points,有兑换申请_HasRedemption:c.hasRedemption?'是 Yes':''};});
+    var ws=XLSX.utils.json_to_sheet(data);var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'PendingClear');
+    XLSX.writeFile(wb,'待清零清单_'+new Date().toISOString().slice(0,10)+'.xlsx');
   };
   window.rb_showClearLog=async function(){
     if(typeof requireOperator==='function'){if(!(await requireOperator()))return;}

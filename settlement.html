@@ -362,7 +362,7 @@ const peso0 = n => (n==null?'—':Math.round(n));
 let RAW = {};   // 原始 app_data 块
 async function fetchBlocks(){
   const sb = window.supabase.createClient(SB_URL, SB_KEY);
-  const keys = ['curp_map','perf_store','score_archive','vendor_rm','vendor_rmvm','vendor_city','vendor_roster'];
+  const keys = ['curp_map','perf_store','score_archive','vendor_rm','vendor_rmvm','vendor_city','vendor_roster','settled_weeks'];
   const { data, error } = await sb.from('app_data').select('key,value').in('key', keys);
   if(error) throw error;
   RAW = {}; (data||[]).forEach(r=>{ RAW[r.key] = r.value; });
@@ -377,6 +377,32 @@ async function fetchBlocks(){
   catch(e){ RAW._snap = []; }
   return RAW;
 }
+
+// 结算确认：把某周写入/移出 app_data 的 settled_weeks，然后重载刷新
+async function _saveSettledWeeks(list){
+  const sb = window.supabase.createClient(SB_URL, SB_KEY);
+  const { error } = await sb.from('app_data').upsert({ key:'settled_weeks', value:list, updated_at:new Date().toISOString() });
+  if(error) throw error;
+}
+window.settleWeek=async function(wk,label){
+  if(!confirm('确认结算 '+(label||wk)+' ？\n结算后该周状态变为「🟢 已结算」，总成本按实付口径定案。')) return;
+  try{
+    const cur = Array.isArray(RAW['settled_weeks'])?RAW['settled_weeks'].slice():[];
+    if(cur.indexOf(wk)<0) cur.push(wk);
+    await _saveSettledWeeks(cur);
+    alert('✅ 已结算 '+(label||wk)+'。');
+    location.reload();
+  }catch(e){ alert('结算失败：'+(e.message||e)); }
+};
+window.unsettleWeek=async function(wk,label){
+  if(!confirm('撤销 '+(label||wk)+' 的结算？将回到「未结算」状态。')) return;
+  try{
+    const cur = Array.isArray(RAW['settled_weeks'])?RAW['settled_weeks'].filter(function(x){return x!==wk;}):[];
+    await _saveSettledWeeks(cur);
+    alert('已撤销 '+(label||wk)+' 的结算。');
+    location.reload();
+  }catch(e){ alert('撤销失败：'+(e.message||e)); }
+};
 
 // rider 后8位 -> 规范化 vendor（合并所有 perf 版本）
 function buildRiderVendor(){
@@ -403,6 +429,10 @@ function vendorOf(last8, c8, e){
 // ===== 核心：按周构建 M =====
 function buildM(weekKey){
   const W = WEEK_DEFS[weekKey];
+  // 结算状态：写死已结算 或 运营在数据库 settled_weeks 里确认过 → 视为已结算
+  const _settledList = Array.isArray(RAW['settled_weeks']) ? RAW['settled_weeks'] : (Array.isArray(RAW._settled)?RAW._settled:[]);
+  const _wkSettled = wk => (!WEEK_DEFS[wk].unsettled) || _settledList.indexOf(wk)>=0;
+  const unsettled = !_wkSettled(weekKey);
   const POOL = W.pool || POOL_PER_WEEK;
   const dates = W.dates;
   const dset = new Set(dates);
@@ -585,7 +615,7 @@ function buildM(weekKey){
   // 两套口径
   const accrualTotal = poolSpent + ptsCostA;   // 计提口径：奖金池 + 积分计提
   const cashTotal    = poolSpent + cashRedeem; // 实付口径：奖金池 + 已批兑付
-  const settled = !W.unsettled;
+  const settled = !unsettled;
   const mainTotal = settled ? cashTotal : accrualTotal;  // 未结算→计提 · 已结算→实付
   const costModel = {
     settled,
@@ -627,7 +657,7 @@ function buildM(weekKey){
   ];
   // 预估
   let projected=null;
-  if(W.unsettled){ const daysWithData=dates.filter(d=>Object.values(curp).some(e=>(e._day&&e._day[d]!=null))).length || 1;
+  if(unsettled){ const daysWithData=dates.filter(d=>Object.values(curp).some(e=>(e._day&&e._day[d]!=null))).length || 1;
     projected={ days_done:daysWithData, pool_proj: Math.round(poolSpent), pts_proj: Math.round(issuedPts*RATE/daysWithData*7) }; }
   // 骑手积分账本：本周日常/PK/发生额 · 本周兑换 · 待同意 · 累计发放 · 当前余额
   const ledger = by_vendor.map(v=>{ const nv=norm(v.vc); const gross=Math.round(cumByV[v.vc]||0);
@@ -637,8 +667,8 @@ function buildM(weekKey){
       balance: gross-redAll-pend, riders:v.riders }; });
   // RM 胜率
   const rmWin = rm.map(x=>({ mgr:x.mgr, played:x.played, won:x.won, win_rate:x.win_rate, alloc:x.alloc, vendors:x.vendors }));
-  const settledWeeks = Object.values(WEEK_DEFS).filter(w=>!w.unsettled).length;
-  const vendorUsedCum = Object.values(WEEK_DEFS).filter(w=>!w.unsettled).reduce((a,w)=>a+(w.pool||0),0);
+  const settledWeeks = Object.keys(WEEK_DEFS).filter(wk=>_wkSettled(wk)).length;
+  const vendorUsedCum = Object.keys(WEEK_DEFS).filter(wk=>_wkSettled(wk)).reduce((a,wk)=>a+(WEEK_DEFS[wk].pool||0),0);
   const budgetProgress = { vendor_used: vendorUsedCum, vendor_total: BUDGET.vendor_pool,
     exchange_used: (exchange.paid||0), exchange_total: BUDGET.exchange, settled_weeks: settledWeeks };
 
@@ -659,7 +689,7 @@ function buildM(weekKey){
     open_gross:openGross, end_gross:endGross, total_cum:Math.round(totalCum) };
 
   return {
-    week: weekKey, label: W.label, unsettled: !!W.unsettled,
+    week: weekKey, label: W.label, unsettled: unsettled,
     dates: dates.map(d=>d.slice(5).replace('-','/')),
     generated: new Date().toISOString().slice(0,19), points_basis:'points',
     budget: BUDGET, exchange,
@@ -717,6 +747,7 @@ function renderOv(M){
        <div style="text-align:right"><div style="font-size:11px;color:var(--mut2)">总单均</div><div class="big" style="font-size:24px">${cpoFmt(mainCpo)}</div><div style="font-size:11px;color:var(--mut2)">比索/单</div></div>
      </div>
      <div style="font-size:11.5px;color:var(--mut2);margin-top:10px;line-height:1.6">${cm.settled?'本周兑换已审批定案，总成本按<b>实际兑付</b>口径。':'本周未结算：总成本先按<b>计提</b>（权责发生制）暂估，下周一审批兑换后切换为<b>实付</b>口径定案。'}</div>
+     ${!cm.settled?`<div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--bd,#333)"><button onclick="window.settleWeek('${M.week}','${M.label}')" style="padding:10px 20px;border:none;border-radius:8px;background:#0A8A4A;color:#fff;font-weight:800;font-size:13px;cursor:pointer">✅ 确认结算本周（${M.label}）</button><span style="font-size:11px;color:var(--mut2);margin-left:10px">确认后状态变为「🟢 已结算」，成本切换为实付口径定案</span></div>`:'<div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--bd,#333)"><button onclick="window.unsettleWeek(\''+M.week+'\',\''+M.label+'\')" style="padding:7px 14px;border:1px solid #aaa;border-radius:8px;background:transparent;color:var(--mut);font-size:11px;cursor:pointer">↩ 撤销本周结算</button></div>'}
    </div>`;
 
   // 积分生命周期线
