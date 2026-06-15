@@ -1277,6 +1277,8 @@ select.fi option{background:#18181E}
       <div style="font-weight:700;font-size:12px;margin-bottom:6px"><span class="lc-zh">🗓️ 这份积分属于哪一场比赛？</span><span class="lc-es">🗓️ ¿A qué partido pertenece este archivo de puntos?</span></div>
       <div style="font-size:10px;color:var(--muted2);margin-bottom:8px"><span class="lc-zh">系统会用所选场次的<strong>已发布配对</strong>来计算胜负与 PK 奖励。请先选对场次，再上传积分文件。</span><span class="lc-es">El sistema usará los <strong>emparejamientos publicados</strong> de ese partido para calcular resultados y bono PK. Elige el partido antes de subir.</span></div>
       <select id="scoreMatchSel" class="fi" onchange="MANUAL_MATCHUP=false;MANUAL_REG=false" style="width:100%;padding:9px 12px;font-size:13px"></select>
+      <button onclick="genResultFromDaily(document.getElementById('scoreMatchSel').value)" style="width:100%;margin-top:10px;padding:11px;border:none;border-radius:8px;background:var(--didi);color:#fff;font-weight:800;font-size:13px;cursor:pointer">⚡ <span class="lc-zh">从每日数据自动生成本场结果（无需上传）</span><span class="lc-es">Generar resultado con datos diarios (sin subir)</span></button>
+      <div style="font-size:10px;color:var(--muted2);margin-top:6px"><span class="lc-zh">已在右下角控制台上传过该比赛日的每日积分，点这里直接出结果，无需在本页再传一次。若该日还没传，请先去控制台上传。</span><span class="lc-es">Si ya subiste los puntos diarios de ese día en la consola, genera aquí sin volver a subir.</span></div>
     </div>
     <!-- ② 骑手积分文件（主上传，通常只需这一个） -->
     <div class="card" style="margin-bottom:12px;padding:16px;border-color:rgba(255,107,0,.45)">
@@ -1791,6 +1793,7 @@ async function autoBuildRegMap(matchId){
 }
 let RIDER_SCORE_MAP = {}; // riderId → score entry, populated from score file // riderId → teamName (from registration file)
 const REAL_CURP_MAP = {}; // Historical data cleared for v28
+let CLEAR_LOG = []; // 连续7天0单清零记录（永久保留，可导出/骑手可查）
 let VENDOR_LIST = {};
 let VENDOR_CITY = {};   // {vendor_code: "CDMX"|"MTY"} 来自上传清单，缺失则从 code 推断
 // 内置 Vendor↔渠道经理 清单（2026-06-05 更新；不再区分 RM/VM，统一为「渠道经理」）
@@ -3021,7 +3024,7 @@ async function renderDashboard(){
     var _langBar='<div style="display:flex;gap:6px;margin:2px 0 8px;align-items:center"><span style="font-size:11px;color:var(--muted2);margin-right:2px">'+L('看板语言','Idioma','Language')+':</span>'+_lb('inherit',L('跟随','Auto','Auto'))+_lb('zh','中文')+_lb('es','ES')+_lb('en','EN')+'</div>';
     var _tabBar='<div id="dashTabBar" style="display:flex;gap:8px;margin:2px 0 14px;flex-wrap:wrap">'
       +_dtb('ov',L('📊 总览','📊 Resumen','📊 Overview'))+_dtb('pk',L('🏁 PK 明细','🏁 PK','🏁 PK'))+_dtb('pt',L('🧩 PT 明细','🧩 PT','🧩 PT'))+_dtb('cost',L('💰 成本结算','💰 Costos','💰 Settlement'))+'</div>';
-    body.innerHTML=_tabBar+html+'<div class="dtab" data-t="cost" style="display:none"><div style="font-size:12px;color:var(--muted);margin-bottom:8px">'+L('实时奖金池结算 · 数据直读数据库 · 与运营指标同源','Liquidación en vivo · datos del mismo backend','Live settlement · same backend')+'</div><iframe id="costFrame" src="settlement.html?v=16" scrolling="no" style="width:100%;height:700px;border:1px solid var(--border);border-radius:12px;background:#0f1115;overflow:hidden;display:block" loading="lazy"></iframe></div>';
+    body.innerHTML=_tabBar+html+'<div class="dtab" data-t="cost" style="display:none"><div style="font-size:12px;color:var(--muted);margin-bottom:8px">'+L('实时奖金池结算 · 数据直读数据库 · 与运营指标同源','Liquidación en vivo · datos del mismo backend','Live settlement · same backend')+'</div><iframe id="costFrame" src="settlement.html?v=17" scrolling="no" style="width:100%;height:700px;border:1px solid var(--border);border-radius:12px;background:#0f1115;overflow:hidden;display:block" loading="lazy"></iframe></div>';
     dashShowTab(DASH_TAB||'ov');
     if(!window.__costFrameLis){ window.__costFrameLis=true; window.addEventListener('message',function(e){ try{ if(e&&e.data&&e.data.t==='sh'&&e.data.h){ var f=document.getElementById('costFrame'); if(f){ f.style.height=(Math.max(300,e.data.h)+16)+'px'; } } }catch(_){} }); }
     if(typeof renderTrendChart==='function')renderTrendChart();
@@ -3644,6 +3647,7 @@ async function loadSharedData(){
   }
   if(d.pair_priority && Array.isArray(d.pair_priority)) PAIR_PRIORITY=d.pair_priority.filter(function(x){return typeof x==='string'||typeof x==='number';}).map(String);
   if(d.curp_map){ Object.keys(REAL_CURP_MAP).forEach(function(k){delete REAL_CURP_MAP[k];}); Object.assign(REAL_CURP_MAP, d.curp_map); }
+  if(d.clear_log && Array.isArray(d.clear_log)) CLEAR_LOG=d.clear_log;
   try{ if(typeof initScorePage==='function') initScorePage(); }catch(e){}
   try{ if(typeof renderTop10==='function') renderTop10(); }catch(e){}
   try{ if(typeof initMatchupPage==='function') initMatchupPage(); }catch(e){}
@@ -3963,9 +3967,12 @@ async function queryCurp(){
   const estCash = data.estimated_cash || currentCash;
   const estTotal = data.estimated_total_pts || pts;
   const warn7d = data.has_7d_no_online_flag === 1;
+  const _clrDate = data._clearDate || '';
+  const _clrNotice = _clrDate ? `<div style="margin-bottom:12px;border:1px solid #E0A800;background:rgba(224,168,0,.12);border-radius:12px;padding:13px 15px;font-size:13px;color:#b8860b"><b>⚠️ ${L('积分清零提醒','Aviso de reinicio de puntos')}</b><br>${L('你因连续 7 天 0 单，积分已于 '+_clrDate.replace(/-/g,'/')+' 清零；之后的积分重新累计。如有疑问请联系运营团队核实。','Por 7 días sin pedidos, tus puntos se reiniciaron el '+_clrDate.replace(/-/g,'/')+'; se acumulan de nuevo desde entonces. Contacta a operaciones si tienes dudas.')}</div>` : '';
 
   panel.innerHTML=`
     <div style="margin-top:14px">
+      ${_clrNotice}
       ${warn7d ? '<div class="note n-lose" style="margin-bottom:12px">⚠️ <strong>'+L('警告：','Aviso: ')+'</strong>'+L('检测到该骑手有连续7天未在线记录，积分存在清零风险！请尽快保持活跃。','Se detectaron 7 días seguidos sin conexión. ¡Tus puntos corren riesgo de resetearse! Mantente activo.')+'</div>' : ''}
       <div style="font-size:11px;color:var(--muted);margin-bottom:12px">${L('骑手 ID 后8位：','Últimos 8 del Rider ID: ')}<strong style="color:var(--text);font-family:monospace;letter-spacing:2px">${curp}</strong>
         <span style="margin-left:12px;background:var(--s2);border-radius:5px;padding:2px 8px;font-size:10px">Rider ID: ${data.rider_id}</span>
@@ -4895,6 +4902,26 @@ if(uz){
 // ══════════════════════════════════
 // SCORE UPLOAD — redesigned
 // ══════════════════════════════════
+// 从每日上传的数据自动生成某场比赛结果（无需在本页二次上传）：取该场比赛日的每日数据拼成文件，走同一算分引擎
+window.genResultFromDaily=async function(matchId){
+  matchId=parseInt(matchId);
+  if(!matchId){alert(L('请先在上方选择场次','Selecciona un partido arriba'));return;}
+  var ent=(typeof allScheduleEntry==='function')?allScheduleEntry(matchId):null;
+  var m=ent&&ent.date?String(ent.date).match(/(\d+)月(\d+)日/):null;
+  if(!m){alert(L('无法识别该场比赛日期','Fecha no reconocida'));return;}
+  var yr=new Date().getFullYear();
+  var date=yr+'-'+('0'+(+m[1])).slice(-2)+'-'+('0'+(+m[2])).slice(-2);
+  var rows=[];
+  Object.keys(REAL_CURP_MAP).forEach(function(k){var e=REAL_CURP_MAP[k];if(!e||!e._pk||!e._pk[date])return;var s=e._pk[date];
+    rows.push({dt:date,rider_id:s.rider_id||e.rider_id||k,vendor_code:s.vendor_code||e.vendor_code||'',vendor_id:s.vendor_id||'',slot23_point_part:s.slot23_point_part,perfect_point_part:s.perfect_point_part,bonus_point_part:s.bonus_point_part,deduct_point_part:s.deduct_point_part,schedule_penalty_part:s.schedule_penalty_part,points:s.points,effective_points:s.effective_points,complete_orders:s.complete_orders,dduty_3r_cnt:s.dduty_3r_cnt});});
+  if(!rows.length){alert(L('该场比赛日（'+date+'）没有已上传的每日数据。\n请先在右下角运营控制台「②上传每日骑手积分」上传当天的数据。','No hay datos diarios para '+date+'. Súbelos primero en la consola (②).'));return;}
+  if(typeof XLSX==='undefined'){alert('XLSX');return;}
+  var ws=XLSX.utils.json_to_sheet(rows);var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Sheet1');
+  var buf=XLSX.write(wb,{type:'array',bookType:'xlsx'});
+  var file=new File([buf],'daily_'+date+'.xlsx',{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  var sel=document.getElementById('scoreMatchSel');if(sel)sel.value=String(matchId);
+  await handleScoreUpload(file);
+};
 async function handleScoreUpload(file){
   if(!file)return;
   if(!file.name.match(/\.(xlsx|xls)$/i)){showAlert('scoreUploadErr',L('请上传 .xlsx 或 .xls 格式','Sube un archivo .xlsx o .xls'));return}
@@ -7144,13 +7171,15 @@ initMatchupPage();
       var e=REAL_CURP_MAP[k];if(!e||typeof e!=='object')return;
       var hasOpen=(e._open!==undefined),hasDay=(e._day&&Object.keys(e._day).length>0);
       if(!hasOpen&&!hasDay)return;
-      var open=Number(hasOpen?e._open:(e.cumulative_pts||0)),dsum=0;
-      if(e._day)Object.keys(e._day).forEach(function(d){dsum+=Number(e._day[d]||0);});
+      var clr=e._clearDate||null;  // 连续7天0单已确认清零的日期：该日(含)及之前一律归零，之后重算
+      var open=clr?0:Number(hasOpen?e._open:(e.cumulative_pts||0)),dsum=0;
+      if(e._day)Object.keys(e._day).forEach(function(d){ if(clr && d<=clr) return; dsum+=Number(e._day[d]||0);});
       var hr=Number(e._open_hr||0),ord=Number(e._open_ord||0),days=Number(e._open_days||0);
       if(e._dhr)Object.keys(e._dhr).forEach(function(d){hr+=Number(e._dhr[d]||0);});
       if(e._dord)Object.keys(e._dord).forEach(function(d){ord+=Number(e._dord[d]||0);if(Number(e._dord[d]||0)>0)days+=1;});
-      var cum=Math.round(open+dsum+Number(pk[k]||0));
-      out[k]={cum:cum,pk:Math.round(Number(pk[k]||0)),hr:Math.round(hr*10)/10,ord:Math.round(ord),days:days};
+      var pkv=clr?0:Number(pk[k]||0);  // 清零同时清掉清零日前的PK(这类骑手通常无PK)
+      var cum=Math.round(open+dsum+pkv);
+      out[k]={cum:cum,pk:Math.round(pkv),hr:Math.round(hr*10)/10,ord:Math.round(ord),days:days,cleared:!!clr,clearDate:clr||''};
       n++;tot+=cum;if(cum<0)neg++;
     });
     return{map:out,riders:n,total:tot,neg:neg};
@@ -7178,6 +7207,127 @@ initMatchupPage();
     st(tL('✅ 已将 '+n+' 名骑手设为期初基准。现在可每天上传当日积分（先进草稿）。','✅ Saldo inicial: '+n+' riders.'),true);
   };
 
+  window.rb_renderDays=function(){
+    var box=document.getElementById('rbDaysBox'); if(!box)return;
+    var set={};
+    try{ Object.keys(REAL_CURP_MAP||{}).forEach(function(k){ var e=REAL_CURP_MAP[k]; if(e&&e._day) Object.keys(e._day).forEach(function(d){ if(d&&d!=='_nd') set[d]=1; }); }); }catch(e){}
+    var days=Object.keys(set).sort();
+    var fmt=function(d){ var m=d.match(/^\d{4}-(\d{2})-(\d{2})$/); return m?(parseInt(m[1])+'/'+parseInt(m[2])):d; };
+    if(!days.length){ box.innerHTML='📅 '+tL('尚未上传任何每日积分','Aún no hay días subidos'); return; }
+    box.innerHTML='📅 '+tL('已上传 '+days.length+' 天：','Subidos '+days.length+' días: ')+'<b style="color:#0A6638">'+days.map(fmt).join('、')+'</b>';
+  };
+  // ===== 连续7天(有数据的天)0单 → 清零核查系统 =====
+  window.rb_detectZero=async function(){
+    var cands=[];
+    Object.keys(REAL_CURP_MAP).forEach(function(k){
+      var e=REAL_CURP_MAP[k]; if(!e||!e._dord)return;
+      var clr=e._clearDate||null;
+      var dates=Object.keys(e._dord).filter(function(d){return d&&d!=='_nd'&&(!clr||d>clr);}).sort();
+      var streak=0, win=[];
+      for(var i=0;i<dates.length;i++){ var d=dates[i], o=Number(e._dord[d]||0);
+        if(o===0){ win.push(d); streak++; } else { streak=0; win=[]; }
+        if(streak>=7) break;
+      }
+      if(streak>=7){
+        var zeroDates=win.slice(-7), clearDate=zeroDates[zeroDates.length-1];
+        var open=clr?0:Number(e._open!==undefined?e._open:(e.cumulative_pts||0));
+        var dsum=0; if(e._day)Object.keys(e._day).forEach(function(d){ if(clr&&d<=clr)return; if(d<=clearDate)dsum+=Number(e._day[d]||0); });
+        cands.push({curp:k,rider_id:e.rider_id||'',vendor:e.vendor_code||'',zeroFrom:zeroDates[0],zeroTo:clearDate,clearDate:clearDate,points:Math.round(open+dsum),hasRedemption:false});
+      }
+    });
+    if(cands.length && typeof sb!=='undefined' && sb){
+      try{ var resp=await sb.from('redemptions').select('curp6,created_at').in('curp6',cands.map(function(c){return c.curp;}));
+        if(resp&&resp.data){ cands.forEach(function(c){ c.hasRedemption=resp.data.some(function(r){ var d=String(r.created_at||'').slice(0,10); return String(r.curp6)===String(c.curp)&&d>=c.zeroFrom&&d<=c.zeroTo; }); }); }
+      }catch(e){}
+    }
+    return cands;
+  };
+  window.rb_showClearReview=async function(){
+    if(typeof requireOperator==='function'){if(!(await requireOperator()))return;}
+    st(tL('⏳ 核查中…','⏳ Analizando…'));
+    var cands=await window.rb_detectZero();
+    var ov=document.getElementById('rbClearOv')||(function(){var d=document.createElement('div');d.id='rbClearOv';d.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:20px';document.body.appendChild(d);return d;})();
+    var fmt=function(d){var m=String(d).match(/^\d{4}-(\d{2})-(\d{2})$/);return m?(parseInt(m[1])+'/'+parseInt(m[2])):d;};
+    if(!cands.length){
+      ov.innerHTML='<div style="background:#fff;color:#222;border-radius:14px;max-width:480px;padding:24px;text-align:center"><div style="font-size:15px;font-weight:700;margin-bottom:8px">✅ '+tL('暂无连续7天0单的骑手','Sin riders con 7 días sin pedidos')+'</div><button onclick="document.getElementById(\'rbClearOv\').remove()" style="margin-top:10px;padding:8px 20px;border:none;border-radius:8px;background:#13151B;color:#fff;cursor:pointer">'+tL('关闭','Cerrar')+'</button></div>';
+      st(tL('✅ 无待清零骑手','Sin pendientes'),true); return;
+    }
+    window.__clearCands=cands;
+    var rows=cands.map(function(c,i){
+      var warn=c.hasRedemption?' style="background:#FFF6D6"':'';
+      return '<tr'+warn+'><td style="padding:6px 8px"><input type="checkbox" class="rbClrChk" data-i="'+i+'" checked></td>'
+        +'<td style="padding:6px 8px;font-family:monospace">'+(c.rider_id||c.curp)+'</td>'
+        +'<td style="padding:6px 8px">'+(c.vendor||'—')+'</td>'
+        +'<td style="padding:6px 8px;white-space:nowrap">'+fmt(c.zeroFrom)+'~'+fmt(c.zeroTo)+'</td>'
+        +'<td style="padding:6px 8px;text-align:right;font-weight:700;color:#C0392B">'+c.points.toLocaleString()+'</td>'
+        +'<td style="padding:6px 8px;text-align:center">'+(c.hasRedemption?'⚠️ '+tL('有兑换申请，请特殊核查','Tiene canje, revisar'):'—')+'</td></tr>';
+    }).join('');
+    ov.innerHTML='<div style="background:#fff;color:#222;border-radius:14px;max-width:820px;width:100%;max-height:86vh;overflow:auto;padding:22px">'
+      +'<div style="font-size:16px;font-weight:800;margin-bottom:4px">⏳ '+tL('连续7天0单 · 待清零核查','Revisión: 7 días sin pedidos')+'（'+cands.length+'）</div>'
+      +'<div style="font-size:12px;color:#666;margin-bottom:6px">'+tL('仅统计你上传过数据的天；勾选确认后将把其累计积分清零（第8天起重新累计）。黄底=该7天内申请过兑换，请特殊核查。','Solo días con datos subidos. Al confirmar se pone a cero su acumulado (reinicia desde el día 8). Fila amarilla = solicitó canje en esos 7 días.')+'</div>'
+      +'<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f2f2f4;text-align:left">'
+      +'<th style="padding:6px 8px"><input type="checkbox" id="rbClrAll" checked></th><th style="padding:6px 8px">Rider</th><th style="padding:6px 8px">Vendor</th><th style="padding:6px 8px">'+tL('0单区间','Rango')+'</th><th style="padding:6px 8px;text-align:right">'+tL('将清零分','Puntos')+'</th><th style="padding:6px 8px;text-align:center">'+tL('备注','Nota')+'</th></tr></thead><tbody>'+rows+'</tbody></table>'
+      +'<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">'
+      +'<button onclick="document.getElementById(\'rbClearOv\').remove()" style="padding:9px 18px;border:1px solid #ccc;border-radius:8px;background:#f5f5f7;cursor:pointer">'+tL('取消','Cancelar')+'</button>'
+      +'<button onclick="window.rb_confirmClear()" style="padding:9px 18px;border:none;border-radius:8px;background:#C0392B;color:#fff;font-weight:700;cursor:pointer">'+tL('✅ 确认清零所选','✅ Confirmar')+'</button></div></div>';
+    var allChk=document.getElementById('rbClrAll'); if(allChk)allChk.onclick=function(){document.querySelectorAll('.rbClrChk').forEach(function(c){c.checked=allChk.checked;});};
+    st('',true);
+  };
+  window.rb_confirmClear=async function(){
+    var cands=window.__clearCands||[]; var picks=[];
+    document.querySelectorAll('.rbClrChk').forEach(function(c){ if(c.checked) picks.push(cands[parseInt(c.getAttribute('data-i'))]); });
+    if(!picks.length){ alert(tL('未选择任何骑手','Nada seleccionado')); return; }
+    if(!confirm(tL('确认将 '+picks.length+' 名骑手的累计积分清零？此操作会记录留痕。','¿Confirmar poner a cero '+picks.length+' riders? Se registrará.'))) return;
+    var now=new Date().toISOString();
+    picks.forEach(function(c){
+      var e=REAL_CURP_MAP[c.curp]; if(!e)return;
+      e._clearDate=c.clearDate;  // 标记清零日：该日及之前归零，之后重算
+      CLEAR_LOG.push({curp:c.curp,rider_id:c.rider_id,vendor:c.vendor,clearDate:c.clearDate,zeroFrom:c.zeroFrom,zeroTo:c.zeroTo,points:c.points,hasRedemption:!!c.hasRedemption,confirmedAt:now});
+    });
+    try{ if(typeof saveCurp==='function') await saveCurp(); }catch(e){}
+    try{ if(typeof dbSaveData==='function') await dbSaveData('clear_log',CLEAR_LOG); }catch(e){}
+    var ov=document.getElementById('rbClearOv'); if(ov)ov.remove();
+    st(tL('✅ 已清零 '+picks.length+' 名并留痕。可在「清零记录」查看/导出。','✅ '+picks.length+' puestos a cero y registrados.'),true);
+  };
+  window.rb_showClearLog=async function(){
+    if(typeof requireOperator==='function'){if(!(await requireOperator()))return;}
+    var ov=document.getElementById('rbClearOv')||(function(){var d=document.createElement('div');d.id='rbClearOv';d.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:20px';document.body.appendChild(d);return d;})();
+    var fmt=function(d){var m=String(d).match(/^\d{4}-(\d{2})-(\d{2})$/);return m?(parseInt(m[1])+'/'+parseInt(m[2])):d;};
+    var rows=(CLEAR_LOG||[]).slice().reverse().map(function(c){
+      return '<tr'+(c.hasRedemption?' style="background:#FFF6D6"':'')+'><td style="padding:6px 8px;font-family:monospace">'+(c.rider_id||c.curp)+'</td><td style="padding:6px 8px">'+(c.vendor||'—')+'</td><td style="padding:6px 8px">'+fmt(c.clearDate)+'</td><td style="padding:6px 8px">'+fmt(c.zeroFrom)+'~'+fmt(c.zeroTo)+'</td><td style="padding:6px 8px;text-align:right;color:#C0392B;font-weight:700">'+Number(c.points||0).toLocaleString()+'</td><td style="padding:6px 8px">'+(c.hasRedemption?'⚠️':'')+'</td><td style="padding:6px 8px;font-size:10px;color:#888">'+String(c.confirmedAt||'').slice(0,16).replace('T',' ')+'</td></tr>';
+    }).join('');
+    ov.innerHTML='<div style="background:#fff;color:#222;border-radius:14px;max-width:880px;width:100%;max-height:86vh;overflow:auto;padding:22px">'
+      +'<div style="font-size:16px;font-weight:800;margin-bottom:8px">📜 '+tL('清零记录','Registro de ceros')+'（'+(CLEAR_LOG||[]).length+'）</div>'
+      +((CLEAR_LOG||[]).length?('<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f2f2f4;text-align:left"><th style="padding:6px 8px">Rider</th><th style="padding:6px 8px">Vendor</th><th style="padding:6px 8px">'+tL('清零日','Fecha cero')+'</th><th style="padding:6px 8px">'+tL('0单区间','Rango')+'</th><th style="padding:6px 8px;text-align:right">'+tL('清零分','Puntos')+'</th><th style="padding:6px 8px">'+tL('兑换','Canje')+'</th><th style="padding:6px 8px">'+tL('确认时间','Confirmado')+'</th></tr></thead><tbody>'+rows+'</tbody></table>'):'<div style="color:#888;font-size:13px;padding:10px 0">'+tL('暂无清零记录','Sin registros')+'</div>')
+      +'<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">'
+      +'<button onclick="window.rb_exportClearLog()" style="padding:9px 18px;border:1px solid #2D7DD2;border-radius:8px;background:#EAF3FC;color:#1A5FA8;font-weight:700;cursor:pointer">⬇️ '+tL('导出 Excel','Exportar')+'</button>'
+      +'<button onclick="document.getElementById(\'rbClearOv\').remove()" style="padding:9px 18px;border:1px solid #ccc;border-radius:8px;background:#f5f5f7;cursor:pointer">'+tL('关闭','Cerrar')+'</button></div></div>';
+  };
+  window.rb_exportClearLog=function(){
+    if(typeof XLSX==='undefined'){alert('XLSX');return;}
+    var data=(CLEAR_LOG||[]).map(function(c){return {Rider_ID:c.rider_id||c.curp,Vendor:c.vendor||'',清零日_ClearDate:c.clearDate,零单起_From:c.zeroFrom,零单止_To:c.zeroTo,清零分_Points:c.points,有兑换申请_HasRedemption:c.hasRedemption?'是 Yes':'',确认时间_ConfirmedAt:String(c.confirmedAt||'').replace('T',' ').slice(0,19)};});
+    var ws=XLSX.utils.json_to_sheet(data.length?data:[{Rider_ID:'',Vendor:''}]);
+    var wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'ClearLog');
+    XLSX.writeFile(wb,'积分清零记录_'+new Date().toISOString().slice(0,10)+'.xlsx');
+  };
+  // 周视图：本周一~周日 哪天有数据
+  window.rb_renderWeek=function(){
+    var box=document.getElementById('rbWeekBox'); if(!box)return;
+    var set={}; try{ Object.keys(REAL_CURP_MAP).forEach(function(k){var e=REAL_CURP_MAP[k]; if(e&&e._day)Object.keys(e._day).forEach(function(d){if(d&&d!=='_nd')set[d]=1;}); }); }catch(e){}
+    var now=new Date(); var dow=(now.getDay()+6)%7; // 周一=0
+    var mon=new Date(now); mon.setDate(now.getDate()-dow); mon.setHours(0,0,0,0);
+    var names=['一','二','三','四','五','六','日'];
+    var html='';
+    for(var i=0;i<7;i++){ var dd=new Date(mon); dd.setDate(mon.getDate()+i);
+      var key=dd.getFullYear()+'-'+('0'+(dd.getMonth()+1)).slice(-2)+'-'+('0'+dd.getDate()).slice(-2);
+      var has=!!set[key]; var future=dd.getTime()>now.setHours(0,0,0,0);
+      html+='<div style="flex:1;text-align:center;padding:5px 2px;border-radius:6px;margin:0 1px;background:'+(has?'#0A8A4A':(future?'#e8e8ea':'#F3C7C0'))+';color:'+(has?'#fff':(future?'#aaa':'#7a2018'))+'">'
+        +'<div style="font-size:10px">'+tL('周'+names[i],['L','M','X','J','V','S','D'][i])+'</div>'
+        +'<div style="font-size:11px;font-weight:700">'+(dd.getMonth()+1)+'/'+dd.getDate()+'</div>'
+        +'<div style="font-size:11px">'+(has?'✓':(future?'·':'✗'))+'</div></div>';
+    }
+    box.innerHTML='<div style="font-size:10px;color:#999;font-weight:700;margin:2px 0 4px">'+tL('本周上传情况','Esta semana')+'</div><div style="display:flex">'+html+'</div>';
+  };
   window.rb_uploadDaily=async function(file){
     if(!file)return;
     if(typeof requireOperator==='function'){if(!(await requireOperator()))return;}
@@ -7197,22 +7347,27 @@ initMatchupPage();
           var rid=gc(r,['rider_id','riderid','骑手id']);if(rid==='')return;
           var k=c6(rid),d=dk(gc(r,['dt','date','日期','fecha','day']));if(!d)d='_nd';
           if(!pp[k])pp[k]={};
-          pp[k][d]={p:Number(gc(r,['points','积分','point','当日积分'])||0),hr:Number(gc(r,['total_online_hr','在线时长','slot23_online_hr','online_hr'])||0),o:Number(gc(r,['complete_orders','完单数','完成订单','orders'])||0)};
+          pp[k][d]={p:Number(gc(r,['points','积分','point','当日积分'])||0),hr:Number(gc(r,['total_online_hr','在线时长','slot23_online_hr','online_hr'])||0),o:Number(gc(r,['complete_orders','完单数','完成订单','orders'])||0),
+            rid:String(rid),vc:String(gc(r,['vendor_code','vendorcode'])||'').toUpperCase(),vid:String(gc(r,['vendor_id'])||''),
+            s23:Number(gc(r,['slot23_point_part','slot23_pt'])||0),perf:Number(gc(r,['perfect_point_part','perfect_pt'])||0),bon:Number(gc(r,['bonus_point_part','weekend_perfect_bonus_pt','bonus_pt'])||0),ded:Number(gc(r,['deduct_point_part','deduct_3r_pt'])||0),sch:Number(gc(r,['schedule_penalty_part','deduct_no_order_pt'])||0),eff:Number(gc(r,['effective_points'])||0),d3r:Number(gc(r,['dduty_3r_cnt','deduct_3r'])||0)};
           dates[d]=1;
         });
         var dl=Object.keys(dates).filter(function(d){return d!=='_nd';}).sort(),nR=0;
         Object.keys(pp).forEach(function(k){
           var e=REAL_CURP_MAP[k];
           if(!e){e={rider_id:'',cumulative_pts:0,rank:'—',_open:0,_open_hr:0,_open_ord:0,_open_days:0,_day:{},_dhr:{},_dord:{}};REAL_CURP_MAP[k]=e;}
-          if(!e._day)e._day={};if(!e._dhr)e._dhr={};if(!e._dord)e._dord={};
+          if(!e._day)e._day={};if(!e._dhr)e._dhr={};if(!e._dord)e._dord={};if(!e._pk)e._pk={};
           if(e._open===undefined)e._open=Number(e.cumulative_pts||0);
           if(e._open_hr===undefined)e._open_hr=Number(e.total_online_hr||0);
           if(e._open_ord===undefined)e._open_ord=Number(e.total_complete_orders||0);
           if(e._open_days===undefined)e._open_days=Number(e.online_days||0);
-          Object.keys(pp[k]).forEach(function(d){e._day[d]=pp[k][d].p;e._dhr[d]=pp[k][d].hr;e._dord[d]=pp[k][d].o;});
+          Object.keys(pp[k]).forEach(function(d){var x=pp[k][d];e._day[d]=x.p;e._dhr[d]=x.hr;e._dord[d]=x.o;
+            e._pk[d]={slot23_point_part:x.s23,perfect_point_part:x.perf,bonus_point_part:x.bon,deduct_point_part:x.ded,schedule_penalty_part:x.sch,points:x.p,effective_points:x.eff,complete_orders:x.o,dduty_3r_cnt:x.d3r,vendor_code:x.vc,vendor_id:x.vid,rider_id:x.rid};
+            if(x.rid&&!e.rider_id)e.rider_id=x.rid; if(x.vc&&!e.vendor_code)e.vendor_code=x.vc;});
           nR++;
         });
         try{if(typeof saveCurp==='function')saveCurp();}catch(e){}
+        try{window.rb_renderDays&&window.rb_renderDays();window.rb_renderWeek&&window.rb_renderWeek();}catch(e){}
         var d=calc();
         st(tL('✅ 已并入 ['+dl.join(', ')+']，更新 '+nR+' 名 → 草稿。待公布累计合计 '+d.total.toLocaleString()+'。核对后点④公布。','✅ Fechas aplicadas a '+nR+' riders (borrador). Total '+d.total.toLocaleString()),true);
       }catch(err){st(tL('❌ 失败：','❌ Error: ')+err.message,false);console.error(err);}
@@ -7276,14 +7431,23 @@ initMatchupPage();
       '<div style="background:#13151B;color:#fff;font-weight:700;padding:9px 12px;display:flex;justify-content:space-between;align-items:center"><span>🛠️ 运营控制台</span><span id="rbHubClose" style="cursor:pointer">✕</span></div>'
       +'<div style="padding:11px 12px">'
       +'<div style="font-size:10px;color:#999;font-weight:700;margin:2px 0 6px">数据管理</div>'
-      +'<button id="rbBtnCurp" style="width:100%;margin-bottom:6px;padding:8px;border-radius:7px;cursor:pointer;font-weight:600;font-size:12px;border:1px solid #FF7A00;background:#FFF3E8;color:#C45A00">📥 累计积分上传 / 清空</button>'
-      +'<button id="rbBtnRed" style="width:100%;margin-bottom:6px;padding:8px;border-radius:7px;cursor:pointer;font-weight:600;font-size:12px;border:1px solid #ccc;background:#f5f5f7">🧾 兑换申请管理</button>'
-      +'<button id="rbBtnExport" style="width:100%;margin-bottom:6px;padding:8px;border-radius:7px;cursor:pointer;font-weight:600;font-size:12px;border:1px solid #2D7DD2;background:#EAF3FC;color:#1A5FA8">⬇️ 导出全部骑手明细（累计/已兑/余额）</button>'
-      +'<div style="font-size:10px;color:#999;font-weight:700;margin:10px 0 6px">每日余额滚动</div>'
+      +'<button id="rbBtnRed" title="审核骑手提交的积分兑换申请（批准 / 驳回 / 标记已打款）" style="width:100%;margin-bottom:6px;padding:8px;border-radius:7px;cursor:pointer;font-weight:600;font-size:12px;border:1px solid #ccc;background:#f5f5f7">🧾 兑换申请管理</button>'
+      +'<button id="rbBtnExport" title="导出全部骑手的累计积分 / 已兑 / 处理中 / 可兑余额 / 现金明细（Excel）" style="width:100%;margin-bottom:6px;padding:8px;border-radius:7px;cursor:pointer;font-weight:600;font-size:12px;border:1px solid #2D7DD2;background:#EAF3FC;color:#1A5FA8">⬇️ 导出全部骑手明细（累计/已兑/余额）</button>'
+      +'<div style="font-size:10px;color:#999;font-weight:700;margin:10px 0 4px">每日余额滚动</div>'
+      +'<div style="font-size:10px;color:#aaa;margin-bottom:6px;line-height:1.5">'+tL('日常就用这套：每天/每周把当日积分往上加 → 公布后骑手可查。','Flujo diario: suma puntos por día → publica para que los riders consulten.')+'</div>'
       +btn('① 设为期初基准（首次一次）','rb_setOpening','border:1px solid #FF7A00;background:#FFF3E8;color:#C45A00')
       +'<label style="display:block;margin-bottom:6px;padding:8px;border:1px solid #13151B;background:#13151B;color:#fff;border-radius:7px;cursor:pointer;font-weight:600;text-align:center;font-size:12px">② 上传每日骑手积分（草稿）<input id="rbFile" type="file" accept=".xlsx,.xls,.csv" style="display:none"></label>'
+      +'<div id="rbWeekBox" style="margin-bottom:6px"></div>'
+      +'<div id="rbDaysBox" style="font-size:10px;color:#666;background:#f7f7f9;border-radius:6px;padding:6px 8px;margin-bottom:6px;line-height:1.6"></div>'
       +btn('③ 预览待公布余额','rb_preview')
       +btn('④ 公布（骑手可查）','rb_publish','border:none;background:#0A8A4A;color:#fff')
+      +'<div style="font-size:10px;color:#999;font-weight:700;margin:10px 0 6px">'+tL('积分清零（连续7天0单）','Cero por 7 días')+'</div>'
+      +btn('⏳ 连续7天0单·核查清单','rb_showClearReview','border:1px solid #C0392B;background:#FDEDEC;color:#A93226')
+      +btn('📜 清零记录 / 导出','rb_showClearLog','border:1px solid #ccc;background:#f5f5f7')
+      +'<details style="margin-top:12px;border-top:1px solid #eee;padding-top:8px"><summary style="font-size:10px;color:#999;font-weight:700;cursor:pointer">⚙️ '+tL('初始设置（换活动 / 首次用）','Configuración inicial (nuevo evento)')+'</summary>'
+      +'<div style="font-size:10px;color:#aaa;margin:6px 0;line-height:1.5">'+tL('仅在活动开始导入历史底分时用；世界杯期间日常无需点这里。','Solo para importar puntos base al iniciar un evento; no se usa en el día a día.')+'</div>'
+      +'<button id="rbBtnCurp" title="一次性导入历史/累计积分作为起点（换活动或首次用）；平时请用上面的「每日上传」" style="width:100%;margin-bottom:6px;padding:8px;border-radius:7px;cursor:pointer;font-weight:600;font-size:12px;border:1px solid #FF7A00;background:#FFF3E8;color:#C45A00">📥 '+tL('初始/历史积分导入（仅首次）','Importar puntos base (1ª vez)')+'</button>'
+      +'</details>'
       +'<div id="rbStatus" style="font-size:11px;min-height:16px;color:#0A6638;margin-top:4px"></div>'
       +'<div style="border-top:1px solid #eee;margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;align-items:center">'
       +'<span style="font-size:10px;color:#aaa">余额=期初+Σ每日+Σ PK；可兑=累计−已兑−处理中</span>'
@@ -7291,13 +7455,14 @@ initMatchupPage();
       +'</div></div>';
     document.body.appendChild(box);
     var L1=document.createElement('div');L1.id='rbLauncher';L1.title='运营控制台';L1.style.cssText='position:fixed;right:16px;bottom:16px;z-index:99998;width:46px;height:46px;border-radius:50%;background:#13151B;color:#fff;display:none;align-items:center;justify-content:center;font-size:20px;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.22)';L1.textContent='🛠️';
-    L1.onclick=function(){box.style.display='block';L1.style.display='none';};
+    L1.onclick=function(){box.style.display='block';L1.style.display='none';try{window.rb_renderDays&&window.rb_renderDays();window.rb_renderWeek&&window.rb_renderWeek();}catch(e){}};
     document.body.appendChild(L1);
     document.getElementById('rbHubClose').onclick=function(){box.style.display='none';L1.style.display='flex';};
     document.getElementById('rbBtnCurp').onclick=function(){try{if(typeof go==='function')go(6);}catch(e){}setTimeout(function(){if(typeof openCurpAdminPanel==='function')openCurpAdminPanel();},60);};
     document.getElementById('rbBtnRed').onclick=function(){try{if(typeof go==='function')go(6);}catch(e){}setTimeout(function(){if(typeof openRedemptionAdmin==='function')openRedemptionAdmin();},60);};
     document.getElementById('rbBtnExport').onclick=function(){window.rb_exportAll();};
     document.getElementById('rbFile').onchange=function(){var f=this.files[0];this.value='';window.rb_uploadDaily(f);};
+    try{window.rb_renderDays&&window.rb_renderDays();window.rb_renderWeek&&window.rb_renderWeek();}catch(e){}
   }
   function injectCSS(){ if(document.getElementById('rbCSS'))return; var s=document.createElement('style'); s.id='rbCSS';
     s.textContent='[onclick*="openCurpAdminPanel"],[onclick*="openRedemptionAdmin"]{display:none!important}'  /* 已并入控制台: 始终隐藏原生入口 */

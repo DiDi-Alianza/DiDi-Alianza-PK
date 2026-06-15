@@ -428,6 +428,8 @@ function buildM(weekKey){
   const add=(o,k,v)=>{o[k]=(o[k]||0)+v;};
   const ensurePD=(vc,d)=>{ if(!perday[vc]) perday[vc]={}; if(perday[vc][d]==null) perday[vc][d]=0; };
 
+  // 清零感知取分：被7天0单清零的骑手，清零日(含)之前的积分不计入 Vendor 成本/奖金池（流失）
+  const dayPts=(e,d)=> (e&&e._clearDate&&d&&d<=e._clearDate) ? 0 : (+((e&&e._day&&e._day[d])||0));
   // 1) 热身日：全员基础分（按 vendor 汇总 _day / _dord / _dhr / 活跃）
   const warmDates = dates.filter(isWarm);
   const dayActive = {}; // 全网逐日活跃/单/时长
@@ -436,7 +438,7 @@ function buildM(weekKey){
     const day=e._day||{}, dord=e._dord||{}, dhr=e._dhr||{};
     let anyAct=false;
     dates.forEach(d=>{
-      const p=+(day[d]||0), od=+(dord[d]||0), h=+(dhr[d]||0);
+      const p=dayPts(e,d), od=+(dord[d]||0), h=+(dhr[d]||0);
       if(p!==0||od!==0||h!==0){ dayActive[d].active++; anyAct=true; }
       dayActive[d].orders+=od; dayActive[d].hr+=h;
       if(vc){
@@ -565,7 +567,7 @@ function buildM(weekKey){
   let issuedBase=0, issuedPK=0, cumOrdersAll=0;
   const cumByV={}, baseByCity={}, cumByCity={};
   for(const c8 in curp){ const e=curp[c8]; const vc=vendorOf(last8,c8,e);
-    const day=e._day||{}; let b=0; dates.forEach(d=>{ b+=(+ (day[d]||0)); }); issuedBase+=b;
+    const day=e._day||{}; let b=0; dates.forEach(d=>{ b+=dayPts(e,d); }); issuedBase+=b;
     cumOrdersAll += (+ (e.total_complete_orders||0));
     if(vc){ cumByV[vc]=(cumByV[vc]||0)+(+ (e.cumulative_pts||0));
       const ct=cityOf(vc); baseByCity[ct]=(baseByCity[ct]||0)+b; cumByCity[ct]=(cumByCity[ct]||0)+(+ (e.cumulative_pts||0)); }
@@ -644,7 +646,7 @@ function buildM(weekKey){
   let totalCum=0; for(const c8 in curp){ totalCum += (+ (curp[c8].cumulative_pts||0)); }
   if(!RAW.__issuedByWeek){ RAW.__issuedByWeek={};
     Object.keys(WEEK_DEFS).forEach(wk=>{ const wd=WEEK_DEFS[wk]; const ds2=new Set(wd.dates);
-      let bb=0; for(const c8 in curp){ const dd=curp[c8]._day||{}; wd.dates.forEach(d=>{ bb+=(+ (dd[d]||0)); }); }
+      let bb=0; for(const c8 in curp){ const dd=curp[c8]._day||{}; wd.dates.forEach(d=>{ bb+=dayPts(curp[c8],d); }); }
       let pp=0; Object.keys(MATCH_DATE).filter(m=>ds2.has(MATCH_DATE[m])).forEach(m=>{ (sa[m]||[]).forEach(t=>{ (t.riders||[]).forEach(r=>{ pp+=(+ (r.pk_bonus||0)); }); }); });
       RAW.__issuedByWeek[wk]=Math.round(bb+pp); });
   }
