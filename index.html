@@ -3704,6 +3704,18 @@ async function dbUpdateRedemptionsBatch(ids, status){
     if(error) throw error;
   }
 }
+// 超兑封顶批准：把该笔兑换的积分/现金改为"剩余可兑额度"，并标记完成
+async function dbUpdateRedemptionCapped(id, points, est_cash, status){
+  if(!sb) throw new Error('no backend');
+  const { error } = await sb.from('redemptions').update({points:points, est_cash:est_cash, status:(status||'completed'), processed_at:new Date().toISOString()}).eq('id',id);
+  if(error) throw error;
+}
+// 计算某骑手"当前可兑余额"= 累计积分(cumulative_pts，已含清零) − 已完成兑换合计
+function _riderRemaining(curp6, allRows){
+  var e=REAL_CURP_MAP[curp6]; var bal=e?Number(e.cumulative_pts||0):0;
+  var done=(allRows||[]).filter(function(x){return x.curp6===curp6 && x.status==='completed';}).reduce(function(s,x){return s+(Number(x.points)||0);},0);
+  return Math.max(0, bal-done);
+}
 
 
 function switchReg(t){
@@ -4193,12 +4205,13 @@ async function renderRedemptionAdmin(){
     var card=document.createElement('div'); card.style.cssText='border:1px solid var(--border);border-radius:9px;padding:12px;margin-bottom:8px;font-size:12px';
     card.innerHTML='<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-family:monospace;letter-spacing:1px">CURP …'+r.curp6+(r.rider_id?' · '+r.rider_id:'')+'</span><span>'+st+'</span></div>'
       +'<div style="color:var(--muted2)">'+L('兑换 ','Canje ')+r.points.toLocaleString()+L(' 分 · ×',' pts · ×')+r.rate+L(' · 预计 ',' · aprox. ')+r.est_cash.toLocaleString()+L(' 比索',' pesos')+' · '+mxTime(r.created_at)+' CDMX'+'</div>';
+    if(r.status==='pending'){ var _rem=_riderRemaining(r.curp6, rows); if((Number(r.points)||0)>_rem){ card.style.border='1px solid #C0392B'; card.style.background='rgba(192,57,43,.06)'; card.innerHTML+='<div style="margin-top:6px;font-size:11px;color:#C0392B;font-weight:700">⚠️ '+L('超兑：可兑余额仅 '+_rem.toLocaleString()+' 分（清零后），本笔申请 '+(Number(r.points)||0).toLocaleString()+' 分。点「标记已完成」会只按剩余额度兑付。','Sobre-canje: saldo '+_rem.toLocaleString()+' pts, solicitó '+(Number(r.points)||0).toLocaleString()+'. Al completar se paga solo el saldo.')+'</div>'; } }
     var act=document.createElement('div'); act.style.marginTop='8px';
     if(r.status==='pending'){
       var lbl=document.createElement('label'); lbl.style.cssText='font-size:11px;margin-right:10px;cursor:pointer;color:var(--muted)';
       var cb=document.createElement('input'); cb.type='checkbox'; cb.className='redChk'; cb.setAttribute('data-id',r.id); cb.setAttribute('data-cash',r.est_cash||0); cb.style.cssText='margin-right:4px;vertical-align:middle'; cb.onclick=redeemUpdateCount;
       lbl.appendChild(cb); lbl.appendChild(document.createTextNode(L('选','Sel.')));
-      var bc=document.createElement('button'); bc.className='btn btn-p btn-sm'; bc.style.cssText='font-size:10px;margin-right:6px'; bc.textContent=L('标记已完成','Completar'); bc.onclick=function(){setRedemption(r.id,'completed');};
+      var bc=document.createElement('button'); bc.className='btn btn-p btn-sm'; bc.style.cssText='font-size:10px;margin-right:6px'; bc.textContent=L('标记已完成','Completar'); bc.onclick=function(){redeemApproveOne(r.id);};
       var br=document.createElement('button'); br.className='btn btn-d btn-sm'; br.style.fontSize='10px'; br.textContent=L('驳回','Rechazar'); br.onclick=function(){setRedemption(r.id,'rejected');};
       act.appendChild(lbl); act.appendChild(bc); act.appendChild(br);
     } else {
@@ -4210,6 +4223,29 @@ async function renderRedemptionAdmin(){
 }
 async function setRedemption(id,status){
   try{ await dbUpdateRedemption(id,status); }catch(e){ alert(L('操作失败：','Error: ')+(e.message||e)); return; }
+  renderRedemptionAdmin();
+}
+// 批准单笔兑换：自动检测超兑（清零后剩余不足），并按剩余额度封顶兑付
+async function redeemApproveOne(id){
+  var rows=await dbGetAllRedemptions();
+  var r=rows.filter(function(x){return String(x.id)===String(id);})[0];
+  if(!r){ renderRedemptionAdmin(); return; }
+  var remaining=_riderRemaining(r.curp6, rows);
+  var req=Number(r.points)||0;
+  if(req<=remaining){ // 额度充足，正常全额批准
+    try{ await dbUpdateRedemption(id,'completed'); }catch(e){ alert(L('操作失败：','Error: ')+(e.message||e)); return; }
+    renderRedemptionAdmin(); return;
+  }
+  if(remaining<=0){ // 完全超兑：清零后无可兑余额
+    alert(L('⚠️ 超兑！该骑手清零后可兑余额为 0，本笔申请 '+req.toLocaleString()+' 分无法兑付。\n建议「驳回」此笔。','⚠️ ¡Sobre-canje! Saldo 0 tras el cero. No se puede pagar. Sugerencia: Rechazar.'));
+    return;
+  }
+  // 部分超兑：只批准剩余额度
+  var rate=Number(r.rate)||0; var newCash=Math.floor(remaining*rate);
+  if(!confirm(L('⚠️ 超兑提示\n该骑手当前可兑余额仅 '+remaining.toLocaleString()+' 分，但本笔申请 '+req.toLocaleString()+' 分。\n\n是否只批准其剩余的 '+remaining.toLocaleString()+' 分（约 '+newCash.toLocaleString()+' 比索）？超出部分不予兑付。',
+        '⚠️ Sobre-canje\nSaldo canjeable: '+remaining.toLocaleString()+' pts; solicitó '+req.toLocaleString()+'.\n\n¿Aprobar solo '+remaining.toLocaleString()+' pts (~'+newCash.toLocaleString()+' MXN)? El excedente no se paga.'))) return;
+  try{ await dbUpdateRedemptionCapped(id, remaining, newCash, 'completed'); }catch(e){ alert(L('操作失败：','Error: ')+(e.message||e)); return; }
+  alert(L('✅ 已按剩余额度批准 '+remaining.toLocaleString()+' 分（'+newCash.toLocaleString()+' 比索）。','✅ Aprobado por el saldo restante: '+remaining.toLocaleString()+' pts ('+newCash.toLocaleString()+' MXN).'));
   renderRedemptionAdmin();
 }
 function _redeemSelected(){
@@ -4229,7 +4265,15 @@ async function redeemBatch(status){
   var sel=_redeemSelected();
   if(!sel.length){ alert(L('请先勾选要处理的兑换申请。','Selecciona primero las solicitudes.')); return; }
   var ids=sel.map(function(cb){return cb.getAttribute('data-id');});
-  var cash=sel.reduce(function(s,cb){return s+(parseFloat(cb.getAttribute('data-cash'))||0);},0);
+  if(status==='completed'){ // 批量完成前：剔除超兑骑手，必须逐个按剩余额度处理
+    var _all=await dbGetAllRedemptions(); var _by={}; _all.forEach(function(x){_by[String(x.id)]=x;});
+    var _over=[],_safe=[];
+    ids.forEach(function(id){ var r=_by[String(id)]; if(!r)return; if((Number(r.points)||0)>_riderRemaining(r.curp6,_all)) _over.push(id); else _safe.push(id); });
+    if(_over.length){ alert(L('⚠️ 所选中有 '+_over.length+' 笔涉及「超兑」骑手（清零后余额不足），已自动跳过。请用每笔的「标记已完成」逐个按剩余额度兑付。','⚠️ '+_over.length+' con sobre-canje fueron omitidas; procésalas una por una con \"Completar\".')); }
+    if(!_safe.length){ renderRedemptionAdmin(); return; }
+    ids=_safe;
+  }
+  var cash=sel.filter(function(cb){return ids.indexOf(cb.getAttribute('data-id'))>=0;}).reduce(function(s,cb){return s+(parseFloat(cb.getAttribute('data-cash'))||0);},0);
   var msg = status==='completed'
     ? L('确认把所选 '+ids.length+' 笔标记为「已完成」？\n预计兑付合计：'+cash.toLocaleString()+' 比索。','¿Marcar '+ids.length+' como COMPLETADAS?\nTotal aprox.: '+cash.toLocaleString()+' pesos.')
     : L('确认「驳回」所选 '+ids.length+' 笔？','¿RECHAZAR '+ids.length+' solicitudes?');
@@ -4241,6 +4285,8 @@ async function redeemAllPending(){
   var rows=await dbGetAllRedemptions();
   var pend=rows.filter(function(r){return r.status==='pending';});
   if(!pend.length){ alert(L('没有待处理的申请。','No hay pendientes.')); return; }
+  var _over2=pend.filter(function(r){return (Number(r.points)||0)>_riderRemaining(r.curp6,rows);});
+  if(_over2.length){ pend=pend.filter(function(r){return (Number(r.points)||0)<=_riderRemaining(r.curp6,rows);}); alert(L('⚠️ 其中 '+_over2.length+' 笔涉及「超兑」骑手，已自动从一键完成中剔除，请逐个用「标记已完成」按剩余额度处理。','⚠️ '+_over2.length+' con sobre-canje fueron excluidas; procésalas una por una.')); if(!pend.length){ renderRedemptionAdmin(); return; } }
   var cash=pend.reduce(function(s,r){return s+(r.est_cash||0);},0);
   if(!confirm(L('确认把【全部 '+pend.length+' 笔待处理】标记为「已完成」？\n预计兑付合计：'+cash.toLocaleString()+' 比索。\n\n操作量较大，确认无误再继续。','¿Completar TODAS las '+pend.length+' pendientes?\nTotal aprox.: '+cash.toLocaleString()+' pesos.'))) return;
   var ids=pend.map(function(r){return r.id;});
