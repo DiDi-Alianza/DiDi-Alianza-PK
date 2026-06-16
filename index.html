@@ -7249,6 +7249,18 @@ initMatchupPage();
     box.innerHTML='📅 '+tL('已上传 '+days.length+' 天：','Subidos '+days.length+' días: ')+'<b style="color:#0A6638">'+days.map(fmt).join('、')+'</b>';
   };
   // ===== 连续7天(有数据的天)0单 → 清零核查系统 =====
+  // 运营端清单显示用：后8位 → 完整19位 rider_id 回填（来源：日度上传写入的 e.rider_id + RIDER_MAP）。骑手查询不受影响，仍只用后8位护隐私。
+  var RIDER_FULL=null;
+  function fullRid(k){
+    k=String(k||'');
+    var e=REAL_CURP_MAP[k];
+    if(e&&e.rider_id&&String(e.rider_id).length>8) return String(e.rider_id);
+    if(RIDER_FULL===null){ RIDER_FULL={};
+      try{ if(RIDER_MAP) Object.keys(RIDER_MAP).forEach(function(fid){ var s=String(fid); if(s.length>8) RIDER_FULL[c6(s)]=s; }); }catch(_){}
+      try{ Object.keys(REAL_CURP_MAP||{}).forEach(function(kk){ var ee=REAL_CURP_MAP[kk]; if(ee&&ee.rider_id&&String(ee.rider_id).length>8) RIDER_FULL[String(kk)]=String(ee.rider_id); }); }catch(_){}
+    }
+    return RIDER_FULL[k] || k;
+  }
   window.rb_detectZero=async function(){
     var cands=[];
     Object.keys(REAL_CURP_MAP).forEach(function(k){
@@ -7264,7 +7276,7 @@ initMatchupPage();
         var zeroDates=win.slice(-7), clearDate=zeroDates[zeroDates.length-1];
         var open=clr?0:Number(e._open!==undefined?e._open:(e.cumulative_pts||0));
         var dsum=0; if(e._day)Object.keys(e._day).forEach(function(d){ if(clr&&d<=clr)return; if(d<=clearDate)dsum+=Number(e._day[d]||0); });
-        cands.push({curp:k,rider_id:e.rider_id||'',vendor:e.vendor_code||'',zeroFrom:zeroDates[0],zeroTo:clearDate,clearDate:clearDate,points:Math.round(open+dsum),hasRedemption:false});
+        cands.push({curp:k,rider_id:fullRid(k),vendor:e.vendor_code||'',zeroFrom:zeroDates[0],zeroTo:clearDate,clearDate:clearDate,points:Math.round(open+dsum),hasRedemption:false});
       }
     });
     if(cands.length && typeof sb!=='undefined' && sb){
@@ -7288,7 +7300,7 @@ initMatchupPage();
     var rows=cands.map(function(c,i){
       var warn=c.hasRedemption?' style="background:#FFF6D6"':'';
       return '<tr'+warn+'><td style="padding:6px 8px"><input type="checkbox" class="rbClrChk" data-i="'+i+'" checked></td>'
-        +'<td style="padding:6px 8px;font-family:monospace">'+(c.rider_id||c.curp)+'</td>'
+        +'<td style="padding:6px 8px;font-family:monospace">'+(fullRid(c.curp))+'</td>'
         +'<td style="padding:6px 8px">'+(c.vendor||'—')+'</td>'
         +'<td style="padding:6px 8px;white-space:nowrap">'+fmt(c.zeroFrom)+'~'+fmt(c.zeroTo)+'</td>'
         +'<td style="padding:6px 8px;text-align:right;font-weight:700;color:#C0392B">'+c.points.toLocaleString()+'</td>'
@@ -7326,27 +7338,40 @@ initMatchupPage();
     var cands=window.__clearCands||[];
     if(!cands.length){alert(tL('暂无待清零清单','Sin lista'));return;}
     if(typeof XLSX==='undefined'){alert('XLSX');return;}
-    var data=cands.map(function(c){return {Rider_ID:c.rider_id||c.curp,Vendor:c.vendor||'',零单起_From:c.zeroFrom,零单止_To:c.zeroTo,将清零分_Points:c.points,有兑换申请_HasRedemption:c.hasRedemption?'是 Yes':''};});
+    var data=cands.map(function(c){return {Rider_ID:fullRid(c.curp),Vendor:c.vendor||'',零单起_From:c.zeroFrom,零单止_To:c.zeroTo,将清零分_Points:c.points,有兑换申请_HasRedemption:c.hasRedemption?'是 Yes':''};});
     var ws=XLSX.utils.json_to_sheet(data);var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'PendingClear');
     XLSX.writeFile(wb,'待清零清单_'+new Date().toISOString().slice(0,10)+'.xlsx');
+  };
+  window.rb_undoClear=async function(curp){
+    if(typeof requireOperator==='function'){if(!(await requireOperator()))return;}
+    var e=REAL_CURP_MAP[curp];
+    if(!e){ alert(tL('未找到该骑手','Rider no encontrado')); return; }
+    if(!confirm(tL('确认撤销该骑手的清零？撤销后，清零日及之前的积分会全部恢复。','¿Revertir el cero de este rider? Se restaurarán los puntos.'))) return;
+    delete e._clearDate;                       // 删除清零标记 → calc() 会把分数全额算回
+    CLEAR_LOG=(CLEAR_LOG||[]).filter(function(c){ return c.curp!==curp; });  // 从记录移除
+    try{ var r=calc(); if(r&&r.map&&r.map[curp]) e.cumulative_pts=r.map[curp].cum; }catch(_){}  // 立即恢复累计分
+    try{ if(typeof saveCurp==='function') await saveCurp(); }catch(_){}
+    try{ if(typeof dbSaveData==='function') await dbSaveData('clear_log',CLEAR_LOG); }catch(_){}
+    st(tL('✅ 已撤销清零，积分已恢复。建议点「④公布」同步骑手查询余额。','✅ Cero revertido. Pulse ④ Publicar para sincronizar.'),true);
+    window.rb_showClearLog();                   // 刷新弹窗
   };
   window.rb_showClearLog=async function(){
     if(typeof requireOperator==='function'){if(!(await requireOperator()))return;}
     var ov=document.getElementById('rbClearOv')||(function(){var d=document.createElement('div');d.id='rbClearOv';d.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:20px';document.body.appendChild(d);return d;})();
     var fmt=function(d){var m=String(d).match(/^\d{4}-(\d{2})-(\d{2})$/);return m?(parseInt(m[1])+'/'+parseInt(m[2])):d;};
     var rows=(CLEAR_LOG||[]).slice().reverse().map(function(c){
-      return '<tr'+(c.hasRedemption?' style="background:#FFF6D6"':'')+'><td style="padding:6px 8px;font-family:monospace">'+(c.rider_id||c.curp)+'</td><td style="padding:6px 8px">'+(c.vendor||'—')+'</td><td style="padding:6px 8px">'+fmt(c.clearDate)+'</td><td style="padding:6px 8px">'+fmt(c.zeroFrom)+'~'+fmt(c.zeroTo)+'</td><td style="padding:6px 8px;text-align:right;color:#C0392B;font-weight:700">'+Number(c.points||0).toLocaleString()+'</td><td style="padding:6px 8px">'+(c.hasRedemption?'⚠️':'')+'</td><td style="padding:6px 8px;font-size:10px;color:#888">'+String(c.confirmedAt||'').slice(0,16).replace('T',' ')+'</td></tr>';
+      return '<tr'+(c.hasRedemption?' style="background:#FFF6D6"':'')+'><td style="padding:6px 8px;font-family:monospace">'+(fullRid(c.curp))+'</td><td style="padding:6px 8px">'+(c.vendor||'—')+'</td><td style="padding:6px 8px">'+fmt(c.clearDate)+'</td><td style="padding:6px 8px">'+fmt(c.zeroFrom)+'~'+fmt(c.zeroTo)+'</td><td style="padding:6px 8px;text-align:right;color:#C0392B;font-weight:700">'+Number(c.points||0).toLocaleString()+'</td><td style="padding:6px 8px">'+(c.hasRedemption?'⚠️':'')+'</td><td style="padding:6px 8px;font-size:10px;color:#888">'+String(c.confirmedAt||'').slice(0,16).replace('T',' ')+'</td><td style="padding:6px 8px"><button onclick="window.rb_undoClear(\''+c.curp+'\')" style="padding:4px 10px;border:1px solid #C0392B;border-radius:6px;background:#fff;color:#C0392B;font-weight:700;cursor:pointer;font-size:11px">'+tL('撤销','Revertir')+'</button></td></tr>';
     }).join('');
     ov.innerHTML='<div style="background:#fff;color:#222;border-radius:14px;max-width:880px;width:100%;max-height:86vh;overflow:auto;padding:22px">'
       +'<div style="font-size:16px;font-weight:800;margin-bottom:8px">📜 '+tL('清零记录','Registro de ceros')+'（'+(CLEAR_LOG||[]).length+'）</div>'
-      +((CLEAR_LOG||[]).length?('<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f2f2f4;text-align:left"><th style="padding:6px 8px">Rider</th><th style="padding:6px 8px">Vendor</th><th style="padding:6px 8px">'+tL('清零日','Fecha cero')+'</th><th style="padding:6px 8px">'+tL('0单区间','Rango')+'</th><th style="padding:6px 8px;text-align:right">'+tL('清零分','Puntos')+'</th><th style="padding:6px 8px">'+tL('兑换','Canje')+'</th><th style="padding:6px 8px">'+tL('确认时间','Confirmado')+'</th></tr></thead><tbody>'+rows+'</tbody></table>'):'<div style="color:#888;font-size:13px;padding:10px 0">'+tL('暂无清零记录','Sin registros')+'</div>')
+      +((CLEAR_LOG||[]).length?('<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f2f2f4;text-align:left"><th style="padding:6px 8px">Rider</th><th style="padding:6px 8px">Vendor</th><th style="padding:6px 8px">'+tL('清零日','Fecha cero')+'</th><th style="padding:6px 8px">'+tL('0单区间','Rango')+'</th><th style="padding:6px 8px;text-align:right">'+tL('清零分','Puntos')+'</th><th style="padding:6px 8px">'+tL('兑换','Canje')+'</th><th style="padding:6px 8px">'+tL('确认时间','Confirmado')+'</th><th style="padding:6px 8px">'+tL('操作','Acción')+'</th></tr></thead><tbody>'+rows+'</tbody></table>'):'<div style="color:#888;font-size:13px;padding:10px 0">'+tL('暂无清零记录','Sin registros')+'</div>')
       +'<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">'
       +'<button onclick="window.rb_exportClearLog()" style="padding:9px 18px;border:1px solid #2D7DD2;border-radius:8px;background:#EAF3FC;color:#1A5FA8;font-weight:700;cursor:pointer">⬇️ '+tL('导出 Excel','Exportar')+'</button>'
       +'<button onclick="document.getElementById(\'rbClearOv\').remove()" style="padding:9px 18px;border:1px solid #ccc;border-radius:8px;background:#f5f5f7;cursor:pointer">'+tL('关闭','Cerrar')+'</button></div></div>';
   };
   window.rb_exportClearLog=function(){
     if(typeof XLSX==='undefined'){alert('XLSX');return;}
-    var data=(CLEAR_LOG||[]).map(function(c){return {Rider_ID:c.rider_id||c.curp,Vendor:c.vendor||'',清零日_ClearDate:c.clearDate,零单起_From:c.zeroFrom,零单止_To:c.zeroTo,清零分_Points:c.points,有兑换申请_HasRedemption:c.hasRedemption?'是 Yes':'',确认时间_ConfirmedAt:String(c.confirmedAt||'').replace('T',' ').slice(0,19)};});
+    var data=(CLEAR_LOG||[]).map(function(c){return {Rider_ID:fullRid(c.curp),Vendor:c.vendor||'',清零日_ClearDate:c.clearDate,零单起_From:c.zeroFrom,零单止_To:c.zeroTo,清零分_Points:c.points,有兑换申请_HasRedemption:c.hasRedemption?'是 Yes':'',确认时间_ConfirmedAt:String(c.confirmedAt||'').replace('T',' ').slice(0,19)};});
     var ws=XLSX.utils.json_to_sheet(data.length?data:[{Rider_ID:'',Vendor:''}]);
     var wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'ClearLog');
     XLSX.writeFile(wb,'积分清零记录_'+new Date().toISOString().slice(0,10)+'.xlsx');
@@ -7413,7 +7438,7 @@ initMatchupPage();
           if(e._open_days===undefined)e._open_days=Number(e.online_days||0);
           Object.keys(pp[k]).forEach(function(d){var x=pp[k][d];e._day[d]=x.p;e._dhr[d]=x.hr;e._dord[d]=x.o;e._bd[d]=[x.s23,x.perf,x.bon,x.ded,x.sch];
             e._pk[d]={slot23_point_part:x.s23,perfect_point_part:x.perf,bonus_point_part:x.bon,deduct_point_part:x.ded,schedule_penalty_part:x.sch,points:x.p,effective_points:x.eff,complete_orders:x.o,dduty_3r_cnt:x.d3r,vendor_code:x.vc,vendor_id:x.vid,rider_id:x.rid};
-            if(x.rid&&!e.rider_id)e.rider_id=x.rid; if(x.vc&&!e.vendor_code)e.vendor_code=x.vc;});
+            if(x.rid && String(x.rid).length>String(e.rider_id||'').length) e.rider_id=String(x.rid); if(x.vc&&!e.vendor_code)e.vendor_code=x.vc;});
           nR++;
         });
         try{if(typeof saveCurp==='function')saveCurp();}catch(e){}
