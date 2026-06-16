@@ -423,7 +423,10 @@ function vendorOf(last8, c8, e){
   const k = String(c8).slice(-8);
   if(last8[k]) return last8[k];
   const rid = String((e&&e.rider_id)||'').trim();
-  return rid ? (last8[rid.slice(-8)]||null) : null;
+  if(rid && last8[rid.slice(-8)]) return last8[rid.slice(-8)];
+  // 兜底：roster/perf 里查不到时，直接用骑手自带的 vendor_code（不依赖经常不更新的 vendor 清单）
+  const vc = String((e&&e.vendor_code)||'').trim();
+  return vc ? norm(vc) : null;
 }
 
 // ===== 核心：按周构建 M =====
@@ -606,7 +609,7 @@ function buildM(weekKey){
   wkMatches.forEach(m=>{ (sa[m]||[]).forEach(t=>{ const vc=norm(t.vendor), ct=cityOf(vc);
     (t.riders||[]).forEach(r=>{ const pb=+(r.pk_bonus||0); issuedPK+=pb; pkByCity[ct]=(pkByCity[ct]||0)+pb; }); }); });
   const issuedPts = Math.round(issuedBase + issuedPK);
-  const ordersWk = Object.values(orders).reduce((a,b)=>a+b,0);
+  const ordersWk = total_orders;   // 全口径：用全体骑手完单(含未归属vendor的)，不因清单不全而少计
   const hoursWk  = Object.values(hr).reduce((a,b)=>a+b,0);
   const poolSpent = POOL;
   const ptsAccrued = Math.round(pendCash);     // 待审批兑付(pending)实际现金
