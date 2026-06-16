@@ -2321,7 +2321,7 @@ function _card(label,value,sub){
 }
 function _svgBars(series, color){
   // series: [{label, value}], vertical bars — 撑满容器宽度
-  if(!series.length) return '<div style="font-size:12px;color:var(--muted2)">'+L('暂无数据','Sin datos','No data')+'</div>';
+  if(!series.length) return '<div style="font-size:12px;color:var(--muted2)">'+L('暂无数据','Sin datos')+'</div>';
   var max=Math.max.apply(null,series.map(function(s){return s.value;}))||1;
   var n=series.length, W=1120, H=190, pad=26, padT=24, padB=30;
   var innerW=W-pad*2, slot=innerW/n, bw=Math.min(64, slot*0.62);
@@ -2690,35 +2690,35 @@ async function renderDashboard(){
     _dashLangApply();
     var html='';
     html+='<div class="dtab" data-t="ov">';
-    html+=sec(L('📊 规模','📊 Escala','📊 Scale'));
+    html+=sec(L('📊 规模','📊 Escala'));
     html+=grid([
-      _card(L('报名队伍数','Equipos inscritos','Teams registered'),teamsTotal,L('去重队伍名','Equipos únicos','Unique teams')),
-      _card(L('去重骑手数','Riders únicos','Unique riders'),ridersTotal),
-      _card(L('参与供应商数','Proveedores','Vendors'),vendorsTotal),
-      _card(L('累计报名场次','Inscripciones totales','Total entries'),entriesTotal,L('热身 '+warmEntries+' · 正式 '+formalEntries,'Calent. '+warmEntries+' · Oficial '+formalEntries,'Warm-up '+warmEntries+' · Official '+formalEntries)),
-      _card(L('人均报名场次','Inscrip./equipo','Entries/team'),avgEntries)
+      _card(L('报名队伍数','Equipos inscritos'),teamsTotal,L('去重队伍名','Equipos únicos')),
+      _card(L('去重骑手数','Riders únicos'),ridersTotal),
+      _card(L('参与供应商数','Proveedores'),vendorsTotal),
+      _card(L('累计报名场次','Inscripciones totales'),entriesTotal,L('热身 '+warmEntries+' · 正式 '+formalEntries,'Calent. '+warmEntries+' · Oficial '+formalEntries)),
+      _card(L('人均报名场次','Inscrip./equipo'),avgEntries)
     ]);
 
-    html+=sec(L('📈 活跃','📈 Actividad','📈 Activity'));
+    html+=sec(L('📈 活跃','📈 Actividad'));
     html+=grid([
-      _card(L('累计页面访问','Visitas totales','Total page views'),pv),
-      _card(L('累计积分查询','Consultas de puntos','Points queries'),cq)
+      _card(L('累计页面访问','Visitas totales'),pv),
+      _card(L('累计积分查询','Consultas de puntos'),cq)
     ]);
-    html+='<div style="background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-top:12px"><div style="font-size:12px;color:var(--muted2);margin-bottom:8px">'+L('近14天每日访问量','Visitas diarias (14 días)','Daily views (last 14 days)')+'</div>'+_svgBars(seriesPV,'var(--didi)')+'</div>';
-    html+='<div style="background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-top:12px"><div style="font-size:12px;color:var(--muted2);margin-bottom:8px">'+L('近14天每日新增报名','Inscripciones diarias (14 días)','Daily new entries (last 14 days)')+'</div>'+_svgBars(seriesReg,'#3D9EFF')+'</div>';
+    html+='<div style="background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-top:12px"><div style="font-size:12px;color:var(--muted2);margin-bottom:8px">'+L('近14天每日访问量','Visitas diarias (14 días)')+'</div>'+_svgBars(seriesPV,'var(--didi)')+'</div>';
+    html+='<div style="background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-top:12px"><div style="font-size:12px;color:var(--muted2);margin-bottom:8px">'+L('近14天每日新增报名','Inscripciones diarias (14 días)')+'</div>'+_svgBars(seriesReg,'#3D9EFF')+'</div>';
 
-    html+=sec(L('💱 积分兑换','💱 Canje de puntos','💱 Points redemption'));
+    html+=sec(L('💱 积分兑换','💱 Canje de puntos'));
     html+=grid([
-      _card(L('兑换申请次数','Solicitudes de canje','Redemption requests'),redCount,L('已完成 '+redDone.length+' · 待处理 '+redPending.length,'Compl. '+redDone.length+' · Pend. '+redPending.length,'Done '+redDone.length+' · Pending '+redPending.length)),
-      _card(L('兑换积分总数','Puntos canjeados','Points redeemed'),redPts.toLocaleString()),
-      _card(L('兑换金额(比索)','Monto (pesos)','Amount (pesos)'),redCash.toLocaleString(),L('已完成 '+redCashDone.toLocaleString()+' · 待 '+redCashPend.toLocaleString(),'Compl. '+redCashDone.toLocaleString()+' · Pend. '+redCashPend.toLocaleString(),'Done '+redCashDone.toLocaleString()+' · Pending '+redCashPend.toLocaleString())),
-      _card(L('兑换骑手数','Riders que canjearon','Riders redeemed'),redRiders)
+      _card(L('兑换申请次数','Solicitudes de canje'),redCount,L('已完成 '+redDone.length+' · 待处理 '+redPending.length,'Compl. '+redDone.length+' · Pend. '+redPending.length)),
+      _card(L('兑换积分总数','Puntos canjeados'),redPts.toLocaleString()),
+      _card(L('兑换金额(比索)','Monto (pesos)'),redCash.toLocaleString(),L('已完成 '+redCashDone.toLocaleString()+' · 待 '+redCashPend.toLocaleString(),'Compl. '+redCashDone.toLocaleString())),
+      _card(L('兑换骑手数','Riders que canjearon'),redRiders)
     ]);
 
-    html+=sec(L('🧩 兼职(PT)','🧩 Medio tiempo (PT)','🧩 Part-time (PT)'));
+    html+=sec(L('🧩 兼职(PT)','🧩 Medio tiempo (PT)'));
     html+=grid([
-      _card(L('PT 供应商数','Proveedores PT','PT vendors'),ptVendors),
-      _card(L('PT 骑手数','Riders PT','PT riders'),ptRiders)
+      _card(L('PT 供应商数','Proveedores PT'),ptVendors),
+      _card(L('PT 骑手数','Riders PT'),ptRiders)
     ]);
 
     // ---- RM board (operator-only): per-RM vendor count (unique) + entries (cumulative) + today ----
@@ -2726,22 +2726,22 @@ async function renderDashboard(){
     var rmAgg={};
     regs.forEach(function(r){
       var vc=String(r.vendor_code||'').toUpperCase();
-      var rm=(VENDOR_RM&&VENDOR_RM[vc])?VENDOR_RM[vc]:L('（未分配）','(Sin asignar)','(Unassigned)');
+      var rm=(VENDOR_RM&&VENDOR_RM[vc])?VENDOR_RM[vc]:L('（未分配）','(Sin asignar)');
       if(!rmAgg[rm]) rmAgg[rm]={v:{},e:0,et:0,vt:{}};
       if(vc) rmAgg[rm].v[vc]=1;
       rmAgg[rm].e++;
       if(_dashDay(r.created_at)===_today){ rmAgg[rm].et++; if(vc) rmAgg[rm].vt[vc]=1; }
     });
     var rmRows=Object.keys(rmAgg).map(function(rm){return {rm:rm,vendors:Object.keys(rmAgg[rm].v).length,entries:rmAgg[rm].e,vt:Object.keys(rmAgg[rm].vt).length,et:rmAgg[rm].et};}).sort(function(a,b){return b.entries-a.entries;});
-    html+=sec(L('👤 渠道经理业绩追踪（仅运营可见）','👤 Seguimiento por gerente (solo operaciones)','👤 Manager performance tracking (operations only)'));
+    html+=sec(L('👤 渠道经理业绩追踪（仅运营可见）','👤 Seguimiento por gerente (solo operaciones)'));
     if(rmRows.length){
       html+='<div style="background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:6px 4px;overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:520px">'
         +'<thead><tr style="color:var(--muted2)">'
-        +'<th style="text-align:left;padding:8px 10px">'+L('渠道经理','Gerente','Manager')+'</th>'
-        +'<th style="text-align:right;padding:8px 10px">'+L('Vendor数(累计·去重)','Vendors (acum.)','Vendors (cumul.·unique)')+'</th>'
-        +'<th style="text-align:right;padding:8px 10px">'+L('报名次数(累计)','Inscrip. (acum.)','Entries (cumul.)')+'</th>'
-        +'<th style="text-align:right;padding:8px 10px">'+L('今日Vendor数','Vendors hoy','Vendors today')+'</th>'
-        +'<th style="text-align:right;padding:8px 10px">'+L('今日报名次数','Inscrip. hoy','Entries today')+'</th>'
+        +'<th style="text-align:left;padding:8px 10px">'+L('渠道经理','Gerente')+'</th>'
+        +'<th style="text-align:right;padding:8px 10px">'+L('Vendor数(累计·去重)','Vendors (acum.)')+'</th>'
+        +'<th style="text-align:right;padding:8px 10px">'+L('报名次数(累计)','Inscrip. (acum.)')+'</th>'
+        +'<th style="text-align:right;padding:8px 10px">'+L('今日Vendor数','Vendors hoy')+'</th>'
+        +'<th style="text-align:right;padding:8px 10px">'+L('今日报名次数','Inscrip. hoy')+'</th>'
         +'</tr></thead><tbody>'
         +rmRows.map(function(r){return '<tr style="border-top:1px solid var(--border)">'
           +'<td style="padding:8px 10px;font-weight:600">'+r.rm+'</td>'
@@ -2751,17 +2751,17 @@ async function renderDashboard(){
           +'<td style="text-align:right;padding:8px 10px;color:var(--didi);font-weight:700">'+r.et+'</td>'
           +'</tr>';}).join('')
         +'</tbody></table></div>';
-      html+='<div style="font-size:11px;color:var(--muted);margin-top:6px">'+L('“今日”= 墨西哥城自然日 0 点起。渠道经理来自内置清单或附件1；未匹配的归入“未分配”。','“Hoy” = desde las 0:00 hora CDMX. El gerente proviene de la lista precargada o del anexo 1.','"Today" = from 0:00 CDMX time. Managers come from the built-in list or annex 1; unmatched ones go to "Unassigned".')+'</div>';
+      html+='<div style="font-size:11px;color:var(--muted);margin-top:6px">'+L('“今日”= 墨西哥城自然日 0 点起。渠道经理来自内置清单或附件1；未匹配的归入“未分配”。','“Hoy” = desde las 0:00 hora CDMX. El gerente proviene de la lista precargada o del anexo 1.')+'</div>';
     } else {
-      html+='<div style="font-size:12px;color:var(--muted2)">'+L('暂无数据（需在供应商名单中包含 RM 列）','Sin datos (incluye una columna RM en la lista de proveedores)','No data (include an RM column in the vendor list)')+'</div>';
+      html+='<div style="font-size:12px;color:var(--muted2)">'+L('暂无数据（需在供应商名单中包含 RM 列）','Sin datos (incluye una columna RM en la lista de proveedores)')+'</div>';
     }
 
-    html+=sec(L('🏆 报名最多的供应商 Top 10','🏆 Top 10 proveedores','🏆 Top 10 vendors by entries'));
+    html+=sec(L('🏆 报名最多的供应商 Top 10','🏆 Top 10 proveedores'));
     if(topV.length){
       html+='<div style="background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:8px 12px">'+topV.map(function(t,i){
-        return '<div style="display:flex;justify-content:space-between;padding:7px 4px;border-bottom:1px solid var(--border);font-size:13px"><span>'+(i+1)+'. '+t.v+'</span><span style="font-weight:700">'+t.c+L(' 场',' insc.',' entries')+'</span></div>';
+        return '<div style="display:flex;justify-content:space-between;padding:7px 4px;border-bottom:1px solid var(--border);font-size:13px"><span>'+(i+1)+'. '+t.v+'</span><span style="font-weight:700">'+t.c+L(' 场',' insc.')+'</span></div>';
       }).join('')+'</div>';
-    } else { html+='<div style="font-size:12px;color:var(--muted2)">'+L('暂无数据','Sin datos','No data')+'</div>'; }
+    } else { html+='<div style="font-size:12px;color:var(--muted2)">'+L('暂无数据','Sin datos')+'</div>'; }
 
     // ═══════════ 日会分析：PT / PK 按 RM/VM 维度 + Vendor 维度 ═══════════
     var hasMap=Object.keys(VENDOR_RMVM).length>0;
@@ -2818,7 +2818,7 @@ async function renderDashboard(){
         (rd||[]).forEach(function(x){ if(x)regRidersByVc[vc][normIdG(x)]=1; });
       });
     }
-    var _partSource=_muPairs?L('配对（匹配成功的参赛队）+ 其报名骑手','emparejamientos + inscritos','matchups (paired teams) + their registered riders'):L('报名数据（该场配对还未发布）','inscripciones (sin emparejar)','registration data (matchups not yet published)');
+    var _partSource=_muPairs?L('配对（匹配成功的参赛队）+ 其报名骑手','emparejamientos + inscritos'):L('报名数据（该场配对还未发布）','inscripciones (sin emparejar)');
     // 全集 = 清单里的 Vendor ∪ 本场参赛的 Vendor
     var uni={}; Object.keys(VENDOR_RMVM).forEach(function(vc){uni[vc]=1;}); Object.keys(regVendorsM).forEach(function(vc){uni[vc]=1;});
     var universe=Object.keys(uni);
@@ -4194,7 +4194,10 @@ async function renderRedemptionAdmin(){
   var sum=document.createElement('div'); sum.style.cssText='font-size:11px;color:var(--muted2);margin-bottom:10px';
   sum.textContent=L('共 '+rows.length+' 笔 · 待处理 '+pend+' 笔','Total '+rows.length+' · pendientes '+pend); panel.appendChild(sum);
   var _pendRows=rows.filter(function(r){return r.status==='pending';});
-  // 筛选 / 排序 / 搜索 控制条
+  // 筛选 / 排序 / 搜索 / 周 控制条
+  var _weeks=_redeemWeeks(rows);
+  var _wkOpt='<option value="all"'+(REDEEM_WEEK==='all'?' selected':'')+'>'+L('全部周','Todas sem.')+'</option>';
+  _weeks.forEach(function(ws){ _wkOpt+='<option value="'+ws+'"'+(REDEEM_WEEK===ws?' selected':'')+'>'+_weekLabel(ws)+'</option>'; });
   var ctl=document.createElement('div');
   ctl.style.cssText='display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px';
   ctl.innerHTML=
@@ -4210,6 +4213,7 @@ async function renderRedemptionAdmin(){
       +'<option value="new"'+(REDEEM_SORT==='new'?' selected':'')+'>'+L('时间 最新','Reciente')+'</option>'
       +'<option value="old"'+(REDEEM_SORT==='old'?' selected':'')+'>'+L('时间 最早','Antiguo')+'</option>'
     +'</select>'
+    +'<select onchange="redeemSetCtl(\'week\',this.value)" title="'+L('按申请兑换周筛选','Filtrar por semana de canje')+'" style="font-size:11px;padding:4px 6px;border-radius:6px;background:var(--s3);color:var(--text);border:1px solid var(--border)">'+_wkOpt+'</select>'
     +'<input id="redSearch" value="'+(REDEEM_SEARCH||'').replace(/"/g,'&quot;')+'" onkeydown="if(event.key===\'Enter\')redeemSetCtl(\'search\',this.value)" onchange="redeemSetCtl(\'search\',this.value)" placeholder="'+L('搜 CURP后8位 / Rider ID','Buscar CURP / Rider ID')+'" style="font-size:11px;padding:4px 8px;border-radius:6px;background:var(--s3);color:var(--text);border:1px solid var(--border);flex:1;min-width:140px">';
   panel.appendChild(ctl);
   // 应用筛选+搜索+排序，得到当前可见视图
@@ -4321,16 +4325,25 @@ async function redeemAllPending(){
   try{ await dbUpdateRedemptionsBatch(ids,'completed'); }catch(e){ alert(L('操作失败：','Error: ')+(e.message||e)); return; }
   renderRedemptionAdmin();
 }
-var REDEEM_FILTER='pending', REDEEM_SORT='cash_desc', REDEEM_SEARCH='';
+var REDEEM_FILTER='pending', REDEEM_SORT='cash_desc', REDEEM_SEARCH='', REDEEM_WEEK='all';
+// —— 兑换「申请周」辅助（周一~周日，对齐活动周；以骑手申请兑换的 CDMX 日期为准）——
+function _mxDate(ts){ var s=mxTime(ts); return s?s.slice(0,10):''; }
+function _weekStartISO(iso){ var p=iso.split('-'); var d=new Date(Date.UTC(+p[0],+p[1]-1,+p[2])); var dow=(d.getUTCDay()+6)%7; d.setUTCDate(d.getUTCDate()-dow); return d.getUTCFullYear()+'-'+_p2(d.getUTCMonth()+1)+'-'+_p2(d.getUTCDate()); }
+function _isoAddDays(iso,n){ var p=iso.split('-'); var d=new Date(Date.UTC(+p[0],+p[1]-1,+p[2])); d.setUTCDate(d.getUTCDate()+n); return d.getUTCFullYear()+'-'+_p2(d.getUTCMonth()+1)+'-'+_p2(d.getUTCDate()); }
+function _weekNo(mondayISO){ var p=mondayISO.split('-'); var d=Date.UTC(+p[0],+p[1]-1,+p[2]); var a=Date.UTC(2026,5,1); return Math.floor((d-a)/(7*86400000))+1; }
+function _weekLabel(mondayISO){ var sun=_isoAddDays(mondayISO,6); var n=_weekNo(mondayISO); var f=function(iso){var p=iso.split('-');return (+p[1])+'/'+(+p[2]);}; return (n>=1?('W'+n+' · '):'')+f(mondayISO)+'–'+f(sun); }
+function _redeemWeeks(rows){ var set={}; rows.forEach(function(r){ var d=_mxDate(r.created_at); if(d) set[_weekStartISO(d)]=1; }); return Object.keys(set).sort().reverse(); }
 function redeemSetCtl(k,v){
   if(k==='filter') REDEEM_FILTER=v;
   else if(k==='sort') REDEEM_SORT=v;
   else if(k==='search') REDEEM_SEARCH=(v||'').trim();
+  else if(k==='week') REDEEM_WEEK=v;
   renderRedemptionAdmin();
 }
 function applyRedeemView(rows){
   var v=rows.slice();
   if(REDEEM_FILTER!=='all') v=v.filter(function(r){return r.status===REDEEM_FILTER;});
+  if(REDEEM_WEEK!=='all'){ var ws=REDEEM_WEEK, we=_isoAddDays(ws,6); v=v.filter(function(r){ var d=_mxDate(r.created_at); return d && d>=ws && d<=we; }); }
   if(REDEEM_SEARCH){ var q=REDEEM_SEARCH.toLowerCase(); v=v.filter(function(r){ return (String(r.curp6||'').toLowerCase().indexOf(q)>=0) || (String(r.rider_id||'').toLowerCase().indexOf(q)>=0); }); }
   v.sort(function(a,b){
     if(REDEEM_SORT==='cash_desc') return (b.est_cash||0)-(a.est_cash||0);
@@ -4342,11 +4355,13 @@ function applyRedeemView(rows){
 }
 function downloadRedemptions(){
   dbGetAllRedemptions().then(function(rows){
-    if(!rows.length){ alert(L('暂无数据','Sin datos')); return; }
+    var view=applyRedeemView(rows);
+    if(!view.length){ alert(L('当前筛选下暂无数据','Sin datos en el filtro actual')); return; }
     var aoa=[['CURP_last6','rider_id','points','rate','est_cash','status','created_at_CDMX','processed_at_CDMX']];
-    rows.forEach(function(r){ aoa.push([r.curp6,r.rider_id||'',r.points,r.rate,r.est_cash,r.status,mxTime(r.created_at),mxTime(r.processed_at)]); });
+    view.forEach(function(r){ aoa.push([r.curp6,r.rider_id||'',r.points,r.rate,r.est_cash,r.status,mxTime(r.created_at),mxTime(r.processed_at)]); });
     var ws=XLSX.utils.aoa_to_sheet(aoa); var wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'redemptions');
-    XLSX.writeFile(wb, L('兑换申请_','Canjes_')+mxDateStamp()+'.xlsx');
+    var name = REDEEM_WEEK!=='all' ? (L('兑换申请_周_','Canjes_sem_')+REDEEM_WEEK+'_'+_isoAddDays(REDEEM_WEEK,6)) : (L('兑换申请_','Canjes_')+mxDateStamp());
+    XLSX.writeFile(wb, name+'.xlsx');
   });
 }
 
