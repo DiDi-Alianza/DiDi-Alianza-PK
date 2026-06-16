@@ -1345,6 +1345,17 @@ select.fi option{background:#18181E}
       <button class="btn btn-p btn-sm" onclick="forceRecalculate()"><span class="lc-zh">🔄 重算</span><span class="lc-es">🔄 Recalcular</span></button>
       <button class="btn btn-s btn-sm" onclick="downloadAllResults()" style="border-color:rgba(255,184,0,.4);color:#FFB800"><span class="lc-zh">⬇️ 下载全部结果</span><span class="lc-es">⬇️ Descargar todo</span></button>
     </div>
+    <!-- 按日期区间下载比赛结果 -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;background:var(--s3)">
+      <span style="font-size:11px;color:var(--muted2);font-weight:700"><span class="lc-zh">📅 按日期下载</span><span class="lc-es">📅 Descargar por fecha</span></span>
+      <button class="btn btn-s btn-sm" onclick="setResRange('yesterday')"><span class="lc-zh">昨天</span><span class="lc-es">Ayer</span></button>
+      <button class="btn btn-s btn-sm" onclick="setResRange('thisweek')"><span class="lc-zh">本周</span><span class="lc-es">Esta sem.</span></button>
+      <button class="btn btn-s btn-sm" onclick="setResRange('lastweek')"><span class="lc-zh">上周</span><span class="lc-es">Sem. pasada</span></button>
+      <input type="date" id="resFrom" style="font-size:11px;padding:5px 7px;border:1px solid var(--border);border-radius:6px;background:var(--s2);color:var(--text);color-scheme:dark">
+      <span style="font-size:11px;color:var(--muted2)">→</span>
+      <input type="date" id="resTo" style="font-size:11px;padding:5px 7px;border:1px solid var(--border);border-radius:6px;background:var(--s2);color:var(--text);color-scheme:dark">
+      <button class="btn btn-p btn-sm" onclick="downloadResultsByRange()"><span class="lc-zh">⬇️ 按区间下载</span><span class="lc-es">⬇️ Descargar rango</span></button>
+    </div>
     <details style="margin-bottom:8px">
       <summary style="font-size:11px;color:var(--muted2);cursor:pointer;user-select:none"><span class="lc-zh">⚠️ 危险操作（清空数据，传错才用）</span><span class="lc-es">⚠️ Zona peligrosa (borrar datos)</span></summary>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px;padding:10px;border:1px dashed rgba(239,68,68,.4);border-radius:8px">
@@ -3593,14 +3604,31 @@ async function sbLockMatch(matchId){
   try{ const { error } = await sb.rpc('lock_match', { p_match_id: parseInt(matchId) }); if(error) console.error('lock_match', error); }
   catch(e){ console.error('lock_match', e); }
 }
+// 比赛日日期集合（YYYY-MM-DD）：决定哪些天的每日明细 _pk 需要持久化。
+// 与 genResultFromDaily 的日期换算保持一致（年份取当前年）。
+function matchDateSet(){
+  var set={}, yr=new Date().getFullYear();
+  var all=(typeof SCHEDULE!=='undefined'?SCHEDULE:[]);
+  all.forEach(function(s){ var m=String(s&&s.date||'').match(/(\d+)月(\d+)日/);
+    if(m){ set[yr+'-'+('0'+(+m[1])).slice(-2)+'-'+('0'+(+m[2])).slice(-2)]=1; } });
+  return set;
+}
 async function saveCurp(){
-  // 存库瘦身：体积最大的每日明细 _pk 不再持久化（仅内存保留，供「从每日数据生成本场结果」当次使用）。
-  // 改存精简后的每日数据，避免 curp_map 过大导致保存静默失败 / 读取卡死。明细滚动改用紧凑的 _bd。
+  // 存库瘦身：每日明细 _pk 默认不持久化（体积最大）。但「比赛日」那几天(SCHEDULE)保留，
+  // 以便换会话/刷新后仍能用「从每日数据自动生成本场结果」。非比赛日仍走紧凑 _bd，不存 _pk。
+  var keep=matchDateSet();
   var slim={};
   Object.keys(REAL_CURP_MAP).forEach(function(k){
     var e=REAL_CURP_MAP[k];
     if(!e||typeof e!=='object'){ slim[k]=e; return; }
-    var c={}; Object.keys(e).forEach(function(f){ if(f!=='_pk') c[f]=e[f]; });
+    var c={};
+    Object.keys(e).forEach(function(f){
+      if(f!=='_pk'){ c[f]=e[f]; return; }
+      var src=e._pk; if(!src) return;
+      var kept=null;
+      Object.keys(src).forEach(function(d){ if(keep[d]){ if(!kept)kept={}; kept[d]=src[d]; } });
+      if(kept) c._pk=kept;   // 仅比赛日明细入库
+    });
     slim[k]=c;
   });
   await dbSaveData('curp_map', slim);
@@ -6477,14 +6505,23 @@ function downloadVendorAllHistory(vc){
     XLSX.writeFile(wb,vc+L('_全部历史结果_','_Historial_')+new Date().toISOString().slice(0,10)+'.xlsx');
   }catch(e){alert(L('下载失败：','Error al descargar: ')+e.message);}
 }
-function downloadAllResults(){
+// 场次 -> ISO日期(YYYY-MM-DD)，用于按日期筛选
+function _matchDateISO(id){
+  var e=(typeof allScheduleEntry==='function')?allScheduleEntry(parseInt(id)):null;
+  var m=e&&e.date?String(e.date).match(/(\d+)月(\d+)日/):null;
+  if(!m) return null;
+  var yr=new Date().getFullYear();
+  return yr+'-'+('0'+(+m[1])).slice(-2)+'-'+('0'+(+m[2])).slice(-2);
+}
+// 核心导出：keepId(id) 决定纳入哪些场次；fileLabel 为文件名前缀(不含.xlsx)
+function _exportResults(keepId, fileLabel){
   var matches={};
   Object.keys(SCORE_ARCHIVE||{}).forEach(function(k){ if((SCORE_ARCHIVE[k]||[]).length) matches[String(k)]=SCORE_ARCHIVE[k]; });
   if(SCORE_MATCH_ID!=null && SCORE_DATA && Object.keys(SCORE_DATA).length){
     matches[String(SCORE_MATCH_ID)]=(typeof filterDisplayTeams==='function')?filterDisplayTeams(Object.values(SCORE_DATA)):Object.values(SCORE_DATA);
   }
-  var ids=Object.keys(matches).sort(function(a,b){return parseInt(a)-parseInt(b);});
-  if(!ids.length){alert(L('暂无可下载的比赛结果','No hay resultados para descargar'));return;}
+  var ids=Object.keys(matches).filter(function(id){return keepId(id);}).sort(function(a,b){return parseInt(a)-parseInt(b);});
+  if(!ids.length){alert(L('所选范围内暂无可下载的比赛结果','No hay resultados en el rango'));return;}
   try{
     var wb=XLSX.utils.book_new();
     var mInfo=function(id){ var l=(typeof matchLabel==='function')?matchLabel(parseInt(id)):('第'+id+'场'); var e=(typeof allScheduleEntry==='function')?allScheduleEntry(parseInt(id)):null; var d=e?(typeof sDate==='function'?sDate(e):e.date||''):''; return {l:l,d:d}; };
@@ -6507,8 +6544,26 @@ function downloadAllResults(){
     });
     XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(teamRows),L('全部队伍','Equipos'));
     XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(riderRows),L('全部骑手','Riders'));
-    XLSX.writeFile(wb,L('全部比赛结果_','Resultados_historial_')+new Date().toISOString().slice(0,10)+'.xlsx');
+    XLSX.writeFile(wb, fileLabel+'.xlsx');
   }catch(e){alert(L('下载失败：','Error al descargar: ')+e.message);}
+}
+function downloadAllResults(){
+  _exportResults(function(){return true;}, L('全部比赛结果_','Resultados_historial_')+new Date().toISOString().slice(0,10));
+}
+function downloadResultsByRange(){
+  var fEl=document.getElementById('resFrom'), tEl=document.getElementById('resTo');
+  var from=fEl?fEl.value:'', to=tEl?tEl.value:'';
+  if(!from||!to){alert(L('请先选择起止日期（或点上方「昨天/本周/上周」）','Selecciona fechas (o usa Ayer / Esta sem. / Sem. pasada)'));return;}
+  if(from>to){var tmp=from;from=to;to=tmp;}
+  _exportResults(function(id){ var d=_matchDateISO(id); return !!d && d>=from && d<=to; }, L('比赛结果_','Resultados_')+from+'_'+to);
+}
+function setResRange(kind){
+  function iso(dt){ return dt.getFullYear()+'-'+('0'+(dt.getMonth()+1)).slice(-2)+'-'+('0'+dt.getDate()).slice(-2); }
+  var now=new Date(), f, t;
+  if(kind==='yesterday'){ var y=new Date(now); y.setDate(now.getDate()-1); f=t=iso(y); }
+  else { var dow=(now.getDay()+6)%7; var mon=new Date(now); mon.setDate(now.getDate()-dow-(kind==='lastweek'?7:0)); var sun=new Date(mon); sun.setDate(mon.getDate()+6); f=iso(mon); t=iso(sun); }
+  var fEl=document.getElementById('resFrom'), tEl=document.getElementById('resTo');
+  if(fEl)fEl.value=f; if(tEl)tEl.value=t;
 }
 
 
