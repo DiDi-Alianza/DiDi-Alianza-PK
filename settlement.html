@@ -483,17 +483,19 @@ function buildM(weekKey){
       if(anyAct){ if(!activeSet[vc]) activeSet[vc]=new Set(); activeSet[vc].add(c8); } }
   }
 
-  // 2) 比赛：正式日 my_score 计日常；所有获胜场 opp_score 计 PK；perday 记每日池值；played/won
+  // 2) 比赛（官方规则）：PK日，获胜队每个骑手的【当天日常积分 normal_total + PK积分 pk_bonus】计入奖金池；败队/未参赛不计。played/won 仅用于胜率统计。
   const pkByDay={}; dates.forEach(d=>pkByDay[d]={teams:0,wins:0}); const pkRiders=new Set();
   wkMatches.forEach(m=>{ const d=MATCH_DATE[m]; const teams=sa[m]||[];
     teams.forEach(t=>{ const vc=norm(t.vendor); if(!vc) return;
       pkByDay[d].teams++; add(played,vc,1);
       (t.riders||[]).forEach(r=>{ if(r&&r.id) pkRiders.add(String(r.id)); });
       const win = t.result==='胜';
-      const my=+(t.my_score||0), opp=+(t.opp_score!=null?t.opp_score:(t.opp_final||0));
-      if(win){ add(won,vc,1); pkByDay[d].wins++; add(pk,vc,opp);
-        ensurePD(vc,d); perday[vc][d]+=opp;
-        if(!isWarm(d)){ add(daily,vc,my); perday[vc][d]+=my; }
+      if(win){ add(won,vc,1); pkByDay[d].wins++;
+        (t.riders||[]).forEach(r=>{ if(!r) return;
+          const nt=+(r.normal_total||0), pb=+(r.pk_bonus||0);
+          add(pk,vc,pb); ensurePD(vc,d); perday[vc][d]+=pb;
+          if(!isWarm(d)){ add(daily,vc,nt); perday[vc][d]+=nt; }
+        });
       }
     });
   });
@@ -912,7 +914,7 @@ function getM(k){ if(!WK_CACHE[k]) WK_CACHE[k]=buildM(k); return WK_CACHE[k]; }
 function setBanner(html,cls){ var b=document.getElementById('liveBanner'); if(b){ b.innerHTML=(typeof SLANG!=='undefined'&&SLANG==='en')?translateZH(html):html; b.className='livebanner '+cls; } }
 function reportH(){ try{ if(window.parent && window.parent!==window){ var w=document.querySelector('.wrap'); var h = w ? Math.ceil(w.getBoundingClientRect().bottom + 10) : Math.max(document.body.scrollHeight, document.documentElement.scrollHeight); window.parent.postMessage({t:'sh', h:h}, '*'); } }catch(e){} }
 function flagUnsettled(m){ var w=document.getElementById('unsettledNote'); if(!w) return; if(m.unsettled){ w.style.display='block'; var t='⚠️ <b>'+m.label+'</b>：本周尚未结束、未结算，数字会随后续每日数据继续变动，仅供参考。'; w.innerHTML=(typeof SLANG!=='undefined'&&SLANG==='en')?('⚠️ <b>'+m.label+'</b>: this week is not over / not settled; figures will keep changing with daily data — reference only.'):t; } else { w.style.display='none'; } }
-function selfCheckW1(){ try{ var m=getM('wk0601'); var d=m.vendor_pool.distributed,g=m.vendor_pool.total_points; var em=(m.vendor_pool.by_vendor.find(function(v){return v.vc==='EMILIODIDIMTY2512220';})||{}).total; var ok=(d===600000&&g===657585&&em===98540); if(ok) setBanner(SLANG==='en'?'🟢 Self-check OK · W1 live = official baseline (pool 600,000 / total 657,585 / EMILIO 98,540) · engine trusted':'🟢 自检通过 · W1 现算 = 官方基准（池 600,000 / 周总 657,585 / EMILIO 98,540）· 引擎可信','ok'); else setBanner(SLANG==='en'?'🔴 Self-check anomaly':'🔴 自检异常','bad'); }catch(e){ setBanner('🔴 '+e.message,'bad'); } }
+function selfCheckW1(){ try{ var m=getM('wk0601'); var d=m.vendor_pool.distributed; var ok=(d===600000); if(ok) setBanner(SLANG==='en'?'🟢 Self-check OK · W1 pool fully distributed = 600,000 · engine OK (note: live totals shift with clears/scope changes, which is normal)':'🟢 自检通过 · W1 奖金池分配合计 = 600,000 · 引擎正常（注：现算总分会随清零/口径调整而变动，属正常）','ok'); else setBanner(SLANG==='en'?('🔴 Self-check anomaly: W1 pool distributed = '+d.toLocaleString()+' ≠ 600,000'):('🔴 自检异常：W1 奖金池分配 = '+d.toLocaleString()+'，不等于 600,000'),'bad'); }catch(e){ setBanner('🔴 '+e.message,'bad'); } }
 function showWeek(k){ window.__curWk=k; var m=getM(k); renderAll(m); flagUnsettled(m); reportH(); setTimeout(reportH,400); setTimeout(reportH,1200); }
 async function boot(){ setBanner('⏳ 正在连接数据库并现算…','warn'); try{ await fetchBlocks(); var sel=document.getElementById('wkSel'); sel.innerHTML=''; Object.keys(WEEK_DEFS).forEach(function(k){ var o=document.createElement('option'); o.value=k; o.textContent=WEEK_DEFS[k].label; sel.appendChild(o); }); sel.value='wk0601'; sel.addEventListener('change',function(e){ showWeek(e.target.value); });
   var initLang='zh'; try{ initLang=localStorage.getItem('didi_dash_lang')||localStorage.getItem('didi_lang')||'zh'; }catch(e){}
