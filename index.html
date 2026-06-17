@@ -3658,7 +3658,7 @@ function updateVendorListStatus(){
     el.style.color='var(--muted2)';
   }
 }
-async function saveVendorList(){ await dbSaveData('vendor_list', VENDOR_LIST); await dbSaveData('vendor_rm', VENDOR_RM); await dbSaveData('vendor_city', VENDOR_CITY); }
+async function saveVendorList(){ VENDOR_RMVM = Object.assign({}, VENDOR_RM); await dbSaveData('vendor_list', VENDOR_LIST); await dbSaveData('vendor_rm', VENDOR_RM); await dbSaveData('vendor_rmvm', VENDOR_RMVM); await dbSaveData('vendor_rmvm_version', RMVM_VERSION); await dbSaveData('vendor_city', VENDOR_CITY); }
 // Load shared data on startup so public/rider queries work on any device
 async function loadSharedData(){
   const d = await dbLoadAllData();
@@ -3676,8 +3676,9 @@ async function loadSharedData(){
   }
   if(d.vendor_list && Object.keys(d.vendor_list).length) VENDOR_LIST = d.vendor_list;
   if(d.vendor_city && Object.keys(d.vendor_city).length) VENDOR_CITY = d.vendor_city;
-  if(d.vendor_rm && d.vendor_rmvm_version===RMVM_VERSION) VENDOR_RM = d.vendor_rm;
-  if(d.vendor_rmvm && typeof d.vendor_rmvm==='object' && Object.keys(d.vendor_rmvm).length && d.vendor_rmvm_version===RMVM_VERSION) VENDOR_RMVM = d.vendor_rmvm;
+  // 运营上传的 Vendor↔RM 映射始终优先于内置清单（不再用版本号闸门，避免上传后不生效；vendor_rm 与 vendor_rmvm 同源）
+  if(d.vendor_rm && typeof d.vendor_rm==='object' && Object.keys(d.vendor_rm).length){ VENDOR_RM = d.vendor_rm; VENDOR_RMVM = d.vendor_rm; }
+  else if(d.vendor_rmvm && typeof d.vendor_rmvm==='object' && Object.keys(d.vendor_rmvm).length){ VENDOR_RMVM = d.vendor_rmvm; VENDOR_RM = d.vendor_rmvm; }
   if(d.vendor_roster && typeof d.vendor_roster==='object') VENDOR_ROSTER = d.vendor_roster;
   // 恢复已保存的骑手业绩数据（按当前版本），免去每次重新上传
   if(d.perf_store && typeof d.perf_store==='object'){
