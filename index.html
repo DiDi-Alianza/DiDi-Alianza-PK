@@ -3709,9 +3709,7 @@ async function loadSharedData(){
 // ---- redemption (积分兑换申请) helpers ----
 async function dbRequestRedemption(curp6, riderId, points, rate, estCash){
   if(!sb) return {ok:false,reason:'no_backend'};
-  // rider_id 是 bigint 列；脏数据里可能是 UUID/CURP 等非数字 → 一律置空，避免 "invalid input syntax for type bigint"
-  var rid = (riderId!=null && /^[0-9]+$/.test(String(riderId).trim())) ? String(riderId).trim() : null;
-  const { data, error } = await sb.rpc('request_redemption',{p_curp6:curp6,p_rider_id:rid,p_points:points,p_rate:rate,p_est_cash:estCash});
+  const { data, error } = await sb.rpc('request_redemption',{p_curp6:curp6,p_rider_id:riderId||null,p_points:points,p_rate:rate,p_est_cash:estCash});
   if(error){ console.error('request_redemption',error); return {ok:false,reason:'error',msg:error.message}; }
   return data||{ok:false,reason:'unknown'};
 }
