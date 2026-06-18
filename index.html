@@ -6418,9 +6418,10 @@ async function downloadRegistrations(){
       var _isOp = (typeof OPERATOR!=='undefined' && OPERATOR);
       var _myVc = String((document.getElementById('listVendorFilter')||{}).value||'').trim().toUpperCase();
       if(!_isOp && !_myVc){ alert(L('请先在上方输入你的 Vendor Code，再下载你自己的报名明细','Ingresa tu Vendor Code arriba para descargar tus inscripciones')); return; }
-      var teams=await dbLoadAllTeams(); TEAMS=teams;
-      if(!teams||!teams.length){alert(L('暂无报名数据','No hay datos de inscripción'));return;}
-      if(!_isOp){ teams=teams.filter(function(t){ return String(t.vendorCode||'').toUpperCase()===_myVc; }); if(!teams.length){ alert(L('没找到该 Vendor Code 的报名记录','No hay inscripciones para ese Vendor Code')); return; } }
+      // 商家走自己的 RPC（与列表同源 get_my_registrations，绕过全表RLS）；运营取全部
+      var teams = _isOp ? await dbLoadAllTeams() : await dbLoadVendorTeams(_myVc);
+      TEAMS=teams;
+      if(!teams||!teams.length){ alert(_isOp ? L('暂无报名数据','No hay datos de inscripción') : L('没找到 Vendor Code「'+_myVc+'」的报名记录','No hay inscripciones para «'+_myVc+'»')); return; }
       try{
         var wb=XLSX.utils.book_new();
         var rows=[['RM',L('队伍名称','Equipo'),'Vendor Code',L('报名场次','Partidos'),L('骑手1','Rider 1'),L('骑手2','Rider 2'),L('骑手3','Rider 3'),L('骑手4','Rider 4'),L('骑手5','Rider 5'),L('报名时间(CDMX)','Fecha (CDMX)')]];
