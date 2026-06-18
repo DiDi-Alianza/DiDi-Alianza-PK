@@ -1139,13 +1139,13 @@ select.fi option{background:#18181E}
     <!-- Vendor Code filter -->
     <div style="background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:16px">
       <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px"><span class="lc-zh">🔍 查看已报名队伍</span><span class="lc-es">🔍 Ver equipos inscritos</span></div>
-      <div style="font-size:12px;color:var(--muted2);margin-bottom:12px;line-height:1.7"><span class="lc-zh">输入你的 <strong style="color:var(--didi)">Vendor Code</strong> 可查看并编辑自己的报名队伍</span><span class="lc-es">Ingresa tu <strong style="color:var(--didi)">Vendor Code</strong> para ver y editar tus equipos inscritos</span><br><span style="font-size:11px;color:var(--muted)"><span class="lc-zh">运营人员：不填可查看全部 · Ctrl+Shift+A 下载完整报名数据</span><span class="lc-es">Operaciones: déjalo vacío para ver todo · Ctrl+Shift+A para descargar todos los datos</span></span></div>
+      <div style="font-size:12px;color:var(--muted2);margin-bottom:12px;line-height:1.7"><span class="lc-zh">输入你的 <strong style="color:var(--didi)">Vendor Code</strong> 可查看并编辑自己的报名队伍</span><span class="lc-es">Ingresa tu <strong style="color:var(--didi)">Vendor Code</strong> para ver y editar tus equipos inscritos</span><br><span id="regOpHint" style="display:none;font-size:11px;color:var(--muted)"><span class="lc-zh">运营人员：不填可查看全部 · Ctrl+Shift+A 下载完整报名数据</span><span class="lc-es">Operaciones: déjalo vacío para ver todo · Ctrl+Shift+A para descargar todos los datos</span></span></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <input class="fi" id="listVendorFilter" type="text" data-i18n-placeholder="list_filter_ph" placeholder="输入 Vendor Code 查看自己的队伍" style="flex:1;min-width:200px;padding:10px 14px;font-size:13px" oninput="renderTeamList()">
-        <button class="btn btn-s" onclick="adminViewAll()" title="Solo operaciones"><span class="lc-zh">查看全部</span><span class="lc-es">Ver todo</span></button>
-        <button class="btn btn-s" onclick="removeDuplicateTeams()" style="border-color:rgba(255,107,0,.4);color:var(--didi)" title="Eliminar registros duplicados"><span class="lc-zh">🧹 清除重复</span><span class="lc-es">🧹 Quitar duplicados</span></button>
-        <button class="btn btn-s" onclick="clearAllRegistrations()" style="border-color:rgba(220,38,38,.5);color:#EF4444" title="Solo operaciones: borrar todas las inscripciones"><span class="lc-zh">🗑️ 清空全部报名</span><span class="lc-es">🗑️ Borrar inscripciones</span></button>
-        <button class="btn btn-s" onclick="downloadRegistrations()" style="border-color:rgba(255,184,0,.4);color:#FFB800" title="Solo operaciones: descargar todas las inscripciones"><span class="lc-zh">⬇️ 下载报名明细</span><span class="lc-es">⬇️ Descargar inscripciones</span></button>
+        <button id="regViewAllBtn" class="btn btn-s" onclick="adminViewAll()" style="display:none" title="Solo operaciones"><span class="lc-zh">查看全部</span><span class="lc-es">Ver todo</span></button>
+        <button id="regDedupBtn" class="btn btn-s" onclick="removeDuplicateTeams()" style="display:none;border-color:rgba(255,107,0,.4);color:var(--didi)" title="Eliminar registros duplicados"><span class="lc-zh">🧹 清除重复</span><span class="lc-es">🧹 Quitar duplicados</span></button>
+        <button id="regClearBtn" class="btn btn-s" onclick="clearAllRegistrations()" style="display:none;border-color:rgba(220,38,38,.5);color:#EF4444" title="Solo operaciones: borrar todas las inscripciones"><span class="lc-zh">🗑️ 清空全部报名</span><span class="lc-es">🗑️ Borrar inscripciones</span></button>
+        <button class="btn btn-s" onclick="downloadRegistrations()" style="border-color:rgba(255,184,0,.4);color:#FFB800" title="下载报名明细 / Descargar inscripciones"><span class="lc-zh">⬇️ 下载报名明细</span><span class="lc-es">⬇️ Descargar inscripciones</span></button>
       </div>
     </div>
     <div style="font-size:11px;color:var(--muted);margin-bottom:14px"><span class="lc-zh">点击「编辑骑手」可修改 Rider ID（比赛前两天截止）</span><span class="lc-es">Haz clic en «Editar riders» para modificar los Rider ID (cierra 2 días antes del partido)</span></div>
@@ -3489,12 +3489,19 @@ async function refreshOperator(){
   window._scoreAdminAuthed = OPERATOR; window._curpAdminAuthed = OPERATOR;
   updateOperatorBadge();
   updateVendorBar();
+  applyRegOperatorUI();
   var _pol=document.getElementById('ptOpLogin'); if(_pol) _pol.style.display = OPERATOR ? 'none' : 'flex';
   var _pob=document.getElementById('ptOpBar'); if(_pob) _pob.style.display = OPERATOR ? 'flex' : 'none';
   if(!OPERATOR){ var _pap=document.getElementById('ptRiderAdminPanel'); if(_pap){ _pap.style.display='none'; _pap.innerHTML=''; } }
   try{ if(typeof initScorePage==='function') initScorePage(); }catch(e){} // 刷新比赛结果页，使绿色统计栏按运营身份正确显隐
   try{ if(typeof initMatchupPage==='function') initMatchupPage(); }catch(e){} // 刷新配对结果页，使「下载配对表」按钮按运营身份显隐
   return OPERATOR;
+}
+// 报名面板：危险/运营按钮仅运营可见（商家看不到「查看全部/清除重复/清空全部报名」与运营提示）
+function applyRegOperatorUI(){
+  var op = (typeof OPERATOR!=='undefined' && OPERATOR);
+  ['regViewAllBtn','regDedupBtn','regClearBtn'].forEach(function(id){ var b=document.getElementById(id); if(b) b.style.display = op?'inline-block':'none'; });
+  var h=document.getElementById('regOpHint'); if(h) h.style.display = op?'inline':'none';
 }
 function updateVendorBar(){
   var b=document.getElementById('vendorUploadBar');
@@ -6408,9 +6415,12 @@ function downloadVendorResults(vc, teams){
 
 
 async function downloadRegistrations(){
-      if(!(await requireOperator())) return;
+      var _isOp = (typeof OPERATOR!=='undefined' && OPERATOR);
+      var _myVc = String((document.getElementById('listVendorFilter')||{}).value||'').trim().toUpperCase();
+      if(!_isOp && !_myVc){ alert(L('请先在上方输入你的 Vendor Code，再下载你自己的报名明细','Ingresa tu Vendor Code arriba para descargar tus inscripciones')); return; }
       var teams=await dbLoadAllTeams(); TEAMS=teams;
       if(!teams||!teams.length){alert(L('暂无报名数据','No hay datos de inscripción'));return;}
+      if(!_isOp){ teams=teams.filter(function(t){ return String(t.vendorCode||'').toUpperCase()===_myVc; }); if(!teams.length){ alert(L('没找到该 Vendor Code 的报名记录','No hay inscripciones para ese Vendor Code')); return; } }
       try{
         var wb=XLSX.utils.book_new();
         var rows=[['RM',L('队伍名称','Equipo'),'Vendor Code',L('报名场次','Partidos'),L('骑手1','Rider 1'),L('骑手2','Rider 2'),L('骑手3','Rider 3'),L('骑手4','Rider 4'),L('骑手5','Rider 5'),L('报名时间(CDMX)','Fecha (CDMX)')]];
@@ -6437,7 +6447,7 @@ async function downloadRegistrations(){
           });
         });
         XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(riderRows),L('骑手清单','Lista de riders'));
-        XLSX.writeFile(wb,L('报名明细_','Inscripciones_')+mxDateStamp()+'.xlsx');
+        XLSX.writeFile(wb,L('报名明细_','Inscripciones_')+(_isOp?'':(_myVc+'_'))+mxDateStamp()+'.xlsx');
       }catch(e){alert(L('下载失败：','Error al descargar: ')+e.message);}
 }
 
