@@ -30,6 +30,10 @@ a{color:inherit}
 .livebanner.bad{background:rgba(229,86,78,.12);color:#f0a39d;border-color:rgba(229,86,78,.3)}
 .livebanner.warn{background:rgba(240,169,59,.12);color:#f0c98a;border-color:rgba(240,169,59,.3)}
 #unsettledNote{margin:6px 0 4px;padding:10px 14px;border-radius:10px;font-size:12.5px;background:rgba(240,169,59,.1);border:1px solid rgba(240,169,59,.28);color:#e7c489;line-height:1.6}
+#archiveDupeNote{margin:6px 0 4px;padding:10px 14px;border-radius:10px;font-size:12.5px;background:rgba(229,86,78,.12);border:1px solid rgba(229,86,78,.35);color:#f0a39d;line-height:1.7}
+#archiveDupeNote b{color:#ffb3ad}
+#archiveDupeNote .adlink{display:inline-block;margin-top:6px;font-size:11.5px;font-weight:600;color:var(--red);background:rgba(229,86,78,.12);border:1px solid rgba(229,86,78,.4);border-radius:8px;padding:3px 10px;cursor:pointer}
+#archiveDupeNote .adlink:hover{background:rgba(229,86,78,.2)}
 /* layout */
 .layout{display:flex;gap:16px;margin-top:14px;align-items:flex-start}
 .side{width:188px;flex:0 0 188px;display:flex;flex-direction:column;gap:8px;position:sticky;top:8px}
@@ -112,6 +116,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
  </div>
  <div id="liveBanner" class="livebanner warn">⏳ 初始化…</div>
  <div id="unsettledNote" style="display:none"></div>
+ <div id="archiveDupeNote" style="display:none"></div>
  <div class="layout">
   <div class="side">
    <button class="navbtn on" data-s="ov" onclick="goScreen('ov')"><span class="ic">📊</span><span>成本总览<small>燃尽 · 单均 · 城市</small></span></button>
@@ -357,6 +362,7 @@ const WEEK_DEFS = {
   wk0629: { label:'W5 · 6/29–7/6',  dates: isoRange('2026-06-29','2026-07-06'), pool: 1000000, unsettled:true },
 };
 const WARM_END = '2026-06-05';              // 截至此日为热身日
+const BUILD_VER = 'v20';                     // ⚠️ 与 index.html 里 settlement.html?v=XX 保持一致；改完页面就两边一起 +1
 const isWarm = d => d <= WARM_END;
 
 function norm(vc){ if(!vc) return ''; try{ return vc.normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim(); }catch(e){ return String(vc).toUpperCase().trim(); } }
@@ -433,6 +439,41 @@ function vendorOf(last8, c8, e){
 }
 
 // ===== 核心：按周构建 M =====
+// ═══ 结算端防线：存档查重（防刷分二道关）═══
+// score_archive 由算分页生成；正常情况下算分页已按「最早报名为准」去重。
+// 但若喂进来的是去重前的旧存档，同一 rider 可能出现在同场多支队 → 池/积分被重复计入。
+// 本函数对存档做一次防御性去重：每个 rider 在同一场只保留一个实例（优先获胜队、其次数组靠前），
+// 并产出被剔除明细供页面红条提醒。注意：是否真正套用到计算，由 buildM 按「未结算→套用 / 已结算→只提醒不改数」决定。
+function _rid(id){ var s=String(id==null?'':id).trim().replace(/\.0+$/,''); if(/e/i.test(s)){var n=parseFloat(s);if(!isNaN(n)&&n>0)s=Math.round(n).toString();} return s; }
+function dedupArchiveRiders(saRaw){
+  var dupes=[]; var clean={};
+  Object.keys(saRaw||{}).forEach(function(m){
+    var teams=(saRaw[m]||[]);
+    var keep={}; // normRid -> {idx, win}
+    teams.forEach(function(t,ti){
+      var win=!!(t&&t.result==='胜');
+      ((t&&t.riders)||[]).forEach(function(r){
+        if(!r||r.id==null) return; var k=_rid(r.id);
+        if(keep[k]==null){ keep[k]={idx:ti,win:win}; }
+        else if(!keep[k].win && win){ keep[k]={idx:ti,win:win}; } // 升级到获胜队，保证其胜分被正确计一次
+      });
+    });
+    clean[m]=teams.map(function(t,ti){
+      if(!t) return t; var nt=Object.assign({},t);
+      nt.riders=((t.riders)||[]).filter(function(r){
+        if(!r||r.id==null) return true; var k=_rid(r.id); var kp=keep[k];
+        if(kp && kp.idx===ti) return true;
+        dupes.push({ match:String(m), riderId:String(r.id), vendor:(t.vendor||''), team:(t.name||t.team||''),
+          keptVendor:((teams[kp.idx]&&teams[kp.idx].vendor)||''), keptTeam:((teams[kp.idx]&&(teams[kp.idx].name||teams[kp.idx].team))||''),
+          droppedWinning:(t.result==='胜'), normal_total:+(r.normal_total||0), pk_bonus:+(r.pk_bonus||0) });
+        return false;
+      });
+      return nt;
+    });
+  });
+  return { clean:clean, dupes:dupes };
+}
+
 function buildM(weekKey){
   const W = WEEK_DEFS[weekKey];
   // 结算状态：写死已结算 或 运营在数据库 settled_weeks 里确认过 → 视为已结算
@@ -444,7 +485,9 @@ function buildM(weekKey){
   const dset = new Set(dates);
   const last8 = buildRiderVendor();
   const curp = RAW.curp_map || {};
-  const sa = RAW.score_archive || {};
+  // 存档查重防线：未结算周套用去重后的存档（防止虚增的钱发出去）；已结算周只检测、不改已结算数字。
+  const _saAudit = dedupArchiveRiders(RAW.score_archive || {});
+  const sa = unsettled ? _saAudit.clean : (RAW.score_archive || {});
   const rmMap = RAW.vendor_rm || {};
   const rmvm = RAW.vendor_rmvm || {};
   const roster = RAW.vendor_roster || {};
@@ -709,6 +752,8 @@ function buildM(weekKey){
       vendors: merged, total_points: Math.round(grand), by_vendor, by_day },
     rm, riders: riders, pk: pkAgg,
     data_quality: { raw_vendor_codes: vset.size, merged_vendors: merged, dup_groups: 0, negative_vendors: negative, unmapped_rm },
+    archiveDupes: _saAudit.dupes.filter(x=> wkMatches.indexOf(String(x.match))>=0),
+    archiveDupApplied: unsettled,
     pending: { exchange:'待兑换申请数据', pt:'待PT计价与数据' }
   };
 }
@@ -731,7 +776,7 @@ function goScreen(s){
   reportH();
 }
 function renderAll(M){ _M=M; renderOv(M); renderPool(M); renderPts(M);
-  $('foot').textContent='生成 '+M.generated+' · 实时现算 · 与运营指标同源 · '+(M.unsettled?'本周未结算':'已结算');
+  $('foot').textContent='生成 '+M.generated+' · 实时现算 · 与运营指标同源 · '+(M.unsettled?'本周未结算':'已结算')+' · build '+BUILD_VER;
   if(typeof SLANG!=='undefined' && SLANG==='en'){ ['scrOv','scrPool','scrPts'].forEach(function(id){ var el=$(id); if(el) el.innerHTML=translateZH(el.innerHTML); }); var ft=$('foot'); if(ft) ft.textContent=translateZH(ft.textContent); }
 }
 
@@ -1061,7 +1106,47 @@ function setBanner(html,cls){ var b=document.getElementById('liveBanner'); if(b)
 function reportH(){ try{ if(window.parent && window.parent!==window){ var w=document.querySelector('.wrap'); var h = w ? Math.ceil(w.getBoundingClientRect().bottom + 10) : Math.max(document.body.scrollHeight, document.documentElement.scrollHeight); window.parent.postMessage({t:'sh', h:h}, '*'); } }catch(e){} }
 function flagUnsettled(m){ var w=document.getElementById('unsettledNote'); if(!w) return; if(m.unsettled){ w.style.display='block'; var t='⚠️ <b>'+m.label+'</b>：本周尚未结束、未结算，数字会随后续每日数据继续变动，仅供参考。'; w.innerHTML=(typeof SLANG!=='undefined'&&SLANG==='en')?('⚠️ <b>'+m.label+'</b>: this week is not over / not settled; figures will keep changing with daily data — reference only.'):t; } else { w.style.display='none'; } }
 function selfCheckW1(){ try{ var m=getM('wk0601'); var d=m.vendor_pool.distributed; var ok=(d===600000); if(ok) setBanner(SLANG==='en'?'🟢 Self-check OK · W1 pool fully distributed = 600,000 · engine OK (note: live totals shift with clears/scope changes, which is normal)':'🟢 自检通过 · W1 奖金池分配合计 = 600,000 · 引擎正常（注：现算总分会随清零/口径调整而变动，属正常）','ok'); else setBanner(SLANG==='en'?('🔴 Self-check anomaly: W1 pool distributed = '+d.toLocaleString()+' ≠ 600,000'):('🔴 自检异常：W1 奖金池分配 = '+d.toLocaleString()+'，不等于 600,000'),'bad'); }catch(e){ setBanner('🔴 '+e.message,'bad'); } }
-function showWeek(k){ window.__curWk=k; var m=getM(k); renderAll(m); flagUnsettled(m); reportH(); setTimeout(reportH,400); setTimeout(reportH,1200); }
+function flagArchiveDupes(m){
+  var w=document.getElementById('archiveDupeNote'); if(!w) return;
+  var d=(m&&m.archiveDupes)||[];
+  if(!d.length){ w.style.display='none'; w.innerHTML=''; return; }
+  // 按刷分供应商聚合
+  var byV={}; d.forEach(function(x){ var k=x.vendor||'(空)'; if(!byV[k])byV[k]={v:k,r:{},pts:0}; byV[k].r[x.riderId]=1; byV[k].pts+=((x.normal_total||0)+(x.pk_bonus||0)); });
+  var vrows=Object.keys(byV).map(function(k){return byV[k];}).sort(function(a,b){return Object.keys(b.r).length-Object.keys(a.r).length;});
+  var offenders=vrows.slice(0,8).map(function(r){return r.v+'（'+Object.keys(r.r).length+'人）';}).join('、');
+  var inflate=d.reduce(function(s,x){return s+(x.normal_total||0)+(x.pk_bonus||0);},0);
+  var en=(typeof SLANG!=='undefined'&&SLANG==='en');
+  var applied=!!m.archiveDupApplied;
+  var head, body, action;
+  if(applied){ // 未结算周：已临时剔除
+    head=en?('⚠️ <b>'+m.label+'</b>: archive contains '+d.length+' duplicate rider entries (point inflation). ')
+           :('⚠️ <b>'+m.label+'</b>：算分存档检出 '+d.length+' 条重复骑手（刷分）。');
+    body=en?('Auto-removed in this (unsettled) calculation to avoid inflating pool/points (~'+inflate.toLocaleString()+' pts). Offenders: '+offenders+'. This is a temporary guard — regenerate this match on the scoring page to fix at the source, then settle.')
+           :('本周未结算，已在本次测算中<b>临时剔除</b>避免虚增池/积分（约 '+inflate.toLocaleString()+' 分）。涉及：'+offenders+'。这是临时防线，请回算分页<b>重新生成本场</b>从源头修正后再结算。');
+  } else { // 已结算周：只提醒，不改数
+    head=en?('🔴 <b>'+m.label+'</b> is SETTLED, but its archive contains '+d.length+' duplicate rider entries (point inflation). ')
+           :('🔴 <b>'+m.label+'</b> 已结算，但算分存档检出 '+d.length+' 条重复骑手（刷分）。');
+    body=en?('The already-settled pool/points may be overstated (~'+inflate.toLocaleString()+' pts). This page does NOT change settled figures. Offenders: '+offenders+'. To correct: unsettle → regenerate on scoring page → re-settle.')
+           :('当前<b>已结算</b>的池/积分可能被虚增（约 '+inflate.toLocaleString()+' 分）。本页<b>未改动已结算数字</b>。涉及：'+offenders+'。修正方式：撤销结算 → 回算分页重新生成 → 重新结算。');
+  }
+  action='<span class="adlink" onclick="downloadArchiveDupesCSV()">⬇️ '+(en?'Download duplicate detail CSV':'下载存档刷分明细 CSV')+'</span>';
+  w.style.display='block';
+  w.innerHTML=head+body+'<br>'+action;
+}
+function downloadArchiveDupesCSV(){
+  var m=_M; var d=(m&&m.archiveDupes)||[];
+  if(!d.length){ return; }
+  var esc=function(x){ var s=String(x==null?'':x); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
+  var head=['场次match','重复riderId','被剔除供应商vendor','被剔除队伍team','保留供应商kept_vendor','保留队伍kept_team','是否剔除获胜实例dropped_winning','日常分normal_total','PK分pk_bonus','合计虚增pts'];
+  var lines=[head.join(',')];
+  d.forEach(function(x){ lines.push([x.match,x.riderId,x.vendor,x.team,x.keptVendor,x.keptTeam,(x.droppedWinning?'是':'否'),x.normal_total,x.pk_bonus,((x.normal_total||0)+(x.pk_bonus||0))].map(esc).join(',')); });
+  var csv='\ufeff'+lines.join('\r\n');
+  var blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  var a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=(m.week||'week')+'_存档刷分明细_'+(m.archiveDupApplied?'未结算已剔除':'已结算仅提醒')+'.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(function(){URL.revokeObjectURL(a.href);},1000);
+}
+function showWeek(k){ window.__curWk=k; var m=getM(k); renderAll(m); flagUnsettled(m); flagArchiveDupes(m); reportH(); setTimeout(reportH,400); setTimeout(reportH,1200); }
 async function boot(){ setBanner('⏳ 正在连接数据库并现算…','warn'); try{ await fetchBlocks(); var sel=document.getElementById('wkSel'); sel.innerHTML=''; Object.keys(WEEK_DEFS).forEach(function(k){ var o=document.createElement('option'); o.value=k; o.textContent=WEEK_DEFS[k].label; sel.appendChild(o); }); sel.value='wk0601'; sel.addEventListener('change',function(e){ showWeek(e.target.value); });
   var initLang='zh'; try{ initLang=localStorage.getItem('didi_dash_lang')||localStorage.getItem('didi_lang')||'zh'; }catch(e){}
   if(typeof applySettleLang==='function'){ SLANG=(initLang==='zh')?'zh':'en'; try{document.body.setAttribute('data-lang',SLANG);}catch(_){ } }

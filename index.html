@@ -1280,6 +1280,13 @@ select.fi option{background:#18181E}
       <button onclick="genResultFromDaily(document.getElementById('scoreMatchSel').value)" style="width:100%;margin-top:10px;padding:11px;border:none;border-radius:8px;background:var(--didi);color:#fff;font-weight:800;font-size:13px;cursor:pointer">⚡ <span class="lc-zh">从每日数据自动生成本场结果（无需上传）</span><span class="lc-es">Generar resultado con datos diarios (sin subir)</span></button>
       <div style="font-size:10px;color:var(--muted2);margin-top:6px"><span class="lc-zh">已在右下角控制台上传过该比赛日的每日积分，点这里直接出结果，无需在本页再传一次。若该日还没传，请先去控制台上传。</span><span class="lc-es">Si ya subiste los puntos diarios de ese día en la consola, genera aquí sin volver a subir.</span></div>
     </div>
+    <!-- 🛡️ 报名查重校验（防刷分） -->
+    <div class="card" style="margin-bottom:12px;padding:14px;border-color:var(--lose-b)">
+      <div style="font-weight:700;font-size:12px;margin-bottom:6px"><span class="lc-zh">🛡️ 报名查重校验（防刷分）</span><span class="lc-es">🛡️ Verificar inscripciones (anti-inflado)</span></div>
+      <div style="font-size:10px;color:var(--muted2);margin-bottom:8px"><span class="lc-zh">检测同一场次同一骑手被多支队伍重复报名（刷分），按「最早报名为准」自动去重，并列出刷分供应商与完整明细（可下载 CSV）。生成结果时也会自动执行一次并在确认框提醒。</span><span class="lc-es">Detecta riders inscritos en varios equipos del mismo partido; deduplica por «primera inscripción gana» y lista vendors infractores con detalle descargable. También corre al generar resultados.</span></div>
+      <button onclick="runRegAudit()" class="btn btn-d btn-sm" style="font-size:12px;font-weight:700">🔍 <span class="lc-zh">校验当前场次（查重·去重）</span><span class="lc-es">Verificar partido actual</span></button>
+      <div id="regAuditPanel" style="display:none;margin-top:12px"></div>
+    </div>
     <!-- ② 骑手积分文件（主上传，通常只需这一个） -->
     <div class="card" style="margin-bottom:12px;padding:16px;border-color:rgba(255,107,0,.45)">
       <div style="font-weight:700;font-size:13px;margin-bottom:8px"><span class="lc-zh">📊 骑手积分文件 <span style="color:var(--didi);font-size:11px">（生成结果通常只需上传这一个）</span></span><span class="lc-es">📊 Archivo de puntos de riders <span style="color:var(--didi);font-size:11px">(normalmente solo necesitas este)</span></span>
@@ -1626,7 +1633,7 @@ select.fi option{background:#18181E}
       </div>
       <div style="display:flex;gap:8px">
         <select id="dashLangSel" onchange="dashSetLang(this.value)" class="btn btn-s btn-sm" style="font-size:11px;cursor:pointer" title="看板语言 / Dashboard language"><option value="zh">🌐 中文</option><option value="en">🌐 English</option></select>
-        <button id="dashUploadToggle" class="btn btn-s btn-sm" onclick="var b=document.getElementById('dashUploadBar');b.style.display=(b.style.display==='none'?'grid':'none')" style="font-size:11px"><span class="lc-zh">🗂️ 数据上传</span><span class="lc-es en-hide">🗂️ Datos</span><span class="lc-en">🗂️ Upload</span></button><button class="btn btn-s btn-sm" onclick="renderDashboard();var f=document.getElementById('costFrame');if(f)f.src='settlement.html?v=19&t='+Date.now()" style="font-size:11px"><span class="lc-zh">🔄 刷新</span><span class="lc-es en-hide">🔄 Actualizar</span><span class="lc-en">🔄 Refresh</span></button>
+        <button id="dashUploadToggle" class="btn btn-s btn-sm" onclick="var b=document.getElementById('dashUploadBar');b.style.display=(b.style.display==='none'?'grid':'none')" style="font-size:11px"><span class="lc-zh">🗂️ 数据上传</span><span class="lc-es en-hide">🗂️ Datos</span><span class="lc-en">🗂️ Upload</span></button><button class="btn btn-s btn-sm" onclick="renderDashboard();var f=document.getElementById('costFrame');if(f)f.src='settlement.html?v=20&t='+Date.now()" style="font-size:11px"><span class="lc-zh">🔄 刷新</span><span class="lc-es en-hide">🔄 Actualizar</span><span class="lc-en">🔄 Refresh</span></button>
         <button class="btn btn-s btn-sm" onclick="exportDashboard()" style="font-size:11px"><span class="lc-zh">⬇️ 导出</span><span class="lc-es en-hide">⬇️ Exportar</span><span class="lc-en">⬇️ Export</span></button>
         <button id="dashOpLogout" class="btn btn-s btn-sm" onclick="operatorLogout();closeDashboard();" style="font-size:11px"><span class="lc-zh">退出登录</span><span class="lc-es en-hide">Salir</span><span class="lc-en">Log out</span></button>
         <button class="btn btn-s btn-sm" onclick="closeDashboard()" style="font-size:11px"><span class="lc-zh">✕ 关闭</span><span class="lc-es en-hide">✕ Cerrar</span><span class="lc-en">✕ Close</span></button>
@@ -3040,7 +3047,7 @@ async function renderDashboard(){
     var _langBar='<div style="display:flex;gap:6px;margin:2px 0 8px;align-items:center"><span style="font-size:11px;color:var(--muted2);margin-right:2px">'+L('看板语言','Idioma','Language')+':</span>'+_lb('inherit',L('跟随','Auto','Auto'))+_lb('zh','中文')+_lb('es','ES')+_lb('en','EN')+'</div>';
     var _tabBar='<div id="dashTabBar" style="display:flex;gap:8px;margin:2px 0 14px;flex-wrap:wrap">'
       +_dtb('ov',L('📊 总览','📊 Resumen','📊 Overview'))+_dtb('pk',L('🏁 PK 明细','🏁 PK','🏁 PK'))+_dtb('pt',L('🧩 PT 明细','🧩 PT','🧩 PT'))+_dtb('cost',L('💰 成本结算','💰 Costos','💰 Settlement'))+'</div>';
-    body.innerHTML=_tabBar+html+'<div class="dtab" data-t="cost" style="display:none"><div style="font-size:12px;color:var(--muted);margin-bottom:8px">'+L('实时奖金池结算 · 数据直读数据库 · 与运营指标同源','Liquidación en vivo · datos del mismo backend','Live settlement · same backend')+'</div><iframe id="costFrame" src="settlement.html?v=19" scrolling="no" style="width:100%;height:700px;border:1px solid var(--border);border-radius:12px;background:#0f1115;overflow:hidden;display:block" loading="lazy"></iframe></div>';
+    body.innerHTML=_tabBar+html+'<div class="dtab" data-t="cost" style="display:none"><div style="font-size:12px;color:var(--muted);margin-bottom:8px">'+L('实时奖金池结算 · 数据直读数据库 · 与运营指标同源','Liquidación en vivo · datos del mismo backend','Live settlement · same backend')+'</div><iframe id="costFrame" src="settlement.html?v=20" scrolling="no" style="width:100%;height:700px;border:1px solid var(--border);border-radius:12px;background:#0f1115;overflow:hidden;display:block" loading="lazy"></iframe></div>';
     dashShowTab(DASH_TAB||'ov');
     if(!window.__costFrameLis){ window.__costFrameLis=true; window.addEventListener('message',function(e){ try{ if(e&&e.data&&e.data.t==='sh'&&e.data.h){ var f=document.getElementById('costFrame'); if(f){ f.style.height=(Math.max(300,e.data.h)+16)+'px'; } } }catch(_){} }); }
     if(typeof renderTrendChart==='function')renderTrendChart();
@@ -5035,6 +5042,131 @@ window.genResultFromDaily=async function(matchId){
   var sel=document.getElementById('scoreMatchSel');if(sel)sel.value=String(matchId);
   await handleScoreUpload(file);
 };
+// ═══════════════════════════════════════════════════════════════════
+// 报名查重校验（防刷分）：同一场次同一 rider 出现在多支队伍 = 重复报名刷分。
+// 规则「最早报名为准 (earliest registration wins)」：后报名的队伍自动剔除该重复骑手，
+// 并记录违规明细（谁刷的、剔了谁、保留谁、估算被刷分）。不修改全局 TEAMS，只产出去重副本。
+// ═══════════════════════════════════════════════════════════════════
+let REG_AUDIT = { matchId:null, violations:[], at:null, scope:'' };
+function _regCreatedAt(t){ return (t&&(t.createdAt||t.created_at))||''; }
+function _auditKeyOf(t){ return String(t.vendorCode||t.vendor_code||'')+'||'+String(t.teamName||t.team_name||'')+'||'+String(t.matchId!=null?t.matchId:t.match_id); }
+function _fmtAt(s){ try{ return s?(typeof mxTime==='function'?mxTime(s):String(s).replace('T',' ').slice(0,16)):'—'; }catch(e){ return String(s||'—'); } }
+
+// regTeams: app-shape 行 [{vendorCode, teamName, matchId, riders[], createdAt, id}]
+// scopeMatchId: 指定则只校验该场（跨场同一 rider 属合法，不算刷分）；null 则各场分别校验
+// lookupFn(normRid) -> {total_points}  可选，用于估算被刷分值
+function auditRegDuplicates(regTeams, scopeMatchId, lookupFn){
+  var byMatch={};
+  (regTeams||[]).forEach(function(t){
+    if(!t) return;
+    var m=String(t.matchId!=null?t.matchId:t.match_id);
+    if(scopeMatchId!=null && m!==String(scopeMatchId)) return;
+    (byMatch[m]=byMatch[m]||[]).push(t);
+  });
+  var violations=[];
+  var keptByKey={};
+  Object.keys(byMatch).forEach(function(m){
+    // 最早报名优先；createdAt 缺失排后，再按 id/队名兜底
+    var teams=byMatch[m].slice().sort(function(a,b){
+      var ca=_regCreatedAt(a), cb=_regCreatedAt(b);
+      if(ca&&cb){ if(ca!==cb) return ca<cb?-1:1; }
+      else if(ca&&!cb) return -1;
+      else if(!ca&&cb) return 1;
+      return String(a.id||a.teamName||'').localeCompare(String(b.id||b.teamName||''));
+    });
+    var claimed={}; // normRid -> 首位认领者
+    teams.forEach(function(t){
+      var kept=[];
+      (t.riders||[]).forEach(function(rid){
+        var nr=normIdG(rid);
+        if(!nr){ kept.push(rid); return; } // 空 ID 保留，交后续逻辑处理
+        if(claimed[nr]){
+          var sameTeam=(claimed[nr].key===_auditKeyOf(t));
+          violations.push({
+            match:m, riderId:String(rid),
+            keptTeam:claimed[nr].teamName, keptVendor:claimed[nr].vendor, keptAt:claimed[nr].at,
+            dupTeam:(t.teamName||t.team_name||''), dupVendor:(t.vendorCode||t.vendor_code||''), dupAt:_regCreatedAt(t),
+            reason: sameTeam?'同队重复':'跨队重复',
+            pts: lookupFn ? Math.round((lookupFn(nr)||{}).total_points||0) : null
+          });
+          // 重复 → 不计入该队 kept（被自动去除）
+        } else {
+          claimed[nr]={ teamName:(t.teamName||t.team_name||''), vendor:(t.vendorCode||t.vendor_code||''), at:_regCreatedAt(t), key:_auditKeyOf(t) };
+          kept.push(rid);
+        }
+      });
+      keptByKey[_auditKeyOf(t)]=kept;
+    });
+  });
+  var cleaned=(regTeams||[]).map(function(t){
+    if(!t) return t;
+    var k=_auditKeyOf(t);
+    if(!(k in keptByKey)) return t; // 不在校验范围（其它场）→ 原样
+    var nt=Object.assign({},t); nt.riders=keptByKey[k]; return nt;
+  });
+  return { cleaned:cleaned, violations:violations };
+}
+function _auditOffenders(n){
+  var v=(REG_AUDIT&&REG_AUDIT.violations)||[]; var by={};
+  v.forEach(function(x){ var k=x.dupVendor||'(空)'; (by[k]=by[k]||{r:{}}); by[k].r[x.riderId]=1; });
+  return Object.keys(by).sort(function(a,b){return Object.keys(by[b].r).length-Object.keys(by[a].r).length;}).slice(0,n||6).join('、')||'—';
+}
+// 手动校验（运营面板按钮）：加载报名 → 校验当前选中场次 → 渲染报告 + 可下载明细
+async function runRegAudit(){
+  var out=document.getElementById('regAuditPanel');
+  if(out){ out.style.display='block'; out.innerHTML='<div style="color:var(--muted2);font-size:12px">'+L('正在校验报名记录…','Verificando inscripciones…')+'</div>'; }
+  try{
+    if(typeof TEAMS==='undefined' || !TEAMS || !TEAMS.length){ try{ TEAMS=await dbLoadAllTeams(); }catch(e){} }
+    var regTeams=(typeof getTeams==='function'?getTeams():(typeof TEAMS!=='undefined'?TEAMS:[]))||[];
+    var selEl=document.getElementById('scoreMatchSel');
+    var scope=(selEl&&selEl.value)?selEl.value:((typeof SCORE_MATCH_ID!=='undefined'&&SCORE_MATCH_ID!=null)?SCORE_MATCH_ID:null);
+    var lookup=null;
+    if(typeof RIDER_MAP!=='undefined' && RIDER_MAP){ lookup=function(nr){ var r=RIDER_MAP[nr]; return r?{total_points:(r.normal_total||0)}:null; }; }
+    var res=auditRegDuplicates(regTeams, scope, lookup);
+    REG_AUDIT={ matchId:scope, violations:res.violations, at:new Date().toISOString(), scope: scope?(L('第','Partido ')+scope+L('场','')):L('全部场次','Todos los partidos') };
+    renderRegAudit();
+  }catch(err){
+    if(out) out.innerHTML='<div class="alert a-err show" style="font-size:12px">'+L('校验失败：','Error: ')+(err&&err.message||err)+'</div>';
+  }
+}
+function renderRegAudit(){
+  var out=document.getElementById('regAuditPanel'); if(!out) return; out.style.display='block';
+  var v=(REG_AUDIT&&REG_AUDIT.violations)||[];
+  if(!v.length){ out.innerHTML='<div class="alert a-ok show" style="font-size:12px">✅ '+L('校验通过：','OK: ')+(REG_AUDIT.scope||'')+L('，未发现重复报名（刷分）。',' · sin inscripciones duplicadas.')+'</div>'; return; }
+  var byV={};
+  v.forEach(function(x){ var k=x.dupVendor||'(空)'; if(!byV[k])byV[k]={vendor:k,riders:{},teams:{},pts:0}; byV[k].riders[x.riderId]=1; byV[k].teams[x.dupTeam]=1; byV[k].pts+=(x.pts||0); });
+  var vendRows=Object.keys(byV).map(function(k){return byV[k];}).sort(function(a,b){return Object.keys(b.riders).length-Object.keys(a.riders).length;});
+  var totalPts=v.reduce(function(s,x){return s+(x.pts||0);},0);
+  var head='<div class="alert a-err show" style="font-size:12px;line-height:1.7">⚠️ '+L('发现刷分：','Inflado: ')+(REG_AUDIT.scope||'')+L('，共 ',' · ')+v.length+L(' 条重复报名，涉及 ',' duplicados · ')+vendRows.length+L(' 家供应商。已按「最早报名为准」自动去重。',' vendors. Deduplicado (primera inscripción gana).')+(totalPts?(L('　估算被刷约 ','　~')+totalPts.toLocaleString()+L(' 分。',' pts inflados.')):'')+'</div>';
+  var ov='<div style="font-size:11px;color:var(--muted2);margin:8px 0 4px">'+L('刷分供应商（按重复骑手数排序）：','Vendors infractores:')+'</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">'+vendRows.slice(0,14).map(function(r){return '<span style="background:var(--s3);border:1px solid var(--lose-b);border-radius:20px;padding:2px 9px;font-size:11px"><b style="color:var(--lose)">'+r.vendor+'</b> · '+Object.keys(r.riders).length+L(' 重复骑手',' riders')+(r.pts?(' · '+r.pts.toLocaleString()+L('分',' pts')):'')+'</span>';}).join('')+'</div>';
+  var rows=v.map(function(x){return '<tr>'+
+    '<td style="padding:5px 8px">'+x.match+'</td>'+
+    '<td style="padding:5px 8px;font-family:monospace">'+x.riderId+'</td>'+
+    '<td style="padding:5px 8px"><b style="color:var(--lose)">'+(x.dupVendor||'')+'</b><br><span style="color:var(--muted2);font-size:10px">'+(x.dupTeam||'')+'</span></td>'+
+    '<td style="padding:5px 8px;color:var(--muted2);font-size:10px;white-space:nowrap">'+_fmtAt(x.dupAt)+'</td>'+
+    '<td style="padding:5px 8px">'+(x.keptVendor||'')+'<br><span style="color:var(--muted2);font-size:10px">'+(x.keptTeam||'')+'</span></td>'+
+    '<td style="padding:5px 8px;color:var(--win);font-size:10px;white-space:nowrap">'+_fmtAt(x.keptAt)+'</td>'+
+    '<td style="padding:5px 8px;text-align:right">'+(x.pts!=null?x.pts.toLocaleString():'—')+'</td>'+
+    '<td style="padding:5px 8px;font-size:10px">'+x.reason+'</td></tr>';}).join('');
+  var ths=[L('场次','Partido'),L('重复Rider','Rider dup'),L('被剔除·后报名','Excluido·tarde'),L('报名时间','Hora'),L('保留·最早','Conservado'),L('报名时间','Hora'),L('估算被刷分','Pts'),L('类型','Tipo')];
+  var tbl='<div style="overflow:auto;max-height:340px;border:1px solid var(--border);border-radius:8px"><table style="width:100%;font-size:11px;border-collapse:collapse"><thead><tr style="position:sticky;top:0;background:var(--s2)">'+ths.map(function(h){return '<th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap">'+h+'</th>';}).join('')+'</tr></thead><tbody>'+rows+'</tbody></table></div>';
+  var dl='<button class="btn btn-s btn-sm" onclick="downloadRegAuditCSV()" style="margin-top:10px">⬇️ '+L('下载刷分明细 CSV','Descargar detalle CSV')+'</button>';
+  out.innerHTML=head+ov+tbl+dl;
+}
+function downloadRegAuditCSV(){
+  var v=(REG_AUDIT&&REG_AUDIT.violations)||[];
+  if(!v.length){ alert(L('没有可导出的刷分记录。','No hay registros que exportar.')); return; }
+  var esc=function(x){ var s=String(x==null?'':x); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
+  var head=['场次match','重复riderId','被剔除供应商dup_vendor','被剔除队伍dup_team','后报名时间dup_at','保留供应商kept_vendor','保留队伍kept_team','最早报名时间kept_at','估算被刷分pts','类型reason'];
+  var lines=[head.join(',')];
+  v.forEach(function(x){ lines.push([x.match,x.riderId,x.dupVendor,x.dupTeam,x.dupAt,x.keptVendor,x.keptTeam,x.keptAt,(x.pts==null?'':x.pts),x.reason].map(esc).join(',')); });
+  var csv='\ufeff'+lines.join('\r\n');
+  var blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  var a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='刷分明细_'+(REG_AUDIT.matchId?('第'+REG_AUDIT.matchId+'场'):'全部')+'_'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(function(){URL.revokeObjectURL(a.href);},1000);
+}
+
 async function handleScoreUpload(file){
   if(!file)return;
   if(!file.name.match(/\.(xlsx|xls)$/i)){showAlert('scoreUploadErr',L('请上传 .xlsx 或 .xls 格式','Sube un archivo .xlsx o .xls'));return}
@@ -5261,7 +5393,11 @@ async function handleScoreUpload(file){
         });
 
         // STEP 1: Process registered teams via rider ID matching (exact + fuzzy)
-        const regTeams=getTeams();
+        // ═══ 防刷分：先对本场报名做查重去重（同场同一 rider 进多队 → 最早报名为准，重复者剔除）═══
+        var _scopeMid=(typeof SCORE_MATCH_ID!=='undefined'&&SCORE_MATCH_ID!=null)?SCORE_MATCH_ID:null;
+        var _auditRes=auditRegDuplicates(getTeams(), _scopeMid, function(nr){ var p=(typeof lookupRider==='function')?lookupRider(nr):null; return p?{total_points:(p.total_points||0)}:null; });
+        REG_AUDIT={ matchId:_scopeMid, violations:_auditRes.violations, at:new Date().toISOString(), scope:(_scopeMid!=null?(L('第','Partido ')+_scopeMid+L('场','')):L('全部场次','Todos los partidos')) };
+        const regTeams=_auditRes.cleaned;
         regTeams.forEach(team=>{
           const key=team.vendorCode+'||'+team.teamName;
           if(!teamMap[key])teamMap[key]={
@@ -5412,9 +5548,14 @@ async function handleScoreUpload(file){
       var _orph=(LAST_ORPHAN_TEAMS&&LAST_ORPHAN_TEAMS.length)?L(
         '🧹 已自动剔除 '+LAST_ORPHAN_TEAMS.length+' 支「配对中但本场未报名」的队伍（不计入本场）：'+LAST_ORPHAN_TEAMS.slice(0,8).join('、')+(LAST_ORPHAN_TEAMS.length>8?' 等':'')+'\n\n',
         '🧹 Se excluyeron '+LAST_ORPHAN_TEAMS.length+' equipos emparejados pero NO inscritos en este partido: '+LAST_ORPHAN_TEAMS.slice(0,8).join(', ')+(LAST_ORPHAN_TEAMS.length>8?'…':'')+'\n\n'):'';
+      var _nCheat=(REG_AUDIT&&REG_AUDIT.violations)?REG_AUDIT.violations.length:0;
+      var _cheatPts=_nCheat?REG_AUDIT.violations.reduce(function(s,x){return s+(x.pts||0);},0):0;
+      var _cheat=_nCheat?L(
+        '🚨 检测到刷分（重复报名）'+_nCheat+' 条，已按「最早报名为准」自动去重'+(_cheatPts?('，估算被刷约 '+_cheatPts.toLocaleString()+' 分'):'')+'。涉及供应商：'+_auditOffenders(6)+'。生成后可在「报名查重校验」区下载完整明细。\n\n',
+        '🚨 Inflado detectado: '+_nCheat+' inscripciones duplicadas, deduplicadas automáticamente'+(_cheatPts?(' (~'+_cheatPts.toLocaleString()+' pts)'):'')+'. Vendors: '+_auditOffenders(6)+'. Descarga el detalle en «Verificar inscripciones».\n\n'):'';
       var _confMsg2=L(
-        '请先核对，确认无误再生成并保存：\n\n本场归属：  '+_lbl+'\n解析记录：  '+rows.length.toLocaleString()+' 条骑手 · '+vendorCount+' 家供应商\n有积分队伍：'+scoredTeams+'/'+teamCount+' （其中 '+zeroTeams+' 支为 0 分）\n\nTOP5 预览（含 PK 奖励）：\n'+_top5+'\n\n'+_orph+(_hi>1000?'⚠️ 最高分偏高（'+_hi.toLocaleString()+'）——若本应是单场分，很可能选错了场次、或上传了「累计」积分文件。\n\n':'')+'点「确定」= 确认无误，生成并保存本场结果；\n点「取消」= 不保存，页面将刷新，便于你重新选择场次。',
-        'Revisa antes de generar y guardar:\n\nPartido:  '+_lbl+'\nRegistros:  '+rows.length.toLocaleString()+' riders · '+vendorCount+' vendors\nEquipos con puntos: '+scoredTeams+'/'+teamCount+' ('+zeroTeams+' en 0)\n\nTOP5 (con bono PK):\n'+_top5+'\n\n'+_orph+(_hi>1000?'⚠️ Puntaje máximo alto ('+_hi.toLocaleString()+'). Si debía ser de un solo partido, quizá elegiste el partido equivocado o subiste el archivo ACUMULADO.\n\n':'')+'«Aceptar» = generar y guardar; «Cancelar» = no guardar, la página se recargará.'
+        '请先核对，确认无误再生成并保存：\n\n本场归属：  '+_lbl+'\n解析记录：  '+rows.length.toLocaleString()+' 条骑手 · '+vendorCount+' 家供应商\n有积分队伍：'+scoredTeams+'/'+teamCount+' （其中 '+zeroTeams+' 支为 0 分）\n\nTOP5 预览（含 PK 奖励）：\n'+_top5+'\n\n'+_cheat+_orph+(_hi>1000?'⚠️ 最高分偏高（'+_hi.toLocaleString()+'）——若本应是单场分，很可能选错了场次、或上传了「累计」积分文件。\n\n':'')+'点「确定」= 确认无误，生成并保存本场结果；\n点「取消」= 不保存，页面将刷新，便于你重新选择场次。',
+        'Revisa antes de generar y guardar:\n\nPartido:  '+_lbl+'\nRegistros:  '+rows.length.toLocaleString()+' riders · '+vendorCount+' vendors\nEquipos con puntos: '+scoredTeams+'/'+teamCount+' ('+zeroTeams+' en 0)\n\nTOP5 (con bono PK):\n'+_top5+'\n\n'+_cheat+_orph+(_hi>1000?'⚠️ Puntaje máximo alto ('+_hi.toLocaleString()+'). Si debía ser de un solo partido, quizá elegiste el partido equivocado o subiste el archivo ACUMULADO.\n\n':'')+'«Aceptar» = generar y guardar; «Cancelar» = no guardar, la página se recargará.'
       );
       if(!confirm(_confMsg2)){
         var _ce=document.getElementById('scoreUploadErr');
@@ -5425,6 +5566,7 @@ async function handleScoreUpload(file){
       // —— 确认通过 → 正式写入并保存 ——
       initScorePage();
       saveResults();
+      try{ renderRegAudit(); }catch(e){}  // 把刷分明细+下载按钮持久显示在校验区
       var msg=L('✅ 积分文件已加载：','✅ Archivo de puntos cargado: ')+rows.length.toLocaleString()+L('条骑手记录 · ',' registros de riders · ')+vendorCount+L('家供应商 · ',' vendors · ')+scoredTeams+'/'+teamCount+L('支队伍有积分',' equipos con puntos');
       if(!MATCHUP_DATA)msg+=L(' · ⚠️ 请同时上传配对文件以显示胜负',' · ⚠️ Suba también el archivo de duelos para mostrar resultados');
       var errEl=document.getElementById('scoreUploadErr');
