@@ -34,6 +34,33 @@ a{color:inherit}
 #archiveDupeNote b{color:#ffb3ad}
 #archiveDupeNote .adlink{display:inline-block;margin-top:6px;font-size:11.5px;font-weight:600;color:var(--red);background:rgba(229,86,78,.12);border:1px solid rgba(229,86,78,.4);border-radius:8px;padding:3px 10px;cursor:pointer}
 #archiveDupeNote .adlink:hover{background:rgba(229,86,78,.2)}
+.cflaunch{font-size:12.5px;font-weight:700;color:var(--red);background:rgba(229,86,78,.1);border:1px solid rgba(229,86,78,.4);border-radius:10px;padding:7px 14px;cursor:pointer;font-family:var(--ui)}
+.cflaunch:hover{background:rgba(229,86,78,.18)}
+#cheatFixOut{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.cfhead{font-size:14px;font-weight:800;color:#f0a39d;margin-bottom:10px}
+.cfsum{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-bottom:10px}
+.cfsum>div{background:var(--card2,rgba(255,255,255,.02));border:1px solid var(--line);border-radius:10px;padding:9px 11px}
+.cfsum span{display:block;font-size:11px;color:var(--mut2);margin-bottom:3px;line-height:1.4}
+.cfsum b{font-size:15px;font-weight:800}
+.cfg{color:var(--green)} .cfr{color:var(--red)}
+.cflim{font-size:11px;color:#cdb389;background:rgba(240,169,59,.08);border:1px solid rgba(240,169,59,.25);border-radius:9px;padding:8px 11px;line-height:1.6;margin-bottom:10px}
+.cfsub{font-size:11px;color:var(--mut2);margin:6px 0 4px}
+.cfchips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.cfchip{background:rgba(229,86,78,.1);border:1px solid rgba(229,86,78,.32);border-radius:20px;padding:2px 9px;font-size:11px}
+.cfchip b{color:var(--red)}
+.cftblwrap{overflow:auto;max-height:360px;border:1px solid var(--line);border-radius:8px}
+.cftbl{width:100%;font-size:11px;border-collapse:collapse}
+.cftbl th{position:sticky;top:0;background:var(--panel);padding:6px 8px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap;color:var(--mut2)}
+.cftbl td{padding:5px 8px;border-bottom:1px solid rgba(255,255,255,.04)}
+.cftbl td.num{text-align:right;font-variant-numeric:tabular-nums}
+.cftbl tr.cfanom td{background:rgba(229,86,78,.08)}
+.cfbadge{font-size:9.5px;color:var(--red);border:1px solid rgba(229,86,78,.4);border-radius:6px;padding:1px 5px}
+.cfbadge2{font-size:9.5px;color:var(--mut2);border:1px solid var(--line);border-radius:6px;padding:1px 5px}
+.cfmore{font-size:11px;color:var(--mut2);margin-top:6px}
+.cfdl{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.cfbtn{font-size:11.5px;font-weight:600;color:var(--orange);background:rgba(255,122,0,.1);border:1px solid rgba(255,122,0,.35);border-radius:8px;padding:5px 12px;cursor:pointer;font-family:var(--ui)}
+.cfbtn:hover{background:rgba(255,122,0,.18)}
+.adok{color:var(--green);font-size:12px} .adbad{color:var(--red);font-size:12px}
 /* layout */
 .layout{display:flex;gap:16px;margin-top:14px;align-items:flex-start}
 .side{width:188px;flex:0 0 188px;display:flex;flex-direction:column;gap:8px;position:sticky;top:8px}
@@ -117,6 +144,10 @@ tr:hover td{background:rgba(255,255,255,.02)}
  <div id="liveBanner" class="livebanner warn">⏳ 初始化…</div>
  <div id="unsettledNote" style="display:none"></div>
  <div id="archiveDupeNote" style="display:none"></div>
+ <div id="cheatFixWrap" style="margin:8px 0 4px">
+   <button class="cflaunch" onclick="runCheatCorrection()">🛠️ 历史刷分积分修正（按后8位汇总 · 出对账表）</button>
+   <div id="cheatFixOut" style="display:none;margin-top:10px"></div>
+ </div>
  <div class="layout">
   <div class="side">
    <button class="navbtn on" data-s="ov" onclick="goScreen('ov')"><span class="ic">📊</span><span>成本总览<small>燃尽 · 单均 · 城市</small></span></button>
@@ -1144,6 +1175,145 @@ function downloadArchiveDupesCSV(){
   var blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
   var a=document.createElement('a'); a.href=URL.createObjectURL(blob);
   a.download=(m.week||'week')+'_存档刷分明细_'+(m.archiveDupApplied?'未结算已剔除':'已结算仅提醒')+'.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(function(){URL.revokeObjectURL(a.href);},1000);
+}
+// ═══════════════════════════════════════════════════════════════════
+// 历史刷分积分修正报告（按骑手后8位汇总）
+// 扫 score_archive 全量重复 → 按后8位聚合每人被虚增分 → 关联 curp_map.cumulative_pts
+// → 算出「修正后累计」。仅扣【已结算周】的虚增（这些已进累计/池已付）；未结算周单列提醒走源头重生成。
+// 只产报告 + 可下载对账表，不写库、不静默改数。
+// ⚠️ 限制：兑换为隐私汇总口径，本页拿不到「单个骑手已兑多少」，故无法在骑手粒度判定已兑/未兑；
+//    报告给出「应扣减额」与「异常(虚增>当前累计)」标记，已兑掉的部分需到兑换后台核对高虚增骑手。
+// ═══════════════════════════════════════════════════════════════════
+function _t(zh,en){ return (typeof SLANG!=='undefined'&&SLANG==='en')?en:zh; }
+function _weekOfMatch(m){
+  if(typeof MATCH_DATE==='undefined') return null;
+  var d=MATCH_DATE[String(m)]; if(!d) return null; var hit=null;
+  Object.keys(WEEK_DEFS).forEach(function(wk){ if((WEEK_DEFS[wk].dates||[]).indexOf(d)>=0) hit=wk; });
+  return hit;
+}
+function _isWkSettled(wk){
+  if(!wk||!WEEK_DEFS[wk]) return false;
+  var list=Array.isArray(RAW['settled_weeks'])?RAW['settled_weeks']:[];
+  return (!WEEK_DEFS[wk].unsettled) || list.indexOf(wk)>=0;
+}
+function buildCheatCorrectionReport(){
+  var audit=dedupArchiveRiders(RAW.score_archive||{});
+  var last8=buildRiderVendor();
+  var curp=RAW.curp_map||{};
+  var RATE=0.5;
+  var perRider={}, perVendor={};
+  audit.dupes.forEach(function(x){
+    var c8=_rid(x.riderId).slice(-8);
+    var wk=_weekOfMatch(x.match);
+    var wlabel=wk?(WEEK_DEFS[wk].label.split('·')[0].trim()):'?';
+    var settled=_isWkSettled(wk);
+    var pts=(x.normal_total||0)+(x.pk_bonus||0);
+    if(!perRider[c8]) perRider[c8]={c8:c8,vendor:(last8[c8]||norm(x.vendor)||''),byWeek:{},settledExcess:0,unsettledExcess:0};
+    var pr=perRider[c8]; pr.byWeek[wlabel]=(pr.byWeek[wlabel]||0)+pts;
+    if(settled) pr.settledExcess+=pts; else pr.unsettledExcess+=pts;
+    var cv=norm(x.vendor)||'(空)';
+    if(!perVendor[cv]) perVendor[cv]={vendor:cv,riders:{},settledExcess:0,unsettledExcess:0};
+    perVendor[cv].riders[c8]=1;
+    if(settled) perVendor[cv].settledExcess+=pts; else perVendor[cv].unsettledExcess+=pts;
+  });
+  var rows=Object.keys(perRider).map(function(c8){
+    var pr=perRider[c8]; var cur=+(((curp[c8]||{}).cumulative_pts)||0);
+    var ded=pr.settledExcess; var corrected=Math.max(0,cur-ded); var anomaly=(ded>cur);
+    return {c8:c8,vendor:pr.vendor,current:Math.round(cur),settledExcess:Math.round(ded),
+      unsettledExcess:Math.round(pr.unsettledExcess),corrected:Math.round(corrected),
+      actualDeduct:Math.round(cur-corrected),anomaly:anomaly,byWeek:pr.byWeek,inCurp:(curp[c8]!=null)};
+  }).sort(function(a,b){return b.settledExcess-a.settledExcess;});
+  var ex=RAW._exchange||{};
+  return {
+    rows:rows,
+    perVendor:Object.keys(perVendor).map(function(k){return perVendor[k];}).sort(function(a,b){return b.settledExcess-a.settledExcess;}),
+    RATE:RATE,
+    totSettled:Math.round(rows.reduce(function(s,r){return s+r.settledExcess;},0)),
+    totUnsettled:Math.round(rows.reduce(function(s,r){return s+r.unsettledExcess;},0)),
+    totRecoverable:Math.round(rows.reduce(function(s,r){return s+r.actualDeduct;},0)),
+    anomalies:rows.filter(function(r){return r.anomaly;}).length,
+    notInCurp:rows.filter(function(r){return !r.inCurp;}).length,
+    exchange:{redeemed_pts:Math.round(+ex.redeemed_pts||0),pending_pts:Math.round(+ex.pending_pts||0)}
+  };
+}
+let _CHEAT_REP=null;
+async function runCheatCorrection(){
+  var out=document.getElementById('cheatFixOut'); if(!out) return;
+  out.style.display='block';
+  out.innerHTML='<div style="color:var(--mut2);font-size:12px">'+_t('正在扫描历史存档并汇总…','Escaneando archivo histórico…')+'</div>';
+  try{
+    if(!RAW.score_archive || !RAW.curp_map){ try{ await fetchBlocks(); }catch(e){} }
+    var R=buildCheatCorrectionReport(); _CHEAT_REP=R;
+    var money=function(p){ return Math.round(p*R.RATE).toLocaleString(); };
+    if(!R.rows.length){ out.innerHTML='<div class="adok">✅ '+_t('未在历史存档中发现重复刷分。','Sin duplicados en el archivo.')+'</div>'; reportH(); return; }
+    var head='<div class="cfhead">⚠️ '+_t('历史刷分积分修正（按后8位）','Corrección de puntos inflados (por últimos 8)')+'</div>';
+    var sum='<div class="cfsum">'+
+      '<div><span>'+_t('已结算周虚增（应从累计扣减）','Inflado en semanas liquidadas')+'</span><b>'+R.totSettled.toLocaleString()+' '+_t('分',' pts')+' ≈ '+money(R.totSettled)+_t(' 比索',' MXN')+'</b></div>'+
+      '<div><span>'+_t('实际可从累计扣下（止损）','Deducible del acumulado')+'</span><b class="cfg">'+R.totRecoverable.toLocaleString()+_t(' 分',' pts')+' ≈ '+money(R.totRecoverable)+_t(' 比索',' MXN')+'</b></div>'+
+      '<div><span>'+_t('未结算周虚增（W4+，走源头重生成）','Semanas no liquidadas (regenerar)')+'</span><b>'+R.totUnsettled.toLocaleString()+_t(' 分',' pts')+'</b></div>'+
+      '<div><span>'+_t('异常：虚增>当前累计（疑似已兑超）','Anomalías: inflado > acumulado')+'</span><b class="cfr">'+R.anomalies+_t(' 人',' riders')+'</b></div>'+
+      '</div>';
+    var lim='<div class="cflim">ℹ️ '+_t(
+      '本页拿不到「单个骑手已兑多少」（兑换为隐私汇总口径），故无法在骑手粒度区分已兑/未兑。系统累计已兑 '+R.exchange.redeemed_pts.toLocaleString()+' 分、待批 '+R.exchange.pending_pts.toLocaleString()+' 分（全网总量）。「修正后累计」= 当前累计 − 已结算周虚增（封底0）；标注「异常」的骑手很可能已把虚增分兑掉，需到兑换后台逐个核对再决定封底值。',
+      'Per-rider redemption is not exposed here. "Corrected" = current − inflated(settled), floored at 0. "Anomaly" riders likely already redeemed the inflated points — verify in the redemption back-office.')+'</div>';
+    var offenders='<div class="cfsub">'+_t('刷分供应商（按受影响骑手数）：','Vendors:')+'</div><div class="cfchips">'+
+      R.perVendor.slice(0,14).map(function(v){return '<span class="cfchip"><b>'+v.vendor+'</b> · '+Object.keys(v.riders).length+_t(' 人',' r')+' · '+Math.round(v.settledExcess).toLocaleString()+_t('分','pts')+'</span>';}).join('')+'</div>';
+    var shown=R.rows.slice(0,40);
+    var ths=[_t('后8位','Last8'),_t('归属Vendor','Vendor'),_t('当前累计','Current'),_t('已结算虚增','Inflated'),_t('修正后累计','Corrected'),_t('实际扣减','Deduct'),_t('未结算虚增','Unsettled'),_t('各周','By week'),''];
+    var trs=shown.map(function(r){
+      var wk=Object.keys(r.byWeek).sort().map(function(w){return w+':'+Math.round(r.byWeek[w]);}).join(' ');
+      return '<tr'+(r.anomaly?' class="cfanom"':'')+'>'+
+        '<td style="font-family:monospace">'+r.c8+'</td>'+
+        '<td>'+r.vendor+'</td>'+
+        '<td class="num">'+r.current.toLocaleString()+'</td>'+
+        '<td class="num cfr">−'+r.settledExcess.toLocaleString()+'</td>'+
+        '<td class="num cfg"><b>'+r.corrected.toLocaleString()+'</b></td>'+
+        '<td class="num">'+r.actualDeduct.toLocaleString()+'</td>'+
+        '<td class="num" style="color:var(--mut2)">'+r.unsettledExcess.toLocaleString()+'</td>'+
+        '<td style="font-size:10px;color:var(--mut2)">'+wk+'</td>'+
+        '<td>'+(r.anomaly?'<span class="cfbadge">'+_t('已兑超?','redeemed?')+'</span>':(r.inCurp?'':'<span class="cfbadge2">'+_t('累计无此人','no curp')+'</span>'))+'</td>'+
+        '</tr>';
+    }).join('');
+    var tbl='<div class="cftblwrap"><table class="cftbl"><thead><tr>'+ths.map(function(h){return '<th>'+h+'</th>';}).join('')+'</tr></thead><tbody>'+trs+'</tbody></table></div>'+
+      (R.rows.length>shown.length?('<div class="cfmore">'+_t('仅显示前 '+shown.length+' 人，完整 '+R.rows.length+' 人见下载的对账表。','Mostrando '+shown.length+' de '+R.rows.length+'. Ver CSV.')+'</div>'):'');
+    var dl='<div class="cfdl">'+
+      '<button class="cfbtn" onclick="downloadCheatCorrectionCSV()">⬇️ '+_t('下载骑手修正对账表 CSV','Descargar corrección por rider CSV')+'</button>'+
+      '<button class="cfbtn" onclick="downloadCheatVendorCSV()">⬇️ '+_t('下载供应商汇总 CSV','Resumen por vendor CSV')+'</button></div>';
+    out.innerHTML=head+sum+lim+offenders+tbl+dl;
+    reportH(); setTimeout(reportH,300);
+  }catch(err){ out.innerHTML='<div class="adbad">'+_t('生成失败：','Error: ')+(err&&err.message||err)+'</div>'; }
+}
+function downloadCheatCorrectionCSV(){
+  var R=_CHEAT_REP; if(!R||!R.rows.length){ return; }
+  var esc=function(x){ var s=String(x==null?'':x); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
+  var lines=[];
+  lines.push(['DiDi Alianza · 历史刷分积分修正对账表（按后8位）'].map(esc).join(','));
+  lines.push(['口径','仅扣已结算周虚增；修正后累计=当前累计−已结算虚增(封底0)；兑率',R.RATE,'生成',new Date().toISOString().slice(0,19)].map(esc).join(','));
+  lines.push('');
+  lines.push(['后8位c8','归属vendor','在累计文件in_curp','当前累计current_cumulative_pts','已结算周虚增settled_excess','修正后累计corrected_cumulative_pts','实际扣减actual_deduction','未结算周虚增unsettled_excess_ref','异常已兑超anomaly','逐周明细by_week'].map(esc).join(','));
+  R.rows.forEach(function(r){
+    var wk=Object.keys(r.byWeek).sort().map(function(w){return w+':'+Math.round(r.byWeek[w]);}).join(' ');
+    lines.push([r.c8,r.vendor,(r.inCurp?'是':'否'),r.current,r.settledExcess,r.corrected,r.actualDeduct,r.unsettledExcess,(r.anomaly?'是':''),wk].map(esc).join(','));
+  });
+  lines.push('');
+  lines.push(['合计','','',R.rows.reduce(function(s,r){return s+r.current;},0),R.totSettled,R.rows.reduce(function(s,r){return s+r.corrected;},0),R.totRecoverable,R.totUnsettled,R.anomalies+'人异常',''].map(esc).join(','));
+  var csv='\ufeff'+lines.join('\r\n');
+  var blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  var a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='历史刷分积分修正_按后8位_'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(function(){URL.revokeObjectURL(a.href);},1000);
+}
+function downloadCheatVendorCSV(){
+  var R=_CHEAT_REP; if(!R||!R.perVendor.length){ return; }
+  var esc=function(x){ var s=String(x==null?'':x); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
+  var lines=['后8位刷分供应商汇总'];
+  lines.push(['vendor刷分供应商','受影响骑手数riders','已结算周虚增分settled_excess_pts','≈比索mxn','未结算周虚增分unsettled_excess_pts'].map(esc).join(','));
+  R.perVendor.forEach(function(v){ lines.push([v.vendor,Object.keys(v.riders).length,Math.round(v.settledExcess),Math.round(v.settledExcess*R.RATE),Math.round(v.unsettledExcess)].map(esc).join(',')); });
+  var csv='\ufeff'+lines.join('\r\n');
+  var blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  var a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='刷分供应商汇总_'+new Date().toISOString().slice(0,10)+'.csv';
   document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(function(){URL.revokeObjectURL(a.href);},1000);
 }
 function showWeek(k){ window.__curWk=k; var m=getM(k); renderAll(m); flagUnsettled(m); flagArchiveDupes(m); reportH(); setTimeout(reportH,400); setTimeout(reportH,1200); }
