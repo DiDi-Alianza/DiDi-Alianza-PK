@@ -5066,7 +5066,10 @@ function auditRegDuplicates(regTeams, scopeMatchId, lookupFn){
     (byMatch[m]=byMatch[m]||[]).push(t);
   });
   var violations=[];
-  var keptByKey={};
+  var keptMap=(typeof Map!=='undefined')?new Map():null; // 按报名对象引用存，避免同(vendor,队名,场次)多份互相覆盖
+  var keptByKeyFallback={};
+  function setKept(t,kept){ if(keptMap) keptMap.set(t,kept); else keptByKeyFallback[_auditKeyOf(t)]=kept; }
+  function getKept(t){ if(keptMap) return keptMap.has(t)?{has:true,val:keptMap.get(t)}:{has:false}; var k=_auditKeyOf(t); return (k in keptByKeyFallback)?{has:true,val:keptByKeyFallback[k]}:{has:false}; }
   Object.keys(byMatch).forEach(function(m){
     // 最早报名优先；createdAt 缺失排后，再按 id/队名兜底
     var teams=byMatch[m].slice().sort(function(a,b){
@@ -5097,14 +5100,14 @@ function auditRegDuplicates(regTeams, scopeMatchId, lookupFn){
           kept.push(rid);
         }
       });
-      keptByKey[_auditKeyOf(t)]=kept;
+      setKept(t,kept);
     });
   });
   var cleaned=(regTeams||[]).map(function(t){
     if(!t) return t;
-    var k=_auditKeyOf(t);
-    if(!(k in keptByKey)) return t; // 不在校验范围（其它场）→ 原样
-    var nt=Object.assign({},t); nt.riders=keptByKey[k]; return nt;
+    var g=getKept(t);
+    if(!g.has) return t; // 不在校验范围（其它场）→ 原样
+    var nt=Object.assign({},t); nt.riders=g.val; return nt;
   });
   return { cleaned:cleaned, violations:violations };
 }
