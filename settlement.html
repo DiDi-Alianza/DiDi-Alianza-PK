@@ -204,6 +204,9 @@ var ZH2EN = {
   "实付成本":"Cash cost",
   "实时现算":"live computed",
   "实际兑付":"actual payout",
+  "导出成本总览CSV":"Export Cost Overview CSV",
+  "导出本周成本CSV":"Export This Week's Cost CSV",
+  "导出累计成本CSV":"Export Cumulative Cost CSV",
   "导出全部":"Export all",
   "已批兑付":"approved payout",
   "总成本按":"total cost by",
@@ -749,7 +752,9 @@ function renderOv(M){
        <div><div style="font-size:12px;color:var(--mut2)">本周总成本 · ${M.label} ${badge}</div>
          <div class="big" style="font-size:34px;margin-top:4px">${money(cm.main_total)} <span style="font-size:13px;color:var(--mut)">比索</span></div>
          <div style="font-size:11.5px;color:var(--mut);margin-top:3px">${cm.settled?'= 奖金池 '+money(cm.pool)+' + 实付兑换 '+money(cm.cash.redeem):'= 奖金池 '+money(cm.pool)+' + 积分计提 '+money(cm.accrual.pts_cost)}</div></div>
-       <div style="text-align:right"><div style="font-size:11px;color:var(--mut2)">总单均</div><div class="big" style="font-size:24px">${cpoFmt(mainCpo)}</div><div style="font-size:11px;color:var(--mut2)">比索/单</div></div>
+       <div style="text-align:right"><div style="font-size:11px;color:var(--mut2)">总单均</div><div class="big" style="font-size:24px">${cpoFmt(mainCpo)}</div><div style="font-size:11px;color:var(--mut2)">比索/单</div>
+         <button class="dlbtn" style="float:none;margin-top:10px" onclick="exportCostOverviewCSV()">⬇️ 导出本周成本CSV</button>
+         <button class="dlbtn" style="float:none;margin-top:6px" onclick="exportCumulativeCostCSV()">⬇️ 导出累计成本CSV</button></div>
      </div>
      <div style="font-size:11.5px;color:var(--mut2);margin-top:10px;line-height:1.6">${cm.settled?'本周兑换已审批定案，总成本按<b>实际兑付</b>口径。':'本周未结算：总成本先按<b>计提</b>（权责发生制）暂估，下周一审批兑换后切换为<b>实付</b>口径定案。'}</div>
      ${!cm.settled?`<div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--bd,#333)"><button onclick="window.settleWeek('${M.week}','${M.label}')" style="padding:10px 20px;border:none;border-radius:8px;background:#0A8A4A;color:#fff;font-weight:800;font-size:13px;cursor:pointer">✅ 确认结算本周（${M.label}）</button><span style="font-size:11px;color:var(--mut2);margin-left:10px">确认后状态变为「🟢 已结算」，成本切换为实付口径定案</span></div>`:'<div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--bd,#333)"><button onclick="window.unsettleWeek(\''+M.week+'\',\''+M.label+'\')" style="padding:7px 14px;border:1px solid #aaa;border-radius:8px;background:transparent;color:var(--mut);font-size:11px;cursor:pointer">↩ 撤销本周结算</button></div>'}
@@ -873,6 +878,147 @@ function exportVendorCSV(){
   const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
   a.download=(M.week||'week')+'_vendor_奖金池分配_共'+rows.length+'家.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+function exportCostOverviewCSV(){
+  const M=_M; if(!M){ return; }
+  const cm=M.costModel, c=M.cpo, b=M.budget, bp=M.budgetProgress, iss=M.issued, ls=M.ledgerSummary;
+  const esc=v=>{ const s=String(v==null?'':v); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
+  const r2=n=>(n==null?'':(Math.round(n*100)/100).toFixed(2));      // 数字保留2位（单均）
+  const ri=n=>(n==null?'':Math.round(n));                            // 整数（成本/积分）
+  const mainCpo = cm.settled ? cm.cash.cpo : cm.accrual.cpo;
+  const basis = cm.settled?'已结算·实付口径':'未结算·计提暂估';
+  const lines=[];
+  const sec=t=>{ lines.push(''); lines.push(esc('【'+t+'】')); };
+  const row=arr=>lines.push(arr.map(esc).join(','));
+
+  // 文件头：用于跨周累计成本分析时区分来源
+  row(['DiDi Alianza · 成本总览导出']);
+  row(['结算周', M.label, '周代码', M.week, '口径', basis, '生成时间', M.generated]);
+
+  // ① 本周总成本汇总
+  sec('本周总成本汇总');
+  row(['指标','数值(比索)','说明']);
+  row(['本周总成本', ri(cm.main_total), basis]);
+  row(['奖金池(当周)', ri(cm.pool), '']);
+  row([cm.settled?'实付兑换':'积分计提', ri(cm.settled?cm.cash.redeem:cm.accrual.pts_cost), cm.settled?'本周已批兑付':'发生'+ri(cm.issued_pts)+'×'+iss.rate]);
+  row(['总单均', r2(mainCpo), '比索/单']);
+
+  // ② 积分生命周期
+  sec('积分生命周期');
+  row(['环节','数值','说明']);
+  row(['本周发生积分', ri(cm.issued_pts), '×'+iss.rate+' = 计提 '+ri(cm.accrual.pts_cost)+' 比索']);
+  row(['累计积分余额', ri(ls.end), '骑手可在 7/15 前任意时点兑']);
+  row(['待审批兑付(比索)', ri(cm.pending), ri(iss.pending_pts)+' 分 · 待审批']);
+  row(['本周实付兑现(比索)', ri(cm.cash.redeem), c.redeem_cpo!=null?('实付单均 '+r2(cm.cash.cpo)):'本周已批兑付']);
+
+  // ③ 两口径成本对照
+  sec('两口径成本对照');
+  row(['项目','计提成本(权责发生制)','实付成本(收付实现制)']);
+  row(['奖金池(当周)', ri(cm.pool), ri(cm.pool)]);
+  row(['积分计提/已批兑付', ri(cm.accrual.pts_cost), ri(cm.cash.redeem)]);
+  row(['总成本', ri(cm.accrual.total), ri(cm.cash.total)]);
+  row(['单均', r2(cm.accrual.cpo), r2(cm.cash.cpo)]);
+
+  // ④ 业务量 & 待定
+  sec('业务量 & 待定');
+  row(['指标','数值','说明']);
+  row(['本周完单', ri(c.orders), c.orders?(ri(c.online_riders)+' 人在线 · 人均在线 '+(c.hr_per_rider_day!=null?c.hr_per_rider_day:'—')+' 小时/天'):'本周暂无完单数据']);
+  row(['奖金池单均', r2(c.pool_cpo), '比索/单']);
+  row(['兑换单均(累计)', r2(c.redeem_cpo), '累计兑付÷累计完单']);
+  row(['待审批兑付(比索)', ri(cm.pending), '下周一批准后转实付']);
+
+  // ⑤ 预算进度
+  sec('预算进度');
+  row(['项目','已用(比索)','总额(比索)','进度']);
+  row(['Vendor 奖金池', ri(bp.vendor_used), ri(bp.vendor_total), (bp.vendor_used/bp.vendor_total*100).toFixed(1)+'%']);
+  const liabilityPesos=Math.round((ls.total_cum||0)*iss.rate);
+  row(['骑手积分·已兑付', ri(bp.exchange_used), ri(bp.exchange_total), (bp.exchange_used/bp.exchange_total*100).toFixed(1)+'%']);
+  row(['骑手积分·满兑负债', liabilityPesos, ri(bp.exchange_total), (liabilityPesos/bp.exchange_total*100).toFixed(1)+'%']);
+  row(['预算总额', '', ri(b.total), bp.settled_weeks+' 周已结算']);
+
+  // ⑥ 成本 · 按城市（累计成本分析主表）
+  sec('成本 · 按城市');
+  row(['城市','Vendor','骑手','完单','奖金池','积分成本','兑换成本','总成本','总单均']);
+  const ct={vendors:0,riders:0,orders:0,alloc:0,pts_cost:0,redeem:0};
+  M.by_city.forEach(c2=>{
+    ct.vendors+=c2.vendors;ct.riders+=c2.riders;ct.orders+=c2.orders;ct.alloc+=c2.alloc;ct.pts_cost+=c2.pts_cost;ct.redeem+=c2.redeem;
+    row([c2.city, c2.vendors, ri(c2.riders), ri(c2.orders), ri(c2.alloc), ri(c2.pts_cost), ri(c2.redeem), ri(c2.alloc+c2.pts_cost+c2.redeem), r2(c2.total_cpo)]);
+  });
+  const ctCpo=ct.orders?((ct.alloc+ct.pts_cost)/ct.orders):null;
+  row(['合计', ct.vendors, ri(ct.riders), ri(ct.orders), ri(ct.alloc), ri(ct.pts_cost), ri(ct.redeem), ri(ct.alloc+ct.pts_cost+ct.redeem), r2(ctCpo)]);
+
+  const csv='\ufeff'+lines.join('\r\n');  // BOM 防 Excel 中文乱码
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=(M.week||'week')+'_成本总览_'+(cm.settled?'实付':'计提')+'.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+function exportCumulativeCostCSV(){
+  if(typeof WEEK_DEFS==='undefined'){ return; }
+  const esc=v=>{ const s=String(v==null?'':v); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
+  const ri=n=>(n==null?'':Math.round(n));
+  const r2=n=>(n==null?'':(Math.round(n*100)/100).toFixed(2));
+  const lines=[];
+  const sec=t=>{ lines.push(''); lines.push(esc('【'+t+'】')); };
+  const row=arr=>lines.push(arr.map(esc).join(','));
+
+  // 逐周取模型（getM 带缓存）；累计成本只计「已发生」的周——有完单或已结算，
+  // 否则未来周的计划奖金池会把累计成本虚高
+  const wkKeys=Object.keys(WEEK_DEFS);
+  const allModels=wkKeys.map(k=>{ try{ return getM(k); }catch(e){ return null; } }).filter(Boolean);
+  const models=allModels.filter(M=>((M.cpo&&M.cpo.orders>0) || (M.costModel&&M.costModel.settled)));
+  if(!models.length){ return; }
+  const skipped=allModels.length-models.length;
+
+  row(['DiDi Alianza · 累计成本导出']);
+  row(['生成时间', (models[0]&&models[0].generated)||'', '已发生周数', models.length, '口径', '逐周自动取（已结算→实付 / 未结算→计提暂估）']);
+  if(skipped>0) row(['注', '已跳过 '+skipped+' 个尚无完单数据的未来周（计划奖金池未发生，不计入累计成本）']);
+
+  // ① 各周成本汇总 + 累计合计
+  sec('各周成本汇总');
+  row(['周','区间','结算状态','主口径总成本','奖金池','实付兑换','积分计提','计提总成本','实付总成本','本周完单','主口径单均']);
+  const cum={pool:0,redeem:0,accrual_pts:0,accrual_total:0,cash_total:0,orders:0,main_total:0};
+  models.forEach(M=>{
+    const cm=M.costModel, orders=M.cpo.orders||0;
+    const mainTotal=cm.main_total, mainCpo=cm.settled?cm.cash.cpo:cm.accrual.cpo;
+    const lbl=M.label.split('·'), wk=(lbl[0]||M.week).trim(), rng=(lbl[1]||'').trim();
+    row([wk, rng, cm.settled?'已结算':'未结算', ri(mainTotal), ri(cm.pool), ri(cm.cash.redeem), ri(cm.accrual.pts_cost), ri(cm.accrual.total), ri(cm.cash.total), ri(orders), r2(mainCpo)]);
+    cum.pool+=cm.pool||0; cum.redeem+=cm.cash.redeem||0; cum.accrual_pts+=cm.accrual.pts_cost||0;
+    cum.accrual_total+=cm.accrual.total||0; cum.cash_total+=cm.cash.total||0; cum.orders+=orders; cum.main_total+=mainTotal||0;
+  });
+  const cumCpo=cum.orders?cum.main_total/cum.orders:null;
+  row(['累计合计','—','—', ri(cum.main_total), ri(cum.pool), ri(cum.redeem), ri(cum.accrual_pts), ri(cum.accrual_total), ri(cum.cash_total), ri(cum.orders), r2(cumCpo)]);
+  lines.push('');
+  row(['说明：主口径总成本 = 各周界面头部显示的总成本（已结算按实付、未结算按计提暂估）。累计单均 = 累计主口径总成本 ÷ 累计完单。']);
+
+  // ② 累计成本 · 按城市（跨周汇总）
+  sec('累计成本 · 按城市');
+  row(['城市','完单','奖金池','积分成本','兑换成本','累计总成本','累计单均']);
+  const cityAgg={};
+  models.forEach(M=>{
+    (M.by_city||[]).forEach(c2=>{
+      const k=c2.city||'其它';
+      if(!cityAgg[k]) cityAgg[k]={city:k,orders:0,alloc:0,pts_cost:0,redeem:0};
+      const a=cityAgg[k]; a.orders+=c2.orders||0; a.alloc+=c2.alloc||0; a.pts_cost+=c2.pts_cost||0; a.redeem+=c2.redeem||0;
+    });
+  });
+  const cityRows=Object.values(cityAgg).sort((a,b)=>(b.alloc+b.pts_cost+b.redeem)-(a.alloc+a.pts_cost+a.redeem));
+  const ct={orders:0,alloc:0,pts_cost:0,redeem:0};
+  cityRows.forEach(a=>{
+    const tot=a.alloc+a.pts_cost+a.redeem, cpo=a.orders?tot/a.orders:null;
+    row([a.city, ri(a.orders), ri(a.alloc), ri(a.pts_cost), ri(a.redeem), ri(tot), r2(cpo)]);
+    ct.orders+=a.orders; ct.alloc+=a.alloc; ct.pts_cost+=a.pts_cost; ct.redeem+=a.redeem;
+  });
+  const ctTot=ct.alloc+ct.pts_cost+ct.redeem, ctCpo=ct.orders?ctTot/ct.orders:null;
+  row(['合计', ri(ct.orders), ri(ct.alloc), ri(ct.pts_cost), ri(ct.redeem), ri(ctTot), r2(ctCpo)]);
+  lines.push('');
+  row(['说明：按城市累计总成本 = 各周奖金池 + 积分成本 + 兑换成本 跨周相加；兑换成本经 rider_id 反查 vendor 归集到城市。']);
+
+  const csv='\ufeff'+lines.join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='累计成本_共'+models.length+'周.csv';
   document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
 function renderPts(M){
