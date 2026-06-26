@@ -3707,6 +3707,8 @@ async function loadSharedData(){
   if(d.pair_priority && Array.isArray(d.pair_priority)) PAIR_PRIORITY=d.pair_priority.filter(function(x){return typeof x==='string'||typeof x==='number';}).map(String);
   if(d.curp_map){ Object.keys(REAL_CURP_MAP).forEach(function(k){delete REAL_CURP_MAP[k];}); Object.assign(REAL_CURP_MAP, d.curp_map); }
   if(d.clear_log && Array.isArray(d.clear_log)) CLEAR_LOG=d.clear_log;
+  // 数据落库后刷新每日上传网格，避免它停在"加载完成前"的空状态（全红×假象）
+  try{ if(typeof window.rb_renderWeek==='function') window.rb_renderWeek(); }catch(e){}
   try{ if(typeof initScorePage==='function') initScorePage(); }catch(e){}
   try{ if(typeof renderTop10==='function') renderTop10(); }catch(e){}
   try{ if(typeof initMatchupPage==='function') initMatchupPage(); }catch(e){}
