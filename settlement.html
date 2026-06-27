@@ -393,7 +393,7 @@ const WEEK_DEFS = {
   wk0629: { label:'W5 · 6/29–7/6',  dates: isoRange('2026-06-29','2026-07-06'), pool: 1000000, unsettled:true },
 };
 const WARM_END = '2026-06-05';              // 截至此日为热身日
-const BUILD_VER = 'v23';                     // ⚠️ 与 index.html 里 settlement.html?v=XX 保持一致；改完页面就两边一起 +1
+const BUILD_VER = 'v24';                     // ⚠️ 与 index.html 里 settlement.html?v=XX 保持一致；改完页面就两边一起 +1
 const isWarm = d => d <= WARM_END;
 
 function norm(vc){ if(!vc) return ''; try{ return vc.normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim(); }catch(e){ return String(vc).toUpperCase().trim(); } }
@@ -516,9 +516,9 @@ function buildM(weekKey){
   const dset = new Set(dates);
   const last8 = buildRiderVendor();
   const curp = RAW.curp_map || {};
-  // 存档查重防线：未结算周套用去重后的存档（防止虚增的钱发出去）；已结算周只检测、不改已结算数字。
+  // 存档查重防线：所有周（已结算/未结算）都用去重后的存档计算，保证分配口径始终干净一致。
   const _saAudit = dedupArchiveRiders(RAW.score_archive || {});
-  const sa = unsettled ? _saAudit.clean : (RAW.score_archive || {});
+  const sa = _saAudit.clean;
   const rmMap = RAW.vendor_rm || {};
   const rmvm = RAW.vendor_rmvm || {};
   const roster = RAW.vendor_roster || {};
@@ -784,7 +784,7 @@ function buildM(weekKey){
     rm, riders: riders, pk: pkAgg,
     data_quality: { raw_vendor_codes: vset.size, merged_vendors: merged, dup_groups: 0, negative_vendors: negative, unmapped_rm },
     archiveDupes: _saAudit.dupes.filter(x=> wkMatches.indexOf(String(x.match))>=0),
-    archiveDupApplied: unsettled,
+    archiveDupApplied: true,
     pending: { exchange:'待兑换申请数据', pt:'待PT计价与数据' }
   };
 }
@@ -1152,8 +1152,8 @@ function flagArchiveDupes(m){
   if(applied){ // 未结算周：已临时剔除
     head=en?('⚠️ <b>'+m.label+'</b>: archive contains '+d.length+' duplicate rider entries (point inflation). ')
            :('⚠️ <b>'+m.label+'</b>：算分存档检出 '+d.length+' 条重复骑手（刷分）。');
-    body=en?('Auto-removed in this (unsettled) calculation by "earliest registration wins". Offenders: '+offenders+'. This is a temporary guard — regenerate this match on the scoring page to fix at the source, then settle.')
-           :('本周未结算，已在本次测算中按「最早报名为准」<b>临时剔除</b>重复。涉及：'+offenders+'。这是临时防线，请回算分页<b>重新生成本场</b>从源头修正后再结算。');
+    body=en?('All calculations auto-remove duplicates by "earliest registration wins"; settled/distributed figures are unaffected. Offenders: '+offenders+'. Download the detail for vendor accountability.')
+           :('所有计算已按「最早报名为准」<b>自动剔除重复</b>，<b>不影响结算/分配数字</b>。涉及：'+offenders+'。下载明细可用于 vendor 问责。');
   } else { // 已结算周：只提醒，不改数
     head=en?('🔴 <b>'+m.label+'</b> is SETTLED, but its archive contains '+d.length+' duplicate rider entries (point inflation). ')
            :('🔴 <b>'+m.label+'</b> 已结算，但算分存档检出 '+d.length+' 条重复骑手（刷分）。');
