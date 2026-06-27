@@ -7455,8 +7455,10 @@ initMatchupPage();
 
   function pkByCurp(){var pk={};try{var A=(typeof SCORE_ARCHIVE!=='undefined'&&SCORE_ARCHIVE)?SCORE_ARCHIVE:{};Object.keys(A).forEach(function(mid){(A[mid]||[]).forEach(function(t){((t&&t.riders)||[]).forEach(function(r){if(!r||r.id==null)return;var b=Number(r.pk_bonus||0);if(b){var k=c6(r.id);pk[k]=(pk[k]||0)+b;}});});});}catch(e){console.error(e);}return pk;}
 
+  function pkByCurpDated(){var pk={};try{var md={},yr=new Date().getFullYear();var sched=[].concat(typeof PRE_SCHEDULE!=='undefined'?PRE_SCHEDULE:[],typeof SCHEDULE!=='undefined'?SCHEDULE:[]);sched.forEach(function(s){var mm=String(s&&s.date||'').match(/(\d+)月(\d+)日/);if(mm)md[String(s.id)]=yr+'-'+('0'+(+mm[1])).slice(-2)+'-'+('0'+(+mm[2])).slice(-2);});var A=(typeof SCORE_ARCHIVE!=='undefined'&&SCORE_ARCHIVE)?SCORE_ARCHIVE:{};Object.keys(A).forEach(function(mid){var d=md[String(mid)]||'';(A[mid]||[]).forEach(function(t){((t&&t.riders)||[]).forEach(function(r){if(!r||r.id==null)return;var b=Number(r.pk_bonus||0);if(!b)return;var k=c6(r.id);if(!pk[k])pk[k]={};pk[k][d]=(pk[k][d]||0)+b;});});});}catch(e){console.error(e);}return pk;}
+
   function calc(){
-    var pk=pkByCurp(),out={},n=0,tot=0,neg=0;
+    var pk=pkByCurp(),pkD=pkByCurpDated(),out={},n=0,tot=0,neg=0;
     if(typeof REAL_CURP_MAP==='undefined')return{map:out,riders:0,total:0,neg:0};
     Object.keys(REAL_CURP_MAP).forEach(function(k){
       var e=REAL_CURP_MAP[k];if(!e||typeof e!=='object')return;
@@ -7468,7 +7470,7 @@ initMatchupPage();
       var hr=Number(e._open_hr||0),ord=Number(e._open_ord||0),days=Number(e._open_days||0);
       if(e._dhr)Object.keys(e._dhr).forEach(function(d){hr+=Number(e._dhr[d]||0);});
       if(e._dord)Object.keys(e._dord).forEach(function(d){ord+=Number(e._dord[d]||0);if(Number(e._dord[d]||0)>0)days+=1;});
-      var pkv=clr?0:Number(pk[k]||0);  // 清零同时清掉清零日前的PK(这类骑手通常无PK)
+      var pkv;if(clr){pkv=0;var _pd=pkD[k];if(_pd)Object.keys(_pd).forEach(function(d){if(!d||d>clr)pkv+=Number(_pd[d]||0);});}else{pkv=Number(pk[k]||0);}  // 清零：只清"清零日及之前"的PK，清零日之后赢的PK照常计入
       var cum=Math.round(open+dsum+pkv);
       out[k]={cum:cum,pk:Math.round(pkv),hr:Math.round(hr*10)/10,ord:Math.round(ord),days:days,cleared:!!clr,clearDate:clr||''};
       n++;tot+=cum;if(cum<0)neg++;
