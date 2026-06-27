@@ -386,14 +386,14 @@ const MATCH_DATE = { '102':'2026-06-01','103':'2026-06-02','104':'2026-06-03','1
 // 周定义：日期范围 + 热身判定（6/1–6/5 为热身：全员基础分；6/6 起为正式：仅获胜队）
 function isoRange(a,b){const o=[];let d=new Date(a+'T00:00:00');const e=new Date(b+'T00:00:00');while(d<=e){o.push(d.toISOString().slice(0,10));d.setDate(d.getDate()+1);}return o;}
 const WEEK_DEFS = {
-  wk0601: { label:'W1 · 6/1–6/7',   dates: isoRange('2026-06-01','2026-06-07'), pool: 600000 },
+  wk0601: { label:'W1 · 6/1–6/7',   dates: isoRange('2026-06-01','2026-06-07'), pool: 600000, unsettled:true },
   wk0608: { label:'W2 · 6/8–6/14',  dates: isoRange('2026-06-08','2026-06-14'), pool: 700000, unsettled:true },
   wk0615: { label:'W3 · 6/15–6/21', dates: isoRange('2026-06-15','2026-06-21'), pool: 800000, unsettled:true },
   wk0622: { label:'W4 · 6/22–6/28', dates: isoRange('2026-06-22','2026-06-28'), pool: 900000, unsettled:true },
   wk0629: { label:'W5 · 6/29–7/6',  dates: isoRange('2026-06-29','2026-07-06'), pool: 1000000, unsettled:true },
 };
 const WARM_END = '2026-06-05';              // 截至此日为热身日
-const BUILD_VER = 'v20';                     // ⚠️ 与 index.html 里 settlement.html?v=XX 保持一致；改完页面就两边一起 +1
+const BUILD_VER = 'v23';                     // ⚠️ 与 index.html 里 settlement.html?v=XX 保持一致；改完页面就两边一起 +1
 const isWarm = d => d <= WARM_END;
 
 function norm(vc){ if(!vc) return ''; try{ return vc.normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim(); }catch(e){ return String(vc).toUpperCase().trim(); } }
@@ -1152,13 +1152,13 @@ function flagArchiveDupes(m){
   if(applied){ // 未结算周：已临时剔除
     head=en?('⚠️ <b>'+m.label+'</b>: archive contains '+d.length+' duplicate rider entries (point inflation). ')
            :('⚠️ <b>'+m.label+'</b>：算分存档检出 '+d.length+' 条重复骑手（刷分）。');
-    body=en?('Auto-removed in this (unsettled) calculation to avoid inflating pool/points (~'+inflate.toLocaleString()+' pts). Offenders: '+offenders+'. This is a temporary guard — regenerate this match on the scoring page to fix at the source, then settle.')
-           :('本周未结算，已在本次测算中<b>临时剔除</b>避免虚增池/积分（约 '+inflate.toLocaleString()+' 分）。涉及：'+offenders+'。这是临时防线，请回算分页<b>重新生成本场</b>从源头修正后再结算。');
+    body=en?('Auto-removed in this (unsettled) calculation by "earliest registration wins". Offenders: '+offenders+'. This is a temporary guard — regenerate this match on the scoring page to fix at the source, then settle.')
+           :('本周未结算，已在本次测算中按「最早报名为准」<b>临时剔除</b>重复。涉及：'+offenders+'。这是临时防线，请回算分页<b>重新生成本场</b>从源头修正后再结算。');
   } else { // 已结算周：只提醒，不改数
     head=en?('🔴 <b>'+m.label+'</b> is SETTLED, but its archive contains '+d.length+' duplicate rider entries (point inflation). ')
            :('🔴 <b>'+m.label+'</b> 已结算，但算分存档检出 '+d.length+' 条重复骑手（刷分）。');
-    body=en?('The already-settled pool/points may be overstated (~'+inflate.toLocaleString()+' pts). This page does NOT change settled figures. Offenders: '+offenders+'. To correct: unsettle → regenerate on scoring page → re-settle.')
-           :('当前<b>已结算</b>的池/积分可能被虚增（约 '+inflate.toLocaleString()+' 分）。本页<b>未改动已结算数字</b>。涉及：'+offenders+'。修正方式：撤销结算 → 回算分页重新生成 → 重新结算。');
+    body=en?('Archive contains duplicate registration records. This page does NOT change settled figures. Offenders: '+offenders+'. To correct: unsettle → regenerate on scoring page → re-settle.')
+           :('存档含重复报名记录。本页<b>未改动已结算数字</b>。涉及：'+offenders+'。如需修正：撤销结算 → 回算分页重新生成 → 重新结算。');
   }
   action='<span class="adlink" onclick="downloadArchiveDupesCSV()">⬇️ '+(en?'Download duplicate detail CSV':'下载存档刷分明细 CSV')+'</span>';
   w.style.display='block';
@@ -1316,11 +1316,15 @@ function downloadCheatVendorCSV(){
   a.download='刷分供应商汇总_'+new Date().toISOString().slice(0,10)+'.csv';
   document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(function(){URL.revokeObjectURL(a.href);},1000);
 }
-function showWeek(k){ window.__curWk=k; var m=getM(k); renderAll(m); flagUnsettled(m); flagArchiveDupes(m); reportH(); setTimeout(reportH,400); setTimeout(reportH,1200); }
-async function boot(){ setBanner('⏳ 正在连接数据库并现算…','warn'); try{ await fetchBlocks(); var sel=document.getElementById('wkSel'); sel.innerHTML=''; Object.keys(WEEK_DEFS).forEach(function(k){ var o=document.createElement('option'); o.value=k; o.textContent=WEEK_DEFS[k].label; sel.appendChild(o); }); sel.value='wk0601'; sel.addEventListener('change',function(e){ showWeek(e.target.value); });
+function selfCheckWeek(k){ try{ var W=WEEK_DEFS[k]||{}; var pool=W.pool||0; var wname=(W.label||k).split(' ')[0]; var m=getM(k); var d=m.vendor_pool.distributed; var ok=Math.abs(d-pool)<1; if(ok) setBanner(SLANG==='en'?('🟢 Self-check OK · '+wname+' pool fully distributed = '+pool.toLocaleString()+' · engine OK (note: live totals shift with clears/scope changes, which is normal)'):('🟢 自检通过 · '+wname+' 奖金池分配合计 = '+pool.toLocaleString()+' · 引擎正常（注：现算总分会随清零/口径调整而变动，属正常）'),'ok'); else setBanner(SLANG==='en'?('🔴 Self-check anomaly: '+wname+' pool distributed = '+d.toLocaleString()+' ≠ '+pool.toLocaleString()):('🔴 自检异常：'+wname+' 奖金池分配 = '+d.toLocaleString()+'，不等于 '+pool.toLocaleString()),'bad'); }catch(e){ setBanner('🔴 '+e.message,'bad'); } }
+function selfCheckW1(){ return selfCheckWeek('wk0601'); }
+function _dashTodayISO(){ try{ var d=new Date(); return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }catch(e){ return ''; } }
+function _defaultWeekKey(){ var t=_dashTodayISO(); var keys=Object.keys(WEEK_DEFS); for(var i=0;i<keys.length;i++){ if((WEEK_DEFS[keys[i]].dates||[]).indexOf(t)>=0) return keys[i]; } return keys[keys.length-1]; }
+function showWeek(k){ window.__curWk=k; var m=getM(k); selfCheckWeek(k); renderAll(m); flagUnsettled(m); flagArchiveDupes(m); reportH(); setTimeout(reportH,400); setTimeout(reportH,1200); }
+async function boot(){ setBanner('⏳ 正在连接数据库并现算…','warn'); try{ await fetchBlocks(); var sel=document.getElementById('wkSel'); sel.innerHTML=''; Object.keys(WEEK_DEFS).forEach(function(k){ var o=document.createElement('option'); o.value=k; o.textContent=WEEK_DEFS[k].label; sel.appendChild(o); }); var _dw=_defaultWeekKey(); sel.value=_dw; sel.addEventListener('change',function(e){ showWeek(e.target.value); });
   var initLang='zh'; try{ initLang=localStorage.getItem('didi_dash_lang')||localStorage.getItem('didi_lang')||'zh'; }catch(e){}
   if(typeof applySettleLang==='function'){ SLANG=(initLang==='zh')?'zh':'en'; try{document.body.setAttribute('data-lang',SLANG);}catch(_){ } }
-  selfCheckW1(); window.__curWk='wk0601'; showWeek('wk0601'); goScreen('ov');
+  window.__curWk=_dw; showWeek(_dw); goScreen('ov');
   if(typeof applySettleLang==='function' && SLANG==='en'){ applySettleLang('en'); }
   }catch(e){ setBanner('🔴 '+( (typeof SLANG!=='undefined'&&SLANG==='en')?'DB load failed: ':'读取数据库失败：')+e.message,'bad'); reportH(); console.error(e); }
 }
