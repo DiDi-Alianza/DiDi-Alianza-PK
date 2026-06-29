@@ -166,41 +166,6 @@ tr:hover td{background:rgba(255,255,255,.02)}
 <script>
 // 结算页中→英词典（英文展示用）。渲染后对容器做"中文段替换"，按长度从长到短，保留数字与标记。
 var ZH2EN = {
-  "成本总览导出":"Cost Overview Export",
-  "两口径成本对照":"Two-Basis Cost Comparison",
-  "本周总成本汇总":"This Week Total Cost Summary",
-  "业务量 & 待定":"Volume & Pending",
-  "预算进度":"Budget Progress",
-  "成本 · 按城市":"Cost · By City",
-  "已结算·实付口径":"Settled · cash basis",
-  "未结算·计提暂估":"Unsettled · accrual estimate",
-  "比索/单":"pesos/order",
-  "周代码":"Week code",
-  "数值(比索)":"Value (pesos)",
-  "奖金池(当周)":"Pool (this week)",
-  "本周已批兑付":"approved & paid this week",
-  "骑手可在 7/15 前任意时点兑":"riders may redeem anytime before 7/15",
-  "待审批兑付(比索)":"Pending payout (pesos)",
-  "分 · 待审批":"pts · pending",
-  "本周实付兑现(比索)":"Cash paid this week (pesos)",
-  "实付单均":"cash per-order",
-  "计提成本(权责发生制)":"Accrual cost (accrual basis)",
-  "实付成本(收付实现制)":"Cash cost (cash basis)",
-  "积分计提/已批兑付":"Points accrual / approved payout",
-  "奖金池单均":"Pool per-order",
-  "兑换单均(累计)":"Redemption per-order (cum.)",
-  "累计兑付÷累计完单":"cumulative payout ÷ cumulative orders",
-  "下周一批准后转实付":"becomes cash after Monday approval",
-  "已用(比索)":"Used (pesos)",
-  "总额(比索)":"Total (pesos)",
-  "骑手积分·已兑付":"Rider points · paid",
-  "骑手积分·满兑负债":"Rider points · full-redemption liability",
-  "预算总额":"Budget total",
-  "周已结算":"weeks settled",
-  "本周暂无完单数据":"no order data this week yet",
-  "人在线":" riders online",
-  "人均在线":"avg online ",
-  "小时/天":" hrs/day",
   "这周实际批准兑付出去的现金":"Cash actually approved and paid out this week",
   "等你周一批准转现金的部分":"awaiting your Monday approval to become cash",
   "下周一审批兑换后切换为":"after next Monday's redemption approval switches to",
@@ -278,7 +243,6 @@ var ZH2EN = {
   "导出成本总览CSV":"Export Cost Overview CSV",
   "导出本周成本CSV":"Export This Week's Cost CSV",
   "导出累计成本CSV":"Export Cumulative Cost CSV",
-  "导出累计·仅已结算周CSV":"Export Cumulative · Settled Weeks Only CSV",
   "导出全部":"Export all",
   "已批兑付":"approved payout",
   "总成本按":"total cost by",
@@ -422,14 +386,14 @@ const MATCH_DATE = { '102':'2026-06-01','103':'2026-06-02','104':'2026-06-03','1
 // 周定义：日期范围 + 热身判定（6/1–6/5 为热身：全员基础分；6/6 起为正式：仅获胜队）
 function isoRange(a,b){const o=[];let d=new Date(a+'T00:00:00');const e=new Date(b+'T00:00:00');while(d<=e){o.push(d.toISOString().slice(0,10));d.setDate(d.getDate()+1);}return o;}
 const WEEK_DEFS = {
-  wk0601: { label:'W1 · 6/1–6/7',   dates: isoRange('2026-06-01','2026-06-07'), pool: 600000, unsettled:true },
+  wk0601: { label:'W1 · 6/1–6/7',   dates: isoRange('2026-06-01','2026-06-07'), pool: 600000 },
   wk0608: { label:'W2 · 6/8–6/14',  dates: isoRange('2026-06-08','2026-06-14'), pool: 700000, unsettled:true },
   wk0615: { label:'W3 · 6/15–6/21', dates: isoRange('2026-06-15','2026-06-21'), pool: 800000, unsettled:true },
   wk0622: { label:'W4 · 6/22–6/28', dates: isoRange('2026-06-22','2026-06-28'), pool: 900000, unsettled:true },
   wk0629: { label:'W5 · 6/29–7/6',  dates: isoRange('2026-06-29','2026-07-06'), pool: 1000000, unsettled:true },
 };
 const WARM_END = '2026-06-05';              // 截至此日为热身日
-const BUILD_VER = 'v26';                     // ⚠️ 与 index.html 里 settlement.html?v=XX 保持一致；改完页面就两边一起 +1
+const BUILD_VER = 'v20';                     // ⚠️ 与 index.html 里 settlement.html?v=XX 保持一致；改完页面就两边一起 +1
 const isWarm = d => d <= WARM_END;
 
 function norm(vc){ if(!vc) return ''; try{ return vc.normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim(); }catch(e){ return String(vc).toUpperCase().trim(); } }
@@ -552,9 +516,9 @@ function buildM(weekKey){
   const dset = new Set(dates);
   const last8 = buildRiderVendor();
   const curp = RAW.curp_map || {};
-  // 存档查重防线：所有周（已结算/未结算）都用去重后的存档计算，保证分配口径始终干净一致。
+  // 存档查重防线：未结算周套用去重后的存档（防止虚增的钱发出去）；已结算周只检测、不改已结算数字。
   const _saAudit = dedupArchiveRiders(RAW.score_archive || {});
-  const sa = _saAudit.clean;
+  const sa = unsettled ? _saAudit.clean : (RAW.score_archive || {});
   const rmMap = RAW.vendor_rm || {};
   const rmvm = RAW.vendor_rmvm || {};
   const roster = RAW.vendor_roster || {};
@@ -588,7 +552,7 @@ function buildM(weekKey){
       if(p!==0||od!==0||h!==0){ dayActive[d].active++; anyAct=true; }
       dayActive[d].orders+=od; dayActive[d].hr+=h;
       if(vc){
-        if(baseDay(d)){ add(daily,vc,p); ensurePD(vc,d); perday[vc][d]+=p; }
+        if(baseDay(d)){ const pp=(p>0?p:0); add(daily,vc,pp); ensurePD(vc,d); perday[vc][d]+=pp; }  /* 负分不进池：骑手当日基础分<0按0计 */
         add(orders,vc,od); add(hr,vc,h);
       }
     });
@@ -606,8 +570,9 @@ function buildM(weekKey){
       if(win){ add(won,vc,1); pkByDay[d].wins++;
         (t.riders||[]).forEach(r=>{ if(!r) return;
           const nt=+(r.normal_total||0), pb=+(r.pk_bonus||0);
+          const ntp=(nt>0?nt:0);  /* 负分不进池：骑手当日基础分<0按0计；PK奖励本就≥0 */
           add(pk,vc,pb); ensurePD(vc,d); perday[vc][d]+=pb;
-          if(!isWarm(d)){ add(daily,vc,nt); perday[vc][d]+=nt; }
+          if(!isWarm(d)){ add(daily,vc,ntp); perday[vc][d]+=ntp; }
         });
       }
     });
@@ -616,8 +581,8 @@ function buildM(weekKey){
   // 汇总
   const vset = new Set([...Object.keys(daily),...Object.keys(pk),...Object.keys(played)]);
   const totalRaw = {}; vset.forEach(v=>totalRaw[v]=(daily[v]||0)+(pk[v]||0));
-  const grand = Object.values(totalRaw).reduce((a,b)=>a+b,0) || 1;   // 含负：仅作"周总分"展示口径
-  // 负分兜底→0 后按占比分配（分母用兜底后合计，保证占比之和=100%、合计=池）
+  const grand = Object.values(totalRaw).reduce((a,b)=>a+b,0) || 1;   // 已在骑手层负分按0计，故此处非负（=周总分）
+  // 负分兜底→0（骑手层已截断，此处为Vendor层双保险）后按占比分配（分母用兜底后合计，保证占比之和=100%、合计=池）
   const totalFloor={}; vset.forEach(v=>totalFloor[v]=Math.max(0,totalRaw[v]));
   const grandFloor = Object.values(totalFloor).reduce((a,b)=>a+b,0) || 1;
   const eligible=[...vset].filter(v=>totalFloor[v]>0);
@@ -820,7 +785,7 @@ function buildM(weekKey){
     rm, riders: riders, pk: pkAgg,
     data_quality: { raw_vendor_codes: vset.size, merged_vendors: merged, dup_groups: 0, negative_vendors: negative, unmapped_rm },
     archiveDupes: _saAudit.dupes.filter(x=> wkMatches.indexOf(String(x.match))>=0),
-    archiveDupApplied: true,
+    archiveDupApplied: unsettled,
     pending: { exchange:'待兑换申请数据', pt:'待PT计价与数据' }
   };
 }
@@ -866,8 +831,7 @@ function renderOv(M){
          <div style="font-size:11.5px;color:var(--mut);margin-top:3px">${cm.settled?'= 奖金池 '+money(cm.pool)+' + 实付兑换 '+money(cm.cash.redeem):'= 奖金池 '+money(cm.pool)+' + 积分计提 '+money(cm.accrual.pts_cost)}</div></div>
        <div style="text-align:right"><div style="font-size:11px;color:var(--mut2)">总单均</div><div class="big" style="font-size:24px">${cpoFmt(mainCpo)}</div><div style="font-size:11px;color:var(--mut2)">比索/单</div>
          <button class="dlbtn" style="float:none;margin-top:10px" onclick="exportCostOverviewCSV()">⬇️ 导出本周成本CSV</button>
-         <button class="dlbtn" style="float:none;margin-top:6px" onclick="exportCumulativeCostCSV()">⬇️ 导出累计成本CSV</button>
-         <button class="dlbtn" style="float:none;margin-top:6px" onclick="exportCumulativeCostCSV(true)">⬇️ 导出累计·仅已结算周CSV</button></div>
+         <button class="dlbtn" style="float:none;margin-top:6px" onclick="exportCumulativeCostCSV()">⬇️ 导出累计成本CSV</button></div>
      </div>
      <div style="font-size:11.5px;color:var(--mut2);margin-top:10px;line-height:1.6">${cm.settled?'本周兑换已审批定案，总成本按<b>实际兑付</b>口径。':'本周未结算：总成本先按<b>计提</b>（权责发生制）暂估，下周一审批兑换后切换为<b>实付</b>口径定案。'}</div>
      ${!cm.settled?`<div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--bd,#333)"><button onclick="window.settleWeek('${M.week}','${M.label}')" style="padding:10px 20px;border:none;border-radius:8px;background:#0A8A4A;color:#fff;font-weight:800;font-size:13px;cursor:pointer">✅ 确认结算本周（${M.label}）</button><span style="font-size:11px;color:var(--mut2);margin-left:10px">确认后状态变为「🟢 已结算」，成本切换为实付口径定案</span></div>`:'<div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--bd,#333)"><button onclick="window.unsettleWeek(\''+M.week+'\',\''+M.label+'\')" style="padding:7px 14px;border:1px solid #aaa;border-radius:8px;background:transparent;color:var(--mut);font-size:11px;cursor:pointer">↩ 撤销本周结算</button></div>'}
@@ -1061,57 +1025,53 @@ function exportCostOverviewCSV(){
   const ctCpo=ct.orders?((ct.alloc+ct.pts_cost)/ct.orders):null;
   row(['合计', ct.vendors, ri(ct.riders), ri(ct.orders), ri(ct.alloc), ri(ct.pts_cost), ri(ct.redeem), ri(ct.alloc+ct.pts_cost+ct.redeem), r2(ctCpo)]);
 
-  const _en=(typeof SLANG!=='undefined'&&SLANG==='en');
-  const csv='\ufeff'+(_en?lines.map(translateZH):lines).join('\r\n');  // BOM 防 Excel 中文乱码；英文界面整体翻译
+  const csv='\ufeff'+lines.join('\r\n');  // BOM 防 Excel 中文乱码
   const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-  a.download=(M.week||'week')+(_en?('_CostOverview_'+(cm.settled?'cash':'accrual')):('_成本总览_'+(cm.settled?'实付':'计提')))+'.csv';
+  a.download=(M.week||'week')+'_成本总览_'+(cm.settled?'实付':'计提')+'.csv';
   document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
-function exportCumulativeCostCSV(settledOnly){
+function exportCumulativeCostCSV(){
   if(typeof WEEK_DEFS==='undefined'){ return; }
   const esc=v=>{ const s=String(v==null?'':v); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
   const ri=n=>(n==null?'':Math.round(n));
   const r2=n=>(n==null?'':(Math.round(n*100)/100).toFixed(2));
   const lines=[];
-  const en=(typeof SLANG!=='undefined'&&SLANG==='en');
-  const T=(zh,enS)=>en?enS:zh;
-  const sec=t=>{ lines.push(''); lines.push(esc((en?'[ ':'【')+t+(en?' ]':'】'))); };
+  const sec=t=>{ lines.push(''); lines.push(esc('【'+t+'】')); };
   const row=arr=>lines.push(arr.map(esc).join(','));
-  const cityName=k=>{ if(!en) return k; if(k==='其它') return 'Other'; return k; };
 
   // 逐周取模型（getM 带缓存）；累计成本只计「已发生」的周——有完单或已结算，
   // 否则未来周的计划奖金池会把累计成本虚高
   const wkKeys=Object.keys(WEEK_DEFS);
   const allModels=wkKeys.map(k=>{ try{ return getM(k); }catch(e){ return null; } }).filter(Boolean);
-  const models=allModels.filter(M=> settledOnly ? (M.costModel&&M.costModel.settled) : ((M.cpo&&M.cpo.orders>0) || (M.costModel&&M.costModel.settled)));
-  if(!models.length){ alert(settledOnly?(en?'No settled weeks yet.':'还没有已结算的周。'):(en?'No elapsed weeks yet.':'还没有已发生的周。')); return; }
+  const models=allModels.filter(M=>((M.cpo&&M.cpo.orders>0) || (M.costModel&&M.costModel.settled)));
+  if(!models.length){ return; }
   const skipped=allModels.length-models.length;
 
-  row([T('DiDi Alianza · 累计成本导出'+(settledOnly?'（仅已结算周）':''),'DiDi Alianza · Cumulative Cost Export'+(settledOnly?' (Settled weeks only)':''))]);
-  row([T('生成时间','Generated'), (models[0]&&models[0].generated)||'', T('已发生周数','Weeks elapsed'), models.length, T('口径','Basis'), T('逐周自动取（已结算→实付 / 未结算→计提暂估）','Auto per week (Settled→Cash actual / Unsettled→Accrual estimate)')]);
-  if(skipped>0) row([T('注','Note'), settledOnly ? T('仅含已结算周；已排除 '+skipped+' 个未结算/进行中的周。','Settled weeks only; excluded '+skipped+' unsettled / in-progress week(s).') : T('已跳过 '+skipped+' 个尚无完单数据的未来周（计划奖金池未发生，不计入累计成本）','Skipped '+skipped+' future week(s) with no order data yet (planned pool not incurred, excluded).')]);
+  row(['DiDi Alianza · 累计成本导出']);
+  row(['生成时间', (models[0]&&models[0].generated)||'', '已发生周数', models.length, '口径', '逐周自动取（已结算→实付 / 未结算→计提暂估）']);
+  if(skipped>0) row(['注', '已跳过 '+skipped+' 个尚无完单数据的未来周（计划奖金池未发生，不计入累计成本）']);
 
   // ① 各周成本汇总 + 累计合计
-  sec(T('各周成本汇总','Weekly Cost Summary'));
-  row([T('周','Week'),T('区间','Period'),T('结算状态','Status'),T('主口径总成本','Total Cost (primary)'),T('奖金池','Pool'),T('实付兑换','Cash Redemption'),T('积分计提','Points Accrual'),T('计提总成本','Accrual Total Cost'),T('实付总成本','Cash Total Cost'),T('本周完单','Orders'),T('主口径单均','Per-Order (primary)')]);
+  sec('各周成本汇总');
+  row(['周','区间','结算状态','主口径总成本','奖金池','实付兑换','积分计提','计提总成本','实付总成本','本周完单','主口径单均']);
   const cum={pool:0,redeem:0,accrual_pts:0,accrual_total:0,cash_total:0,orders:0,main_total:0};
   models.forEach(M=>{
     const cm=M.costModel, orders=M.cpo.orders||0;
     const mainTotal=cm.main_total, mainCpo=cm.settled?cm.cash.cpo:cm.accrual.cpo;
     const lbl=M.label.split('·'), wk=(lbl[0]||M.week).trim(), rng=(lbl[1]||'').trim();
-    row([wk, rng, cm.settled?T('已结算','Settled'):T('未结算','Unsettled'), ri(mainTotal), ri(cm.pool), ri(cm.cash.redeem), ri(cm.accrual.pts_cost), ri(cm.accrual.total), ri(cm.cash.total), ri(orders), r2(mainCpo)]);
+    row([wk, rng, cm.settled?'已结算':'未结算', ri(mainTotal), ri(cm.pool), ri(cm.cash.redeem), ri(cm.accrual.pts_cost), ri(cm.accrual.total), ri(cm.cash.total), ri(orders), r2(mainCpo)]);
     cum.pool+=cm.pool||0; cum.redeem+=cm.cash.redeem||0; cum.accrual_pts+=cm.accrual.pts_cost||0;
     cum.accrual_total+=cm.accrual.total||0; cum.cash_total+=cm.cash.total||0; cum.orders+=orders; cum.main_total+=mainTotal||0;
   });
   const cumCpo=cum.orders?cum.main_total/cum.orders:null;
-  row([T('累计合计','Cumulative Total'),'—','—', ri(cum.main_total), ri(cum.pool), ri(cum.redeem), ri(cum.accrual_pts), ri(cum.accrual_total), ri(cum.cash_total), ri(cum.orders), r2(cumCpo)]);
+  row(['累计合计','—','—', ri(cum.main_total), ri(cum.pool), ri(cum.redeem), ri(cum.accrual_pts), ri(cum.accrual_total), ri(cum.cash_total), ri(cum.orders), r2(cumCpo)]);
   lines.push('');
-  row([T('说明：主口径总成本 = 各周界面头部显示的总成本（已结算按实付、未结算按计提暂估）。累计单均 = 累计主口径总成本 ÷ 累计完单。','Note: Primary-basis total cost = the total shown in each week\u2019s header (Settled = cash actual, Unsettled = accrual estimate). Cumulative per-order = cumulative primary-basis total cost \u00f7 cumulative orders.')]);
+  row(['说明：主口径总成本 = 各周界面头部显示的总成本（已结算按实付、未结算按计提暂估）。累计单均 = 累计主口径总成本 ÷ 累计完单。']);
 
   // ② 累计成本 · 按城市（跨周汇总）
-  sec(T('累计成本 · 按城市','Cumulative Cost · By City'));
-  row([T('城市','City'),T('完单','Orders'),T('奖金池','Pool'),T('积分成本','Points Cost'),T('兑换成本','Redemption Cost'),T('累计总成本','Cumulative Total Cost'),T('累计单均','Per-Order')]);
+  sec('累计成本 · 按城市');
+  row(['城市','完单','奖金池','积分成本','兑换成本','累计总成本','累计单均']);
   const cityAgg={};
   models.forEach(M=>{
     (M.by_city||[]).forEach(c2=>{
@@ -1124,18 +1084,18 @@ function exportCumulativeCostCSV(settledOnly){
   const ct={orders:0,alloc:0,pts_cost:0,redeem:0};
   cityRows.forEach(a=>{
     const tot=a.alloc+a.pts_cost+a.redeem, cpo=a.orders?tot/a.orders:null;
-    row([cityName(a.city), ri(a.orders), ri(a.alloc), ri(a.pts_cost), ri(a.redeem), ri(tot), r2(cpo)]);
+    row([a.city, ri(a.orders), ri(a.alloc), ri(a.pts_cost), ri(a.redeem), ri(tot), r2(cpo)]);
     ct.orders+=a.orders; ct.alloc+=a.alloc; ct.pts_cost+=a.pts_cost; ct.redeem+=a.redeem;
   });
   const ctTot=ct.alloc+ct.pts_cost+ct.redeem, ctCpo=ct.orders?ctTot/ct.orders:null;
-  row([T('合计','Total'), ri(ct.orders), ri(ct.alloc), ri(ct.pts_cost), ri(ct.redeem), ri(ctTot), r2(ctCpo)]);
+  row(['合计', ri(ct.orders), ri(ct.alloc), ri(ct.pts_cost), ri(ct.redeem), ri(ctTot), r2(ctCpo)]);
   lines.push('');
-  row([T('说明：按城市累计总成本 = 各周奖金池 + 积分成本 + 兑换成本 跨周相加；兑换成本经 rider_id 反查 vendor 归集到城市。','Note: Cumulative total cost by city = sum across weeks of (pool + points cost + redemption cost); redemption cost attributed to city via rider_id \u2192 vendor lookup.')]);
+  row(['说明：按城市累计总成本 = 各周奖金池 + 积分成本 + 兑换成本 跨周相加；兑换成本经 rider_id 反查 vendor 归集到城市。']);
 
   const csv='\ufeff'+lines.join('\r\n');
   const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-  a.download=(en?('Cumulative_Cost_'+(settledOnly?'Settled_':'')):('累计成本_'+(settledOnly?'已结算':'共')))+models.length+(en?'weeks':'周')+'.csv';
+  a.download='累计成本_共'+models.length+'周.csv';
   document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
 function renderPts(M){
@@ -1193,13 +1153,13 @@ function flagArchiveDupes(m){
   if(applied){ // 未结算周：已临时剔除
     head=en?('⚠️ <b>'+m.label+'</b>: archive contains '+d.length+' duplicate rider entries (point inflation). ')
            :('⚠️ <b>'+m.label+'</b>：算分存档检出 '+d.length+' 条重复骑手（刷分）。');
-    body=en?('All calculations auto-remove duplicates by "earliest registration wins"; settled/distributed figures are unaffected. Offenders: '+offenders+'. Download the detail for vendor accountability.')
-           :('所有计算已按「最早报名为准」<b>自动剔除重复</b>，<b>不影响结算/分配数字</b>。涉及：'+offenders+'。下载明细可用于 vendor 问责。');
+    body=en?('Auto-removed in this (unsettled) calculation to avoid inflating pool/points (~'+inflate.toLocaleString()+' pts). Offenders: '+offenders+'. This is a temporary guard — regenerate this match on the scoring page to fix at the source, then settle.')
+           :('本周未结算，已在本次测算中<b>临时剔除</b>避免虚增池/积分（约 '+inflate.toLocaleString()+' 分）。涉及：'+offenders+'。这是临时防线，请回算分页<b>重新生成本场</b>从源头修正后再结算。');
   } else { // 已结算周：只提醒，不改数
     head=en?('🔴 <b>'+m.label+'</b> is SETTLED, but its archive contains '+d.length+' duplicate rider entries (point inflation). ')
            :('🔴 <b>'+m.label+'</b> 已结算，但算分存档检出 '+d.length+' 条重复骑手（刷分）。');
-    body=en?('Archive contains duplicate registration records. This page does NOT change settled figures. Offenders: '+offenders+'. To correct: unsettle → regenerate on scoring page → re-settle.')
-           :('存档含重复报名记录。本页<b>未改动已结算数字</b>。涉及：'+offenders+'。如需修正：撤销结算 → 回算分页重新生成 → 重新结算。');
+    body=en?('The already-settled pool/points may be overstated (~'+inflate.toLocaleString()+' pts). This page does NOT change settled figures. Offenders: '+offenders+'. To correct: unsettle → regenerate on scoring page → re-settle.')
+           :('当前<b>已结算</b>的池/积分可能被虚增（约 '+inflate.toLocaleString()+' 分）。本页<b>未改动已结算数字</b>。涉及：'+offenders+'。修正方式：撤销结算 → 回算分页重新生成 → 重新结算。');
   }
   action='<span class="adlink" onclick="downloadArchiveDupesCSV()">⬇️ '+(en?'Download duplicate detail CSV':'下载存档刷分明细 CSV')+'</span>';
   w.style.display='block';
@@ -1357,15 +1317,11 @@ function downloadCheatVendorCSV(){
   a.download='刷分供应商汇总_'+new Date().toISOString().slice(0,10)+'.csv';
   document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(function(){URL.revokeObjectURL(a.href);},1000);
 }
-function selfCheckWeek(k){ try{ var W=WEEK_DEFS[k]||{}; var pool=W.pool||0; var wname=(W.label||k).split(' ')[0]; var m=getM(k); var d=m.vendor_pool.distributed; if((d||0)<1){ setBanner(SLANG==='en'?('🟡 '+wname+': no scores distributed yet — pool not allocated (week not started / no PK data yet, normal).'):('🟡 '+wname+'：本周尚无算分，奖金池暂未分配（本周还没开始/还没上传PK数据，属正常）。'),'warn'); return; } var ok=Math.abs(d-pool)<1; if(ok) setBanner(SLANG==='en'?('🟢 Self-check OK · '+wname+' pool fully distributed = '+pool.toLocaleString()+' · engine OK (note: live totals shift with clears/scope changes, which is normal)'):('🟢 自检通过 · '+wname+' 奖金池分配合计 = '+pool.toLocaleString()+' · 引擎正常（注：现算总分会随清零/口径调整而变动，属正常）'),'ok'); else setBanner(SLANG==='en'?('🔴 Self-check anomaly: '+wname+' pool distributed = '+d.toLocaleString()+' ≠ '+pool.toLocaleString()):('🔴 自检异常：'+wname+' 奖金池分配 = '+d.toLocaleString()+'，不等于 '+pool.toLocaleString()),'bad'); }catch(e){ setBanner('🔴 '+e.message,'bad'); } }
-function selfCheckW1(){ return selfCheckWeek('wk0601'); }
-function _dashTodayISO(){ try{ var d=new Date(); return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }catch(e){ return ''; } }
-function _defaultWeekKey(){ var t=_dashTodayISO(); var keys=Object.keys(WEEK_DEFS); for(var i=0;i<keys.length;i++){ if((WEEK_DEFS[keys[i]].dates||[]).indexOf(t)>=0) return keys[i]; } return keys[keys.length-1]; }
-function showWeek(k){ window.__curWk=k; var m=getM(k); selfCheckWeek(k); renderAll(m); flagUnsettled(m); flagArchiveDupes(m); reportH(); setTimeout(reportH,400); setTimeout(reportH,1200); }
-async function boot(){ setBanner('⏳ 正在连接数据库并现算…','warn'); try{ await fetchBlocks(); var sel=document.getElementById('wkSel'); sel.innerHTML=''; Object.keys(WEEK_DEFS).forEach(function(k){ var o=document.createElement('option'); o.value=k; o.textContent=WEEK_DEFS[k].label; sel.appendChild(o); }); var _dw=_defaultWeekKey(); sel.value=_dw; sel.addEventListener('change',function(e){ showWeek(e.target.value); });
+function showWeek(k){ window.__curWk=k; var m=getM(k); renderAll(m); flagUnsettled(m); flagArchiveDupes(m); reportH(); setTimeout(reportH,400); setTimeout(reportH,1200); }
+async function boot(){ setBanner('⏳ 正在连接数据库并现算…','warn'); try{ await fetchBlocks(); var sel=document.getElementById('wkSel'); sel.innerHTML=''; Object.keys(WEEK_DEFS).forEach(function(k){ var o=document.createElement('option'); o.value=k; o.textContent=WEEK_DEFS[k].label; sel.appendChild(o); }); sel.value='wk0601'; sel.addEventListener('change',function(e){ showWeek(e.target.value); });
   var initLang='zh'; try{ initLang=localStorage.getItem('didi_dash_lang')||localStorage.getItem('didi_lang')||'zh'; }catch(e){}
   if(typeof applySettleLang==='function'){ SLANG=(initLang==='zh')?'zh':'en'; try{document.body.setAttribute('data-lang',SLANG);}catch(_){ } }
-  window.__curWk=_dw; showWeek(_dw); goScreen('ov');
+  selfCheckW1(); window.__curWk='wk0601'; showWeek('wk0601'); goScreen('ov');
   if(typeof applySettleLang==='function' && SLANG==='en'){ applySettleLang('en'); }
   }catch(e){ setBanner('🔴 '+( (typeof SLANG!=='undefined'&&SLANG==='en')?'DB load failed: ':'读取数据库失败：')+e.message,'bad'); reportH(); console.error(e); }
 }
